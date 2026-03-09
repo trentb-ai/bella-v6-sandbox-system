@@ -1,0 +1,95 @@
+{
+  "stage_welcome": {
+    "text": "Hi {{first_name}} welcome to your agent demo, my name's Bella and I'm the Strategic Intel Director here at Pillar and Post.",
+    "fallbacks": []
+  },
+  "stage_website_positive": {
+    "text": "Now {{first_name}}, we've had a look at your site — {{website_positive_comment}}. I like your hero section — {{hero_header_quote}} — it grabs the attention.",
+    "fallbacks": ["Now {{first_name}}, we've had a look at your site — I like your hero section — {{hero_header_quote}} — it grabs the attention."]
+  },
+  "stage_deep_dive_offer_icp": {
+    "text": "And we've looked beyond the site, actually done quite a deep dive into {{business_name}}. We've looked at your offers — I like the {{offer_reference}}. We've analysed your market — looks like {{icp_guess}} is your ICP, would that be right?",
+    "fallbacks": ["And we've looked beyond the site, done quite a deep dive into {{business_name}}. We've analysed your market — what would you say your core ICP is?"]
+  },
+  "stage_ads_scan": {
+    "text_ads_detected": "We've scanned for your ads — noticed you have {{campaign_summary}}. Is that performing well?",
+    "text_no_ads": "We didn't see any big Facebook or Google campaigns — are you running any campaigns we may have missed? Or anything directing traffic to a landing page?",
+    "fallbacks": []
+  },
+  "stage_reputation_audit": {
+    "text": "And we've checked out your online rep — {{star_rating}} stars from {{review_count}} reviews. {{rep_commentary}}.",
+    "fallbacks": ["And we've checked out your online rep — {{star_rating}} stars from {{review_count}} reviews."]
+  },
+  "stage_explain_demo": {
+    "text": "We've used over 100 data points to pre-train your AI team so they deliver a demo tailored for your business. As you engage with each agent, you'll be able to roleplay one of your own new prospects and the agent will deal with you as if they're already working for {{business_name}}.",
+    "fallbacks": []
+  },
+  "stage_choice_work_out_opportunities": {
+    "text": "To save your time, it's my job to quickly crunch the numbers with you and recommend the agents — if any — that will bring in the most revenue for {{business_name}}. Based on our research, I can already see some high-value gaps. Would you like me to work out where your most lucrative opportunities are — or do you want to just jump in and explore the agents?",
+    "fallbacks": []
+  },
+  "stage_acv_question": {
+    "text": "The key number for this process is Annual Client Value — so we've got the average ACV for {{industry}} as {{acv_benchmark}}, but to be spot-on with calculating the likely revenue potential — can I ask what's the annual value of a new {{industry_term}} to {{business_name}}? Ballpark or average is fine.",
+    "fallbacks": ["Can I ask — what's the average annual value of a new client to {{business_name}}? Ballpark is perfectly fine."]
+  },
+  "stage_acv_ack": {
+    "text": "Got it, thanks.",
+    "fallbacks": []
+  },
+  "stage_running_ads_leads_question": {
+    "text": "Now {{first_name}}, I noticed you're running {{ads_platforms}} ads with {{offer_reference}}. How many leads are you getting from those ads each {{timeframe}}? Just a rough figure is fine.",
+    "fallbacks": ["How many leads are you getting from your ads each {{timeframe}}? Just a rough figure is fine."]
+  },
+  "stage_not_running_ads_question": {
+    "text": "I didn't see any Google or Facebook campaigns — is that right? Are you running any other online campaigns, or anything that directs traffic to a landing page?",
+    "fallbacks": []
+  },
+  "stage_follow_up_time_question": {
+    "text": "And can I ask — how long does it usually take someone to follow up with those new leads?",
+    "fallbacks": []
+  },
+  "stage_website_leads_question": {
+    "text": "Got it. And I see your website has {{top_2_website_ctas}}. How many leads are you getting from the site each {{timeframe}}? Again, rough figure is fine.",
+    "fallbacks": ["And how many leads do you get from your website each {{timeframe}}? Rough figure is fine."]
+  },
+  "stage_site_followup_rate_question": {
+    "text": "And a similar follow-up time to the ads?",
+    "fallbacks": []
+  },
+  "stage_inbound_calls_question": {
+    "text": "Obviously you have a team taking calls — presumably at the {{location}} office — can I ask, how many appointments or bookings are you getting from inbound calls each week?",
+    "fallbacks": ["How many appointments or bookings are you getting from inbound calls each week?"]
+  },
+  "stage_after_hours_question": {
+    "text": "And what happens to calls that come in after hours, on weekends, or when the team's too busy to answer?",
+    "fallbacks": []
+  },
+  "stage_last_two_questions_setup": {
+    "text": "OK, last two questions.",
+    "fallbacks": []
+  },
+  "stage_old_leads_question": {
+    "text": "So I see your business is {{years_in_business}} years old — I'm guessing you must have a pretty sizeable database of older leads. Can you tell me roughly how many old leads you have from the last 12 months?",
+    "fallbacks": ["Roughly how many older leads do you have from the last 12 months?"]
+  },
+  "stage_review_system_question": {
+    "text": "And finally {{first_name}} — I see you have {{star_rating}} stars from {{review_count}} reviews. Do you have any kind of system that consistently asks happy {{industry_term}} for a review after you've delivered for them?",
+    "fallbacks": ["Do you have any system for consistently asking happy clients for a review?"]
+  },
+  "stage_recommend_top_3": {
+    "text": "OK thanks {{first_name}}, that gives me a clear picture. Let me recommend the 3 agents that will deliver the highest ROI based on the gaps we see.\n\nSo the standout agent is {{agent_1}}. According to {{reference_source_1}}, {{benchmark_stat_1}}. Based on your flow of {{flow_1}} and your ACV of {{acv_value}}, I'd say conservatively they'll add about {{roi_1}} a {{timeframe}}. Definitely demo {{agent_1}} first.\n\nThen I'd recommend {{agent_2}}. Because {{benchmark_stat_2}}. Based on your numbers, that looks worth roughly {{roi_2}} a {{timeframe}}.\n\nAnd number three — {{agent_3}}. {{agent_3_why}}. Conservatively, that could be another {{roi_3}} a {{timeframe}}.",
+    "fallbacks": []
+  },
+  "stage_total_from_three": {
+    "text": "So across those three, you're looking at roughly {{total_roi}} a month, conservatively.",
+    "fallbacks": []
+  },
+  "stage_other_two_overview": {
+    "text": "The other two agents will definitely be helpful too — {{other_two_summary}}.",
+    "fallbacks": ["The other two agents are strong additions once you've tested the top three."]
+  },
+  "stage_trial_close_and_exit": {
+    "text": "I'll leave you to enjoy your demo. And just to make sure you see that these numbers are real — we're currently offering a free trial of the entire team for 7 days. I can get you onboarded myself right now, no card required. Based on these numbers you're looking at a bump of at least {{trial_week_bump}} just during your first free week.\n\nTo see it in action, you can go straight into demoing the highest-ROI agent — or we can skip straight to the free trial and get you set up now. What would you prefer?",
+    "fallbacks": []
+  }
+}

@@ -1,0 +1,44 @@
+MISSING DATA:
+- "Ballpark is perfectly fine."
+- "If you're not sure, a rough range is enough."
+- "I can keep that one directional unless you've got a rough number."
+
+UNCERTAIN ROI:
+- "I can see the opportunity clearly, but I'd keep that estimate directional until we confirm one or two numbers."
+- "That one looks real, but I wouldn't pretend it's precise without the baseline conversion number."
+
+CHANNEL TRANSITIONS:
+- "Got it."
+- "Makes sense."
+- "Perfect."
+- "And from ads?"
+- "And on the phone side?"
+- "What about older leads?"
+
+BENCHMARK PUSHBACK:
+- "I'd treat that as industry guidance, not a guarantee."
+- "The benchmark helps us size the opportunity, but I'd still keep the estimate conservative."
+
+INTERRUPTION RECOVERY:
+- "Of course — picking that back up, the one number I still need is..."
+- "No problem. The main thing I was trying to confirm there was..."
+
+DIRECTIONAL RECOMMENDATION:
+- "I'd treat that one as directional rather than exact until we've got a little more data."
+- "Strong opportunity, just not one I'd over-precision yet."
+
+ICP WRONG:
+- "Got it, I'll take note of that and update the team now."
+
+PROSPECT WANTS TO SKIP NUMBERS:
+- "No problem, just before you go, can I ask one quick question?"
+- Then proceed to ACV question as minimum viable anchor.
+
+FREE TRIAL LENGTH:
+- "We start it at 7 days — usually that's plenty to see real value."
+- "If you haven't seen strong additional revenue yet but we see solid growth in other numbers, we can extend to 14 days to be sure."
+
+CLOSE:
+- "The strongest next step is probably to demo the highest-ROI agent first."
+- "Or, if you'd rather, we can skip straight to the free trial and get you set up now. No card required. Set and forget."
+- "What would you prefer?"

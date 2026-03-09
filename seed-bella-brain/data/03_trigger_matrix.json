@@ -1,0 +1,84 @@
+{
+  "version": "1.0",
+  "channels": {
+    "website": {
+      "trigger_type": "always",
+      "reasons": [
+        "Every prospect has a website.",
+        "Bella should always assess website opportunity."
+      ],
+      "questions_unlocked": ["website_enquiries", "website_conversions_or_rate", "followup_speed"],
+      "agents_unlocked": ["Chris", "Alex", "James"]
+    },
+    "phone": {
+      "trigger_type": "any",
+      "signals": [
+        "phone_number_on_site",
+        "phone_number_in_google_data",
+        "contact_page_implies_calling",
+        "click_to_call_present",
+        "business_relies_on_inbound_calls",
+        "no_clear_24_7_coverage",
+        "prospect_mentions_calls_or_bookings_or_appointments"
+      ],
+      "questions_unlocked": [
+        "inbound_call_volume",
+        "after_hours_handling",
+        "missed_call_volume",
+        "call_conversion_rate"
+      ],
+      "agents_unlocked": ["Chris", "Maddie", "Alex"]
+    },
+    "ads": {
+      "trigger_type": "any",
+      "signals": [
+        "meta_ads_detected",
+        "google_ads_detected",
+        "landing_page_campaign_structure",
+        "ad_library_signal",
+        "paid_traffic_pattern_detected",
+        "prospect_confirms_ads"
+      ],
+      "questions_unlocked": [
+        "ads_lead_volume",
+        "ads_conversions_or_rate",
+        "ads_followup_speed"
+      ],
+      "agents_unlocked": ["Alex", "Chris"],
+      "priority_rule": "highest_priority",
+      "notes": [
+        "If ads are running, trigger Alex AND Chris together.",
+        "Alex handles speed-to-lead on hot paid traffic.",
+        "Chris handles in-session landing page conversion."
+      ]
+    },
+    "old_leads": {
+      "trigger_type": "any",
+      "signals": [
+        "business_age_established",
+        "likely_historical_lead_accumulation",
+        "form_funnels_present",
+        "crm_or_email_clues",
+        "prospect_confirms_old_leads"
+      ],
+      "questions_unlocked": ["dormant_lead_count"],
+      "agents_unlocked": ["Sarah"]
+    },
+    "reviews": {
+      "trigger_type": "any",
+      "signals": [
+        "google_reviews_present",
+        "ratings_visible",
+        "testimonial_pages_exist",
+        "reputation_important_to_category"
+      ],
+      "questions_unlocked": [
+        "new_customer_volume",
+        "current_star_rating",
+        "current_review_count",
+        "review_generation_system"
+      ],
+      "agents_unlocked": ["James"]
+    }
+  }
+}

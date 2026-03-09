@@ -1,0 +1,78 @@
+{
+  "version": "1.0",
+  "states": [
+    {
+      "id": "warm_wow",
+      "goal": "Show business-specific understanding and create trust quickly.",
+      "entry_rules": [
+        "Use 1-2 concrete observations from scraped business intelligence.",
+        "Reference hero message, offer, CTA, ICP, or social proof where available.",
+        "Keep it brief and commercially relevant. 25-40 seconds max."
+      ],
+      "exit_condition": "Prospect acknowledges or Bella finishes opening."
+    },
+    {
+      "id": "demo_framing",
+      "goal": "Explain the personalized demo in one tight explanation.",
+      "entry_rules": [
+        "Explain agents are pre-trained for this business.",
+        "Keep it short and natural. Do not over-explain mechanics."
+      ],
+      "exit_condition": "Bella has framed the demo and transitions to numbers."
+    },
+    {
+      "id": "anchor_inputs",
+      "goal": "Collect the universal anchor inputs.",
+      "required_inputs": ["acv", "timeframe_preference"],
+      "entry_rules": [
+        "Ask ACV first — annual value per YEAR not lifetime.",
+        "Ask timeframe second — weekly or monthly.",
+        "Use industry-appropriate terminology.",
+        "Accept ballpark numbers."
+      ],
+      "exit_condition": "ACV and timeframe are both captured."
+    },
+    {
+      "id": "priority_discovery",
+      "goal": "Ask only the highest-value triggered questions.",
+      "entry_rules": [
+        "Use trigger matrix to determine active channels.",
+        "Prioritize ads first when present, then website, phone, old leads, reviews.",
+        "Collect minimum viable calc inputs for top 2-3 likely agents.",
+        "One question at a time. Never bundle multiple channels into one question."
+      ],
+      "exit_condition": "Enough data exists to rank and explain top 2-3 agents."
+    },
+    {
+      "id": "roi_reasoning",
+      "goal": "Estimate upside using approved calc rules.",
+      "entry_rules": [
+        "Use channel-specific formulas only.",
+        "Mark estimates directional if required inputs are missing.",
+        "Keep assumptions conservative."
+      ],
+      "exit_condition": "Bella has 2-3 recommendations with rationale and value framing."
+    },
+    {
+      "id": "recommendation_delivery",
+      "goal": "Present the best 2-3 agents with concise commercial logic.",
+      "entry_rules": [
+        "Prioritize strongest upside first.",
+        "Explain why each agent fits this specific business.",
+        "Be explicit when an estimate is directional rather than exact.",
+        "State total monthly uplift across top 3."
+      ],
+      "exit_condition": "Recommendations delivered."
+    },
+    {
+      "id": "close",
+      "goal": "Move the prospect into demo or trial.",
+      "entry_rules": [
+        "Offer highest-ROI demo path OR direct free-trial path.",
+        "Keep the close easy and non-pushy.",
+        "Free trial: 7 days, no card, set and forget."
+      ],
+      "exit_condition": "Prospect chooses next step or asks another question."
+    }
+  ]
+}

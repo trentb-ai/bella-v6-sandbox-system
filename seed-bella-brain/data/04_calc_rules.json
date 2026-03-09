@@ -1,0 +1,153 @@
+{
+  "version": "1.0",
+  "timeframe": {
+    "accepted": ["weekly", "monthly"],
+    "normalization": {
+      "monthly_to_weekly_divisor": 4.3,
+      "note": "Prospect chooses weekly or monthly once. Mirror consistently. Convert internally."
+    }
+  },
+  "universal_input_rule": "Before any channel-specific ROI math, Bella must get: (1) ACV, (2) channel volume, (3) current channel conversions OR conversion rate, (4) agent-specific variable. DO NOT calculate uplift from channel volume alone.",
+  "benchmarks": {
+    "Alex": {
+      "primary_claim": "Responding in under 1 minute can increase conversions by 391% versus much slower response times.",
+      "supporting": [
+        "Under 5 minutes = 21x more likely to qualify.",
+        "Under 5 minutes = 100x more likely to connect."
+      ],
+      "uplift_tiers": {
+        ">24h": 3.91,
+        "3h_to_24h": 2.00,
+        "30m_to_3h": 1.00,
+        "<30m": 0.50,
+        "already_near_instant": "Position as reinforcement and consistency — not major uplift"
+      }
+    },
+    "Chris": {
+      "primary_claim": "Websites with AI chatbots see 23% higher conversion rates.",
+      "conservative_uplift": 0.23,
+      "upside_only_claim": "Engaged visitors can convert 4x more often.",
+      "rule": "Use 23% as base case ALWAYS. Use 4x only as upside framing, NEVER default base-case math."
+    },
+    "Maddie": {
+      "primary_claim": "78% of customers buy from the first business that responds."
+    },
+    "Sarah": {
+      "primary_claim": "Database reactivation campaigns can see around a 5% conversion rate from dormant leads to active deals.",
+      "reactivation_rate": 0.05
+    },
+    "James": {
+      "primary_claim": "A 1-star rating increase can drive about a 9% revenue boost.",
+      "revenue_uplift_per_star": 0.09
+    }
+  },
+  "agents": {
+    "Alex": {
+      "use_when": [
+        "ads are running",
+        "website leads exist",
+        "any lead source where response speed matters"
+      ],
+      "requires_for_precise": ["acv", "ads_leads_or_website_leads", "channel_conversions_or_conversion_rate", "followup_speed"],
+      "formula": [
+        "baseline_conversion_rate = conversions / leads",
+        "incremental_customers = current_conversions * uplift_rate",
+        "weekly_revenue_lift = incremental_customers * acv",
+        "where uplift_rate from tiers: >24h=3.91, 3h-24h=2.00, 30m-3h=1.00, <30m=0.50"
+      ],
+      "guardrails": [
+        "Calculate channel by channel — do not blend channels without explaining it.",
+        "If follow-up already near-instant, position as reinforcement not huge uplift.",
+        "Ads AND website can both apply Alex, but explain separately."
+      ]
+    },
+    "Chris": {
+      "use_when": [
+        "website opportunity exists",
+        "ads running to landing pages",
+        "hot inbound site traffic exists",
+        "no strong live conversion layer on page"
+      ],
+      "requires_for_precise": ["acv", "website_enquiries", "website_conversions_or_conversion_rate"],
+      "formula": [
+        "baseline_web_conversion_rate = website_conversions / website_enquiries",
+        "current_web_customers = website_enquiries * baseline_web_conversion_rate",
+        "incremental_customers = current_web_customers * 0.23",
+        "weekly_revenue_lift = incremental_customers * acv"
+      ],
+      "guardrails": [
+        "Use 23% uplift as conservative base model.",
+        "Use 4x only as upside framing, never base-case.",
+        "Chris is especially strong when ads go to a landing page with no live engagement."
+      ]
+    },
+    "Maddie": {
+      "use_when": [
+        "phone trigger exists",
+        "missed calls or after-hours handling is weak",
+        "business depends on inbound calls"
+      ],
+      "requires_for_precise": ["acv", "missed_calls_or_recoverable_calls", "call_conversion_rate"],
+      "formula": [
+        "If missed_calls known: recoverable_calls = missed_calls",
+        "Else if total_calls and poor coverage known: estimate recoverable_calls conservatively",
+        "incremental_customers = recoverable_calls * call_conversion_rate",
+        "weekly_revenue_lift = incremental_customers * acv"
+      ],
+      "guardrails": [
+        "Do not claim exact missed-call rates unless provided.",
+        "Use 78% stat as commercial justification framing, not precise math driver.",
+        "If inputs weak, present as directional. Still recommend Maddie if phone dependence + weak after-hours is clear.",
+        "Preferred questions: how many inbound calls/week, what happens after hours, how many go unanswered, what % convert."
+      ]
+    },
+    "Sarah": {
+      "use_when": ["old lead count is known or credibly confirmed"],
+      "requires_for_precise": ["acv", "dormant_leads"],
+      "formula": [
+        "reactivated_customers = dormant_leads * 0.05",
+        "annual_revenue = reactivated_customers * acv",
+        "weekly_revenue_lift = annual_revenue / 52"
+      ],
+      "guardrails": [
+        "Use conservative dormant lead estimates when rough.",
+        "Even rough old-lead count is enough to calculate."
+      ]
+    },
+    "James": {
+      "use_when": [
+        "reviews matter in category",
+        "review presence exists",
+        "no reliable review-generation system exists",
+        "rating or reputation is a lever"
+      ],
+      "requires_for_precise": ["acv", "new_customer_volume", "current_star_rating", "current_review_count", "review_generation_system"],
+      "formula": [
+        "revenue_base = new_customer_volume * acv",
+        "Apply 9% uplift as directional or modelled depending on confidence in time horizon"
+      ],
+      "guardrails": [
+        "Usually directional unless revenue baseline is strong.",
+        "Do not imply a guaranteed 1-star improvement timeline.",
+        "Frame James as a strategic revenue lever, not always a precise weekly cash calculator."
+      ]
+    }
+  },
+  "recommendation_logic": {
+    "max_agents": 3,
+    "voice_bias": "Recommend at least 2 voice agents when evidence supports it.",
+    "priority_rules": [
+      "Ads running -> Alex + Chris become highly likely",
+      "Strong phone + no clear after-hours handling -> Chris + Maddie highly likely",
+      "Slow follow-up -> Alex highly likely",
+      "Large old-lead database -> Sarah highly likely",
+      "Weak or no review ask system -> James relevant"
+    ]
+  },
+  "output_policy": {
+    "precise_if_all_required_inputs_present": true,
+    "directional_if_missing_required_inputs": true,
+    "skip_precise_roi_if_insufficient_grounding": true,
+    "directional_language": "I'd treat that one as directional rather than exact until we've got a little more data."
+  }
+}
