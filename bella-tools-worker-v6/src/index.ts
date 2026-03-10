@@ -516,7 +516,7 @@ export default {
     }
 
     if (path === "/health") {
-      return j({ status: "ok", worker: "bella-tools-worker-v5", version: "5.0.0", endpoints: [
+      return j({ status: "ok", worker: "bella-tools-worker-v6", version: "6.0.0", endpoints: [
         "/resolve_intel_hot", "/kv_get_fact", "/kv_write", "/kv_search",
         "/save_lead_patch", "/log_event", "/handoff_action", "/write_outcome",
         "/capture_acv", "/get_roi_confirmed",

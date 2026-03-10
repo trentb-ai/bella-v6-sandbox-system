@@ -1257,7 +1257,16 @@ var index_default = {
         return j({ success: false, reason: "no_intel_for_lid", lid });
       }
       const out = flattenForBella(lid, data);
-      if (data._pipeline_status !== "complete" && !out.star_rating && !out.agent_ranking?.length && !data.marketing_intelligence && !data.critical_fixes) {
+      // V5 FIX: Only block when there is genuinely zero intel — not just because
+      // marketing_intelligence / critical_fixes are absent. If intel key exists
+      // (_pipeline_status === "complete") we always proceed, even without those
+      // optional enrichment fields.
+      const hasAnyIntel = data._pipeline_status === "complete"
+        || !!out.star_rating
+        || (out.agent_ranking?.length ?? 0) > 0
+        || !!data.marketing_intelligence
+        || !!data.critical_fixes;
+      if (!hasAnyIntel) {
         return j({ success: false, reason: "pipeline_not_complete", pipeline_status: data._pipeline_status ?? "raw_only", lid, first_name: out.first_name ?? "", business_name: out.business_name ?? "" });
       }
       const topAgents = (out.agent_ranking ?? out.top_agents ?? []).slice(0, 5);

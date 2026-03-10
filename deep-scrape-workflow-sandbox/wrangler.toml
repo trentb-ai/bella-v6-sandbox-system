@@ -1,4 +1,4 @@
-name = "deepgram-bridge-sandbox-v5"
+name = "deep-scrape-workflow-sandbox"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
@@ -8,14 +8,10 @@ account_id = "9488d0601315a70cac36f9bd87aa4e82"
 binding = "LEADS_KV"
 id = "0fec6982d8644118aba1830afd4a58cb"
 
-# Tools worker — Tier 1 (instant KV reads) + Tier 2 (run_deep_analysis)
-[[services]]
-binding = "TOOLS"
-service = "bella-tools-worker-v5"
-
-[vars]
-# GEMINI_API_KEY set via: wrangler secret put GEMINI_API_KEY
-# TOOLS_BEARER    set via: wrangler secret put TOOLS_BEARER
+[[workflows]]
+name = "deep-scrape-workflow-sandbox"
+binding = "DEEP_SCRAPE_WORKFLOW"
+class_name = "DeepScrapeWorkflow"
 
 [observability]
 enabled = true

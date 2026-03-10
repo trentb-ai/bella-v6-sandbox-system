@@ -203,8 +203,9 @@
     </div>
 
     <script>
-        const WORKER_URL = 'https://personalisedaidemofinal-sandbox.trentbelasco.workers.dev';
-        const LOADING_PAGE = './loading-v15.html';
+        const WORKER_URL      = 'https://personalisedaidemofinal-sandbox.trentbelasco.workers.dev';
+        const FAST_INTEL_URL  = 'https://fast-intel-sandbox.trentbelasco.workers.dev';
+        const LOADING_PAGE    = './loading-v15.html';
 
         // ── GHL Integration ───────────────────────────────────────────────────
         // V3 Fix D: GHL API key REMOVED from frontend. Contact creation is now
@@ -240,15 +241,48 @@
             errorEl.style.display = 'none';
 
             try {
-                // FIX: Generate lid client-side, redirect instantly — no waiting on worker
-                // Loading page owns the scrape. Capture just navigates fast.
+                // Generate lid client-side, redirect to loading page.
+                // FAST-INTEL fires HERE — not in loading page — to maximise head start.
+                // fast-intel-sandbox: Firecrawl full-page scrape + Consultant Gemini → ~8-12s
+                // Result is in KV before Bella connects (~23s). Bridge reads it immediately.
                 const lid = 'anon_' + Math.random().toString(36).slice(2, 10);
 
-                // Pre-warm scrape fire-and-forget (loading page will call it too)
+                // PRIMARY: fast-intel (Firecrawl + Consultant) — fire and don't wait
+                // Loading page will poll /status to confirm done before redirecting to demo
+                fetch(`${FAST_INTEL_URL}/fast-intel`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        lid,
+                        websiteUrl: website,
+                        firstName,
+                        email,
+                    })
+                }).catch(() => {});
+
+                // FULL-SCRAPE: fire-and-forget — runs in background, enriches Bella mid-call
+                // This is the 110-point pipeline, takes 60-120s, not needed for Bella's opener
                 fetch(`${WORKER_URL}/log-lead`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ firstName, email, websiteUrl: website, lid })
+                }).catch(() => {});
+
+                // PHASE B: fire-and-forget — triggers the root handler which runs the full scrape
+                // + Phase B ctx.waitUntil that writes rich data to KV for Bella's bridge
+                // /log-lead only writes a stub. Root path does the actual 110-point scrape + KV enrichment.
+                // Response (302 redirect) is ignored — we only need Phase B's background KV writes.
+                fetch(`${WORKER_URL}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        websiteUrl: website,
+                        website_url: website,
+                        firstName,
+                        lid,
+                        _v3_leadId: lid,
+                        email,
+                    })
                 }).catch(() => {});
 
                 // Redirect immediately — no blocking wait

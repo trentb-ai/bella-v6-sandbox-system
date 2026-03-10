@@ -1,4 +1,4 @@
-name = "bella-voice-agent-sandbox-v5"
+name = "bella-voice-agent-sandbox-v6"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
@@ -18,12 +18,13 @@ id = "0fec6982d8644118aba1830afd4a58cb"
 
 [[services]]
 binding = "TOOLS"
-service = "bella-tools-worker-v5"
+service = "bella-tools-worker-v6"
 
 [vars]
-MCP_WORKER_URL = "https://leads-mcp-worker-sandbox-v5.trentbelasco.workers.dev"
+MCP_WORKER_URL = "https://leads-mcp-worker-sandbox-v6.trentbelasco.workers.dev"
 GHL_LOCATION_ID = "g7AY3bmahEzCyvglO9IG"
 CARTESIA_VOICE_ID = "8985388c-1332-4ce7-8d55-789628aa3df4"
+# TOOLS_BEARER_TOKEN set via: wrangler secret put TOOLS_BEARER_TOKEN
 
 [observability]
 enabled = true

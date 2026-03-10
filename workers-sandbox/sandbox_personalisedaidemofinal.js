@@ -487,7 +487,11 @@ var worker_default = {
 
         // Input validation
         const websiteUrlRaw = body2.websiteUrl || body2.website_url || body2.website || "";
-        const firstNameVal = body2.firstName || body2.first_name || "";
+        const firstNameRaw = body2.firstName || body2.first_name || "";
+        // Normalise: title-case (handles ALL-CAPS entries like "TRENT")
+        const firstNameVal = firstNameRaw.trim()
+          ? firstNameRaw.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+          : firstNameRaw;
         if (!websiteUrlRaw || !websiteUrlRaw.trim()) {
           return new Response(JSON.stringify({ success: false, error: "Missing required field: websiteUrl" }), { status: 400, headers: corsHeaders });
         }
@@ -508,6 +512,11 @@ var worker_default = {
         try { domain = new URL(websiteUrlNorm).hostname.replace("www.", ""); } catch (_) {}
         const stub = {
           v: 1, lid: leadId, ts,
+          // Root-level fields for MCP worker compatibility (rawBare.firstName etc.)
+          firstName: firstNameVal,
+          first_name: firstNameVal,
+          websiteUrl: websiteUrlNorm,
+          business_name: domain,
           fast_context: {
             v: 1, lid: leadId, ts,
             business: { name: domain, domain, location: "", rating: 0, review_count: 0, logo_url: "" },
@@ -551,16 +560,77 @@ var worker_default = {
           }
         };
 
-        // Write stub to both KV keys immediately (non-blocking write)
+        // Write stub to both KV keys — awaited with explicit error logging
         const stubStr = JSON.stringify(stub);
-        ctx.waitUntil(Promise.all([
-          env.LEADS_KV.put(leadId, stubStr, { expirationTtl: 2592000 }),
-          env.LEADS_KV.put(`lead:${leadId}:intel`, stubStr, { expirationTtl: 2592000 }),
-          // Kick off full async scrape — writes enriched data back to KV when done
-          runDeepScrapeAsync(env, leadId, websiteUrlNorm, domain)
-        ]));
+        try {
+          console.log(`[/log-lead] Writing KV for lid=${leadId}, KV binding exists=${!!env.LEADS_KV}`);
+          await env.LEADS_KV.put(leadId, stubStr, { expirationTtl: 2592000 });
+          console.log(`[/log-lead] KV bare lid write OK: ${leadId}`);
+          await env.LEADS_KV.put(`lead:${leadId}:intel`, stubStr, { expirationTtl: 2592000 });
+          console.log(`[/log-lead] KV intel write OK: lead:${leadId}:intel`);
+        } catch (kvErr) {
+          console.error(`[/log-lead] KV WRITE FAILED for lid=${leadId}: ${kvErr.message || kvErr}`);
+        }
+        // Kick off full async scrape in background — writes enriched data back to KV when done
+        // Deep scrape now runs in deep-scrape-workflow-sandbox (Cloudflare Workflow)
+        // This replaces ctx.waitUntil(runDeepScrapeAsync) which was silently killed at 30s
+        ctx.waitUntil(
+          fetch('https://deep-scrape-workflow-sandbox.trentbelasco.workers.dev/trigger', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lid: leadId, websiteUrl: websiteUrlNorm, businessName: domain }),
+          }).then(r => r.json()).then(d => {
+            console.log(`[/log-lead] Deep scrape workflow triggered lid=${leadId}`, d);
+          }).catch(err => {
+            console.error(`[/log-lead] Failed to trigger deep scrape workflow lid=${leadId}:`, err.message);
+          })
+        );
 
-        // Return immediately — zero CPU in response path
+        // Return after KV write confirmed
+        // Phase B KV enrichment: direct fetch to target website (NO self-call — proper CF protocol).
+        // Extracts clean text blob for Gemini, writes to KV. Mockup proxy (?proxy=) untouched.
+        ctx.waitUntil((async () => {
+          const t0 = Date.now();
+          try {
+            console.log(`[Phase B KV] Starting lid=${leadId} url=${websiteUrlNorm}`);
+            const UA = [
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+            ];
+            let html = null;
+            for (let i = 0; i < 2; i++) {
+              try {
+                const r = await fetch(websiteUrlNorm, {
+                  headers: { "User-Agent": UA[i], "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "en-AU,en-US;q=0.9,en;q=0.8" }
+                });
+                if (r.ok && (r.headers.get("content-type") || "").includes("text/html")) { html = await r.text(); break; }
+              } catch (_) {}
+              if (i < 1) await new Promise(r => setTimeout(r, 300));
+            }
+            if (!html) { console.error(`[Phase B KV] No HTML for lid=${leadId}`); return; }
+            console.log(`[Phase B KV] ${html.length} chars in ${Date.now() - t0}ms`);
+            const blob = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 20000);
+            const gm = (p) => (html.match(p)?.[1] || '').replace(/&amp;/g, '&').replace(/&#039;/g, "'").trim();
+            const title = gm(/<title[^>]*>([^<]{1,200})<\/title>/i);
+            const h1 = gm(/<h1[^>]*>([^<]{1,200})<\/h1>/i);
+            const h2 = gm(/<h2[^>]*>([^<]{1,200})<\/h2>/i);
+            const metaDesc = gm(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']{1,300})["']/i) || gm(/<meta[^>]+content=["']([^"']{1,300})["'][^>]+name=["']description["']/i);
+            const ogTitle = gm(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']{1,200})["']/i);
+            const ogDesc = gm(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']{1,300})["']/i);
+            const ogSiteName = gm(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']{1,200})["']/i);
+            const bizName = ogSiteName || title.split(/[-|–—:]/)[0].trim() || domain;
+            const exRaw = await env.LEADS_KV.get(`lead:${leadId}:intel`);
+            const ex = exRaw ? JSON.parse(exRaw) : {};
+            const enriched = { ...ex, business_name: bizName || ex.business_name, scrapeStatus: 'phase_a', phase_a_ts: new Date().toISOString(), site_content_blob: blob,
+              hero: { ...(ex.hero || {}), h1: h1 || ex.hero?.h1 || '', h2: h2 || ex.hero?.h2 || '', title: title || ex.hero?.title || '', meta_description: metaDesc || ex.hero?.meta_description || '', og_title: ogTitle || ex.hero?.og_title || '', og_description: ogDesc || ex.hero?.og_description || '' },
+              core_identity: { ...(ex.core_identity || {}), business_name: bizName || ex.core_identity?.business_name || domain } };
+            const s = JSON.stringify(enriched);
+            await env.LEADS_KV.put(`lead:${leadId}:intel`, s, { expirationTtl: 2592000 });
+            await env.LEADS_KV.put(leadId, s, { expirationTtl: 2592000 });
+            console.log(`[Phase B KV] DONE lid=${leadId} biz="${bizName}" h1="${h1}" blob=${blob.length}ch ${Date.now() - t0}ms`);
+          } catch (e) { console.error(`[Phase B KV] FAIL lid=${leadId}: ${e.message}`); }
+        })());
+
         return new Response(JSON.stringify(stub), { status: 200, headers: corsHeaders });
       }
       if (url.pathname === "/get-lead") {
@@ -1599,6 +1669,38 @@ Output ONLY the JSON object, no markdown.`;
         }
       };
       const leadIdFromRequest = body._v3_leadId || body.lid || url.searchParams.get("lid");
+
+      // ── Phase A KV Write — get real data into KV FAST (before Phase B) ──────
+      // Bridge reads lead:{lid}:intel every turn. This merge adds Google Places,
+      // ad detection, business name etc. so Bella has real data within ~15-20s.
+      // Phase B will overwrite with richer data when it finishes.
+      if (leadIdFromRequest && env.LEADS_KV) {
+        try {
+          const existingRaw = await env.LEADS_KV.get(`lead:${leadIdFromRequest}:intel`);
+          const existing = existingRaw ? JSON.parse(existingRaw) : {};
+          const phaseAMerge = {
+            ...existing,
+            // Root-level fields the bridge's website_health synthesizer reads
+            star_rating: phaseAResponse.star_rating || existing.star_rating || null,
+            review_count: phaseAResponse.review_count || existing.review_count || null,
+            location: phaseAResponse.location || existing.location || null,
+            logo_url: phaseAResponse.logo_url || existing.logo_url || null,
+            business_name: phaseAResponse.business_name || existing.business_name || null,
+            is_running_ads: phaseAResponse.is_running_ads || existing.is_running_ads || false,
+            facebook_ads_running: phaseAResponse.facebook_ads_running || false,
+            google_ads_running: phaseAResponse.google_ads_running || false,
+            scrapeStatus: "phase_a",
+            phase_a_ts: new Date().toISOString(),
+          };
+          const mergeStr = JSON.stringify(phaseAMerge);
+          await env.LEADS_KV.put(`lead:${leadIdFromRequest}:intel`, mergeStr, { expirationTtl: 2592000 });
+          await env.LEADS_KV.put(leadIdFromRequest, mergeStr, { expirationTtl: 2592000 });
+          console.log(`[Phase A KV] Merged into lead:${leadIdFromRequest}:intel — rating=${phaseAMerge.star_rating} biz="${phaseAMerge.business_name}" ads=${phaseAMerge.is_running_ads} (${mergeStr.length} bytes)`);
+        } catch (phaseAKvErr) {
+          console.error(`[Phase A KV] Write FAILED for lid=${leadIdFromRequest}:`, phaseAKvErr.message);
+        }
+      }
+
       ctx.waitUntil((async () => {
         const phaseBStart = Date.now();
         console.log(`[Phase B START] lid: ${leadIdFromRequest} — background enrichment beginning at ${new Date().toISOString()}`);
@@ -5837,13 +5939,23 @@ Return ONLY valid JSON:
               try {
                 const intelStub = {
                   v: 1, lid: leadIdFromRequest,
-                  first_name: updatedLeadData.firstName || updatedLeadData.first_name || "",
-                  core_identity: { business_name: updatedLeadData.business_name || "", industry_niche: updatedLeadData.industry || "", model: updatedLeadData.business_model || "", tagline: updatedLeadData.lp_tagline || "" },
+                  // Normalise first_name: title-case (handles raw ALL-CAPS form input)
+                  first_name: (() => {
+                    const raw = updatedLeadData.firstName || updatedLeadData.first_name || "";
+                    return raw.trim() ? raw.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : raw;
+                  })(),
+                  // Use Gemini normalised_name (e.g. "Pitcher Partners") not raw domain
+                  core_identity: {
+                    business_name: businessName || updatedLeadData.lp_business_name || updatedLeadData.business_name || "",
+                    industry_niche: updatedLeadData.industry || "",
+                    model: updatedLeadData.business_model || "",
+                    tagline: updatedLeadData.lp_tagline || ""
+                  },
                   icp: { target_audience: updatedLeadData.target_audience || "", pain_points: updatedLeadData.pain_points || [] },
                   services: updatedLeadData.services || "",
                   routing: { top_agents: updatedLeadData.prioritized_fixes?.topFixes?.map(f => f.agent) || [] },
                   agent_ranking: updatedLeadData.prioritized_fixes?.topFixes?.map(f => f.agent) || [],
-                  bella_opener: `Hi! I was looking at ${updatedLeadData.business_name || "your website"}. ${updatedLeadData.main_headline ? "I noticed your main message is: " + updatedLeadData.main_headline : ""}`.trim(),
+                  bella_opener: `I was looking at ${businessName || updatedLeadData.business_name || "your website"}. ${updatedLeadData.main_headline ? "Your main message is: " + updatedLeadData.main_headline : "There is some really exciting opportunity here."}`.trim(),
                   top_fix: updatedLeadData.prioritized_fixes?.topFixes?.[0] || {},
                   website_health: { google_rating: updatedLeadData.critical_fixes?.googleRating || null, review_count: updatedLeadData.critical_fixes?.googleReviewCount || null },
                   flags: { is_running_ads: updatedLeadData.critical_fixes?.isRunningAds || false },

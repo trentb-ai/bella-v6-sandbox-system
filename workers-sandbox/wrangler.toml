@@ -10,7 +10,11 @@ id = "0fec6982d8644118aba1830afd4a58cb"
 
 [[services]]
 binding = "CONSULTANT"
-service = "consultant-sandbox-v5"
+service = "consultant-sandbox-v6"
+
+[[services]]
+binding = "DEEP_SCRAPE"
+service = "deep-scrape-workflow-sandbox"
 
 [vars]
 # Non-secret vars only. All API keys must be set via `wrangler secret put`.

@@ -1,12 +1,12 @@
 /**
- * bella-voice-agent-v4 v2.9.0
+ * bella-voice-agent-v5 v3.0.0
  * Architecture: Browser WebSocket → Durable Object → Deepgram Voice Agent WS
- * v2.9.0: Director opening with SC ranking, 5-agent ROI, parallel KV intel (layered on MCP)
+ * v3.0.0: Consultant-driven intel (scraper → MCP → KV), no SC/ROI pipeline
  */
 
 import { Agent, routeAgentRequest } from "agents";
 
-const VERSION = "2.9.0";
+const VERSION = "3.0.0-v6";
 const log = (tag: string, msg: string, t0?: number) => {
   const elapsed = t0 !== undefined ? ` [+${Date.now() - t0}ms]` : "";
   console.log(`[BellaV4 ${VERSION}] [${tag}]${elapsed} ${msg}`);
@@ -20,8 +20,7 @@ const DG_LLM_PROVIDER = "open_ai";
 const DG_WS_URL = "wss://agent.deepgram.com/v1/agent/converse";
 const KEEPALIVE_MS = 5000; // Deepgram drops idle connections without this
 
-// ── v2.9.0: ROI agent constants ──────────────────────────────────────────────
-const ROI_AGENTS = ["alex", "chris", "maddie", "sarah", "james"] as const;
+// ── Agent label map ───────────────────────────────────────────────────────────
 const AGENT_LABELS: Record<string, string> = {
   alex: "Speed-to-Lead SMS",
   chris: "Website Concierge",
@@ -50,15 +49,10 @@ interface Env {
   GHL_LOCATION_ID: string;
 }
 
-// v2.9.0: expanded state for SC ranking + ROI data
+// v3.0.0: state — intel loaded flag, history, opening gate
 interface BellaState {
   openingFired: boolean;
   history: { role: string; content: string }[];
-  // v2.9.0 additions
-  scRank: string[];
-  scFlags: Record<string, boolean>;
-  roiSummary: string;
-  roiData: Record<string, any>;
   intelLoaded: boolean;
 }
 
@@ -145,7 +139,7 @@ const TOOLS = [
   },
   {
     name: "capture_acv",
-    description: "Capture the prospect's average customer value (ACV / LTV). Call this AS SOON as the prospect shares how much a customer is worth to them (e.g. 'about 5000 dollars', 'around 2k per job'). This triggers real-time ROI recalculation with their confirmed numbers. Returns a bridge line to speak while calculations run in the background.",
+    description: "Capture the prospect's average customer value (ACV / LTV). Call this AS SOON as the prospect shares how much a customer is worth to them (e.g. 'about 5000 dollars', 'around 2k per job'). Records their confirmed number so it can be used to personalise the rest of the conversation.",
     parameters: {
       type: "object",
       properties: {
@@ -158,7 +152,7 @@ const TOOLS = [
   },
   {
     name: "get_roi_confirmed",
-    description: "Retrieve confirmed ROI figures for the top 3 agents AFTER capture_acv has been called. Wait at least one conversational turn after capture_acv before calling this — the background recalculation needs a few seconds. Returns voice-ready dollar figures you can speak directly.",
+    description: "Retrieve confirmed ROI figures for this lead after the prospect has shared their average customer value. Returns voice-ready dollar figures personalised to their business.",
     parameters: {
       type: "object",
       properties: {
@@ -189,6 +183,31 @@ const TOOLS = [
       },
       required: ["lid"]
     }
+  },
+  {
+    name: "run_deep_analysis",
+    description: "Trigger a Tier 2 deep analysis via the Consultant when the prospect asks something you need fresher or deeper data for (e.g. a specific website issue, ad performance question, or deeper ROI breakdown). Speak the returned stall_phrase immediately, then use the analysis in your next turn. Do NOT call this if cached intel already answers the question.",
+    parameters: {
+      type: "object",
+      properties: {
+        lid: { type: "string", description: "The lead ID" },
+        question: { type: "string", description: "What the prospect just asked or the topic you need deeper analysis on" },
+        focus: { type: "string", description: "Analysis focus area: 'website', 'ads', 'reputation', 'roi', or 'general'" }
+      },
+      required: ["lid", "question"]
+    }
+  },
+  {
+    name: "fetch_script_stage",
+    description: "Retrieve the scripted guidance for a specific call stage (e.g. 'opening', 'audit', 'roi_reveal', 'close', 'objection_price'). Call this when transitioning between stages to get the exact talking points, questions, and fallbacks for that stage. Returns null gracefully if no stages are loaded.",
+    parameters: {
+      type: "object",
+      properties: {
+        lid: { type: "string", description: "The lead ID" },
+        stage: { type: "string", description: "The stage name, e.g. 'opening', 'audit', 'roi_reveal', 'close', 'objection_price', 'objection_timing', 'booking'" }
+      },
+      required: ["lid", "stage"]
+    }
   }
 ];
 
@@ -204,7 +223,7 @@ export class BellaAgent extends Agent<Env, BellaState> {
 
   async onStart() {
     if (!this.state?.history) {
-      this.setState({ openingFired: false, history: [], scRank: [], scFlags: {}, roiSummary: "", roiData: {}, intelLoaded: false });
+      this.setState({ openingFired: false, history: [], intelLoaded: false });
     }
   }
 
@@ -228,7 +247,7 @@ export class BellaAgent extends Agent<Env, BellaState> {
     if (this.urlHints.biz) log("CONNECT", `url hints: biz="${this.urlHints.biz}" fn="${this.urlHints.fn}"`, t0);
 
     if (!isReconnect) {
-      this.setState({ openingFired: false, history: [], scRank: [], scFlags: {}, roiSummary: "", roiData: {}, intelLoaded: false });
+      this.setState({ openingFired: false, history: [], intelLoaded: false });
     }
 
     await this.loadIntelAndConnect(connection, t0);
@@ -306,28 +325,14 @@ export class BellaAgent extends Agent<Env, BellaState> {
       log("INTEL", `MCP exception: ${e}`, t0);
     }
 
-    // ── Layer 2: KV pipeline data (SC intel + 5× ROI — enhancement layer) ────
+    // ── Layer 2: KV intel (written by scraper via consultant) ──────────────
     let kvIntel: Record<string, any> | null = null;
-    let kvRoiData: Record<string, any> = {};
     try {
-      const [intelStr, statusStr, ...roiStrs] = await Promise.all([
-        this.env.LEADS_KV.get(`lead:${this.lid}:intel`),
-        this.env.LEADS_KV.get(`lead:${this.lid}:status`),
-        ...ROI_AGENTS.map(a => this.env.LEADS_KV.get(`lead:${this.lid}:${a}:roi_estimate`)),
-      ]);
-      log("INTEL", `KV pipeline: intel=${!!intelStr} status="${statusStr}" roi=[${roiStrs.map(r => !!r).join(",")}]`, t0);
-
+      const intelStr = await this.env.LEADS_KV.get(`lead:${this.lid}:intel`);
+      log("INTEL", `KV: intel=${!!intelStr}`, t0);
       if (intelStr) kvIntel = JSON.parse(intelStr);
-      ROI_AGENTS.forEach((agent, i) => {
-        if (roiStrs[i]) kvRoiData[agent] = JSON.parse(roiStrs[i]!);
-      });
-
-      // V3: Pipeline retrigger removed — scraper handles orchestration via ctx.waitUntil
-      if (!intelStr && !intelSuccess && statusStr !== "ready" && retries < 1) {
-        log("INTEL", `no data anywhere — will retry KV read`, t0);
-      }
     } catch (e) {
-      log("INTEL", `KV pipeline fetch error: ${e}`, t0);
+      log("INTEL", `KV intel fetch error: ${e}`, t0);
     }
 
     // ── Layer 3: Raw KV stub (bare lid key, written by loading page scrape) ──
@@ -381,7 +386,7 @@ export class BellaAgent extends Agent<Env, BellaState> {
       } catch { }
     }
 
-    log("INTEL", `final: biz="${intel.business_name}" fn="${intel.first_name}" kvIntel=${!!kvIntel} roiAgents=${Object.keys(kvRoiData).length}`, t0);
+    log("INTEL", `final: biz="${intel.business_name}" fn="${intel.first_name}" kvIntel=${!!kvIntel}`, t0);
 
     // ── Build system prompt ──────────────────────────────────────────────────
     const [personaDataStr, scriptDataStr] = await Promise.all([
@@ -399,20 +404,12 @@ export class BellaAgent extends Agent<Env, BellaState> {
     const scriptKb = parseKV(scriptDataStr, "");
 
     const basePrompt = scriptKb ? `${corePrompt}\n\n${scriptKb}` : corePrompt;
-    // Store SC/ROI state for greeting builder
-    const scRank = kvIntel?.agent_ranking ?? intel.agent_ranking ?? intel.top_agents ?? [];
-    const scFlags = kvIntel?.flags ?? intel.flags ?? {};
-    const roiSummary = this.buildRoiSummary(kvRoiData, kvIntel);
-    this.setState({
-      ...this.state,
-      scRank, scFlags, roiSummary, roiData: kvRoiData,
-      intelLoaded: intelSuccess || !!kvIntel,
-    });
+    this.setState({ ...this.state, intelLoaded: intelSuccess || !!kvIntel });
 
-    // ── v2.9.0: If KV pipeline intel exists, use structured SC prompt ────────
+    // ── v3.0.0: If KV intel exists, use structured consultant prompt ──────────
     if (kvIntel) {
-      this.systemPrompt = this.buildSystemPromptV3(kvIntel, kvRoiData, roiSummary, intel.business_name ?? "your business", basePrompt);
-      log("INTEL", `using v2.9.0 structured prompt (${this.systemPrompt.length} chars)`, t0);
+      this.systemPrompt = this.buildSystemPromptV3(kvIntel, intel.business_name ?? "your business", basePrompt);
+      log("INTEL", `using v3.0.0 structured prompt (${this.systemPrompt.length} chars)`, t0);
     } else if (intelSuccess) {
       // ── Existing v2.7.6 prompt from MCP data ──────────────────────────────
       const topFixesText = (intel.top_fixes ?? []).map((f: any) =>
@@ -478,7 +475,7 @@ export class BellaAgent extends Agent<Env, BellaState> {
         if (bmParts.length > 0) intelLines.push(`INDUSTRY BENCHMARK: ${bmParts.join(", ")}`);
       }
 
-      this.systemPrompt = basePrompt + `\n\n--- PROSPECT INTEL (for reference — already confirmed pre-call) ---\n${intelLines.join("\n")}\n--- END INTEL ---\nCRITICAL: All intel above is ALREADY LOADED. Do NOT call resolve_intel_hot — the data is right here.\nYour FIRST spoken message MUST use this intel: business name + 2 exact scraped facts + top agent + estimate $ROI from TOP REVENUE FIXES.\nWhen the prospect shares their LTV/ACV, IMMEDIATELY call capture_acv. Then on your NEXT turn, call get_roi_confirmed for confirmed figures.\nYour lead ID for tool calls is: ${this.lid}`;
+      this.systemPrompt = basePrompt + `\n\n--- PROSPECT INTEL (for reference — already confirmed pre-call) ---\n${intelLines.join("\n")}\n--- END INTEL ---\nCRITICAL: All intel above is ALREADY LOADED. Do NOT call resolve_intel_hot — the data is right here.\nYour FIRST spoken message MUST use this intel: business name + 2 exact scraped facts + top agent + estimate $ROI from TOP REVENUE FIXES.\nWhen the prospect shares their average customer value, call capture_acv immediately to record it — this personalises the rest of the conversation with their real numbers.\nYour lead ID for tool calls is: ${this.lid}`;
       log("INTEL", `using v2.7.6 MCP prompt (${this.systemPrompt.length} chars)`, t0);
     } else {
       const fn = rawLead.firstName ?? "";
@@ -507,17 +504,19 @@ The opening greeting has just been spoken. Begin Stage 1: ask their role, then w
     const firstName = intel.first_name ?? rawLead.firstName ?? "";
     const businessName = intel.business_name ?? rawLead.businessName ?? "your business";
 
-    // ── v2.9.0: Director opening when SC + ROI data available ────────────────
+    // ── Opening: use consultant-generated bella_opener if available ───────────
     let openingText: string;
-    if (kvIntel && Object.keys(kvRoiData).length > 0) {
-      openingText = this.buildOpeningScript(firstName, businessName, scRank, kvRoiData);
-      log("INTEL", `Director opening: "${openingText.slice(0, 80)}..."`, t0);
+    if (kvIntel?.bella_opener) {
+      const greeting = firstName ? `Hey ${firstName}! ` : `Hey there! `;
+      openingText = greeting + kvIntel.bella_opener.replace(/^Hi[^!]*!\s*/i, "");
+      log("INTEL", `Consultant opener: "${openingText.slice(0, 80)}..."`, t0);
+    } else if (intel.bella_opener) {
+      const greeting = firstName ? `Hey ${firstName}! ` : `Hey there! `;
+      openingText = greeting + intel.bella_opener.replace(/^Hi[^!]*!\s*/i, "");
+      log("INTEL", `MCP opener: "${openingText.slice(0, 80)}..."`, t0);
     } else {
-      // Existing simple greeting
-      openingText = firstName
-        ? `Hi ${firstName}! I'm Bella.`
-        : `Hi there! I'm Bella.`;
-      log("INTEL", `simple greeting (no SC/ROI data yet)`, t0);
+      openingText = firstName ? `Hi ${firstName}! I'm Bella.` : `Hi there! I'm Bella.`;
+      log("INTEL", `fallback greeting`, t0);
     }
 
     // Tell browser intel is ready (triggers UI label update)
@@ -528,26 +527,8 @@ The opening greeting has just been spoken. Begin Stage 1: ask their role, then w
 
   // V3: retriggerPipeline REMOVED — pipeline absorbed into scraper/orchestrator
 
-  // ── v2.9.0: Build ROI summary from 5-agent data ───────────────────────────
-  private buildRoiSummary(roiData: Record<string, any>, intel: any): string {
-    const lines: string[] = [];
-    let totalMonthly = 0;
-    const ranked = intel?.agent_ranking ?? Object.keys(roiData);
-    for (const agent of ranked) {
-      const roi = roiData[agent];
-      if (!roi) continue;
-      const mo = roi.monthly_opportunity ?? 0;
-      totalMonthly += Math.max(mo, 0);
-      const label = AGENT_LABELS[agent] ?? agent;
-      const moStr = mo > 0 ? `$${mo.toLocaleString()}/mo` : "maintenance";
-      lines.push(`${label} (${agent.charAt(0).toUpperCase() + agent.slice(1)}): ${moStr}`);
-    }
-    lines.unshift(`TOTAL MONTHLY OPPORTUNITY: $${totalMonthly.toLocaleString()}/mo across ${lines.length} agents`);
-    return lines.join("\n");
-  }
-
-  // ── v2.9.0: Structured system prompt from SC intel ─────────────────────────
-  private buildSystemPromptV3(intel: any, roiData: Record<string, any>, roiSummary: string, businessName: string, basePrompt: string): string {
+  // ── v3.0.0: Structured system prompt from consultant intel ─────────────────
+  private buildSystemPromptV3(intel: any, businessName: string, basePrompt: string): string {
     if (!intel) return basePrompt + "\n\nNO INTEL LOADED. Introduce yourself warmly and ask for their website URL so we can run an audit.";
 
     const ci = intel.core_identity ?? {};
@@ -558,9 +539,9 @@ The opening greeting has just been spoken. Begin Stage 1: ask their role, then w
 
     return `${basePrompt}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-LIVE PROSPECT INTEL — ${businessName}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+==============================
+LIVE PROSPECT INTEL -- ${businessName}
+==============================
 BUSINESS: ${businessName}
 TAGLINE: ${ci.tagline ?? ""}
 INDUSTRY: ${ci.industry ?? ""} (${ci.industry_key ?? ""})
@@ -582,16 +563,9 @@ Website Concierge Needed: ${flags.website_concierge_needed ? "YES" : "NO"}
 Call Handling Needed: ${flags.call_handling_needed ? "YES" : "NO"}
 Database Reactivation: ${flags.database_reactivation ? "YES" : "NO"}
 
-SUPREME COURT RANKING: ${rank.join(" → ")}
-Top Fix: ${topFix.headline ?? ""} — $${(topFix.monthly_revenue ?? 0).toLocaleString()}/mo (${topFix.agent ?? ""})
-
-ROI BY AGENT:
-${roiSummary}
-
-${ROI_AGENTS.map(a => {
-      const r = roiData[a];
-      return r ? `${a.toUpperCase()} NARRATIVE: ${r.narrative ?? ""}` : "";
-    }).filter(Boolean).join("\n")}
+AGENT RANKING (best fit first): ${rank.join(", ")}
+${topFix.copyHeadline ? `TOP OPPORTUNITY: ${topFix.copyHeadline}` : ""}
+${topFix.copyBody ? `OPPORTUNITY CONTEXT: ${topFix.copyBody}` : ""}
 
 OPENER HOOK: ${intel.bella_opener ?? ""}
 PITCH HOOK: ${intel.pitch_hook ?? ""}
@@ -608,10 +582,10 @@ ${(() => {
   const r = c.routing ?? {};
   const lp = c.landingPageVerdict ?? {};
   const hooks = (c.conversationHooks ?? []).map((h: any) => `  - ${h.topic}: ${h.how}`).join("\n");
-  const flags = (c.redFlags ?? []).map((f: any) => `  - ${f}`).join("\n");
-  return `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const redFlags = (c.redFlags ?? []).map((f: any) => `  - ${f}`).join("\n");
+  return `==============================
 CONSULTANT INTEL (script-ready)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+==============================
 WEBSITE COMPLIMENT: ${sf.website_positive_comment ?? ""}
 HERO QUOTE: ${sf.hero_header_quote ?? ""}
 OFFER REFERENCE: ${sf.reference_offer ?? ""}
@@ -635,45 +609,20 @@ CONVERSATION HOOKS:
 ${hooks}
 
 RED FLAGS:
-${flags}`;
+${redFlags}`;
 })()}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+==============================
 VOICE CALL RULES:
-- No markdown. No bullet points. 2-3 sentences max. Speak naturally.
+- No markdown. No bullet points. 2 sentences max per turn. Then STOP and WAIT.
 - You are Bella, Strategic Intelligence Director for Pillar and Post AI.
-- Use the ROI numbers and real business facts naturally in conversation.
-- When prospect gives ACV, IMMEDIATELY call capture_acv. Then on your NEXT turn, call get_roi_confirmed.
+- Use the real scraped business facts, website intel, and consultant insights naturally in conversation.
+- React to what the prospect just said FIRST before moving forward.
+- When the prospect shares their average customer value, call capture_acv immediately.
 - Be warm, confident, and Australian. You know their business inside out.
-- CRITICAL: All intel above is ALREADY LOADED. Do NOT call resolve_intel_hot — the data is right here.
+- CRITICAL: All intel above is ALREADY LOADED. Do NOT call resolve_intel_hot.
 - Your lead ID for tool calls is: ${this.lid}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-  }
-
-  // ── v2.9.0: Director opening with SC ranking + ROI + ACV ask ───────────────
-  private buildOpeningScript(firstName: string, businessName: string, scRank: string[], roiData: Record<string, any>): string {
-    const greeting = firstName ? `Hey ${firstName}!` : `Hey there!`;
-    const biz = businessName || "your business";
-
-    // SC ranking — top 3
-    const topAgents = scRank.slice(0, 3).map(a => AGENT_LABELS[a] ?? a).join(", ");
-
-    // ROI highlights — top 2 by monthly opportunity
-    const roiSorted = Object.entries(roiData)
-      .filter(([_, r]) => r.monthly_opportunity > 0)
-      .sort(([_, a], [__, b]) => b.monthly_opportunity - a.monthly_opportunity);
-    const topRoi = roiSorted.slice(0, 2).map(([agent, r]) => {
-      const label = AGENT_LABELS[agent] ?? agent;
-      return `${label} at $${r.monthly_opportunity.toLocaleString()} a month`;
-    });
-
-    const totalMonthly = roiSorted.reduce((sum, [_, r]) => sum + r.monthly_opportunity, 0);
-
-    const roiPitch = topRoi.length > 0
-      ? `Your biggest opportunities are ${topRoi.join(" and ")}, with a combined potential of over $${totalMonthly.toLocaleString()} a month across all five agents.`
-      : `We've identified significant revenue opportunities across multiple channels for ${biz}.`;
-
-    return `${greeting} I'm Bella, the Strategic Intelligence Director for Pillar and Post AI. We've just completed a full audit of ${biz} and I have to say, the numbers are really exciting. Our Supreme Court ranked your top opportunities as ${topAgents}. ${roiPitch} Now, those numbers are based on industry benchmarks — to dial them in precisely for you, what would you say an average customer is worth to ${biz} over their lifetime?`;
+==============================`;
   }
 
   // ── Open Deepgram Voice Agent WebSocket ────────────────────────────────────
@@ -714,9 +663,12 @@ VOICE CALL RULES:
               model: DG_LLM_MODEL,
             },
             endpoint: {
-              url: "https://deepgram-bridge-sandbox-v5.trentbelasco.workers.dev/v1/chat/completions",
+              url: "https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions",
             },
-            prompt: this.systemPrompt,
+            // Bridge replaces this system prompt on every turn with a lean
+            // stage-specific prompt (~150 tokens). This is just a fallback
+            // identity in case the bridge is unreachable.
+            prompt: `You are Bella, Strategic Intelligence Director at Pillar and Post AI. Warm, sharp, Australian. Your lead ID is: ${this.lid}`,
             functions: TOOLS,
           },
           speak: {
@@ -886,7 +838,7 @@ VOICE CALL RULES:
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": "Bearer bella-tools-v4-secret",
+            "Authorization": `Bearer ${this.env.TOOLS_BEARER_TOKEN ?? "bella-tools-v5-secret"}`,
           },
           body: JSON.stringify(args),
         });
@@ -895,7 +847,7 @@ VOICE CALL RULES:
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": "Bearer bella-tools-v4-secret",
+            "Authorization": `Bearer ${this.env.TOOLS_BEARER_TOKEN ?? "bella-tools-v5-secret"}`,
           },
           body: JSON.stringify(args),
         });

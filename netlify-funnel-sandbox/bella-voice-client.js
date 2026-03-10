@@ -16,7 +16,7 @@
  */
 (function () {
 
-  const AGENT_BASE = 'wss://bella-voice-agent-sandbox-v5.trentbelasco.workers.dev';
+  const AGENT_BASE = 'wss://bella-voice-agent-sandbox-v6.trentbelasco.workers.dev';
   const TARGET_RATE = 16000;   // Must match Deepgram Settings audio.input.sample_rate
   const BARGE_IN_RMS = 0.09;       // RMS threshold for barge-in after echo window clears
   const BARGE_IN_RMS_INTRO = 0.18; // Higher threshold during first 600ms — blocks initial echo burst
@@ -75,6 +75,20 @@
     connecting = true;
     setLabel('Connecting…', 'Setting up call');
     widget.style.pointerEvents = 'none';
+
+    // CRITICAL: Create AND resume the playback AudioContext HERE — inside the
+    // user gesture click handler. Browsers (Safari, Chrome autoplay policy)
+    // will block or suspend AudioContext created outside a user gesture.
+    // If we wait until the first audio chunk arrives it is too late.
+    // getPlaybackCtx() will reuse this context on every subsequent call.
+    if (!playbackCtx || playbackCtx.state === 'closed') {
+      playbackCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+    }
+    if (playbackCtx.state === 'suspended') {
+      try { await playbackCtx.resume(); } catch (_) {}
+    }
+    // Re-zero the schedule clock on each new call
+    startTimeRef = 0;
 
     try {
       micStream = await navigator.mediaDevices.getUserMedia({
@@ -295,11 +309,12 @@
 
   function getPlaybackCtx() {
     if (!playbackCtx || playbackCtx.state === 'closed') {
-      // 24000Hz = Aura-2 native output rate — must match worker sample_rate: 24000
+      // Fallback: create here if somehow not created in startCall()
       playbackCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
     }
     if (playbackCtx.state === 'suspended') {
-      playbackCtx.resume().catch(() => { });
+      // Best-effort resume — may fail if no user gesture available
+      playbackCtx.resume().catch(e => console.warn('[BellaV2] playbackCtx resume failed:', e));
     }
     return playbackCtx;
   }
@@ -362,6 +377,11 @@
     // If startTimeRef is in the past, snap to now (gap recovery)
     if (startTimeRef < currentTime) {
       startTimeRef = currentTime;
+    }
+
+    // Debug: log context state on first chunk so we can diagnose silent audio
+    if (scheduledSources.size === 0) {
+      console.log(`[BellaV2] playAudio first chunk — ctx.state=${ctx.state} ctx.sampleRate=${ctx.sampleRate} buf.duration=${decoded.duration.toFixed(3)}s`);
     }
 
     const source = ctx.createBufferSource();

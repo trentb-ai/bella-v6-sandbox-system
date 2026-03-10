@@ -192,7 +192,8 @@
     </div>
 
     <script>
-        const WORKER_URL = 'https://personalisedaidemofinal-sandbox.trentbelasco.workers.dev';
+        const WORKER_URL     = 'https://personalisedaidemofinal-sandbox.trentbelasco.workers.dev';
+        const FAST_INTEL_URL = 'https://fast-intel-sandbox.trentbelasco.workers.dev';
         const params = new URLSearchParams(window.location.search);
         const websiteUrl = params.get('web');
         const firstName = params.get('name') || '';
@@ -219,45 +220,55 @@
         let animationDone = false;
         let currentStep = -1;
 
-        // Start scraping immediately
+        // ═══════════════════════════════════════════════════════════════════
+        // PIPELINE NAMING CONVENTION:
+        //   fast-intel   = Firecrawl full-page scrape + Consultant Gemini (~8-12s)
+        //                  → Bella has real hero/ICP/opener data at T=0
+        //   apify-intel  = 5 Apify actors concurrent via CF Workflow (~30-45s)
+        //                  → Ads, Google Maps, Hiring — bridge picks up mid-call
+        //   full-scrape  = 110-point pipeline in personalisedaidemofinal (~60-120s)
+        //                  → Deep enrichment, arrives late, enriches Bella further
+        //
+        // This loading page POLLS fast-intel /status until done (or 10s timeout).
+        // Apify-intel and full-scrape both run in background — not waited on here.
+        // ═══════════════════════════════════════════════════════════════════
+        console.log('Loading: polling fast-intel status for', websiteUrl);
+
         async function startScraping() {
             if (!websiteUrl) {
                 console.error('No website URL provided');
                 scraperDone = true;
+                scrapedData = {};
                 return;
             }
 
-            // ═══════════════════════════════════════════════════════════════
-            // V3 CLEAN PATH: Single /log-lead call replaces all V2-era calls.
-            // The scraper IS the pipeline — it handles:
-            //   1. KV write (lead record + first_name + pending lid)
-            //   2. Deep Track kickoff via ctx.waitUntil (Apify + normalization)
-            //   3. V2 sync scrape (110+ data points returned to frontend)
-            //   4. GHL contact update (server-side, no API key in frontend)
-            // DEPRECATED (removed): /write-lead-kv, /update-ghl-contact,
-            //   lead-pipeline worker, separate Supreme Court worker.
-            // ═══════════════════════════════════════════════════════════════
-            console.log('Loading: V3 /log-lead for', websiteUrl);
-            try {
-                const response = await fetch(WORKER_URL + '/log-lead', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        website_url: websiteUrl,
-                        lid: leadId,
-                        firstName: firstName,
-                        email: email,
-                        contactId: contactId || ''
-                    })
-                });
-                scrapedData = await response.json();
-                console.log('Loading: V3 scrape complete', scrapedData);
-            } catch (err) {
-                console.error('Loading: V3 scrape error', err);
+            // Poll fast-intel /status — capture.html already fired /fast-intel
+            // Max 10 polls × 1s = 10s. If not done, proceed anyway (Bella will
+            // have stub data, fast-intel will write to KV shortly after connect).
+            const MAX_POLLS  = 10;
+            const POLL_MS    = 1000;
+
+            for (let i = 0; i < MAX_POLLS; i++) {
+                await new Promise(r => setTimeout(r, POLL_MS));
+                try {
+                    const resp = await fetch(`${FAST_INTEL_URL}/status?lid=${leadId}`);
+                    const data = await resp.json();
+                    console.log(`Loading: fast-intel poll ${i+1}/${MAX_POLLS}`, data);
+                    if (data.fast_intel_done) {
+                        scrapedData = data;
+                        console.log('Loading: fast-intel done ✓', data.business_name);
+                        scraperDone = true;
+                        checkRedirect();
+                        return;
+                    }
+                } catch (err) {
+                    console.warn(`Loading: poll error ${i+1}:`, err.message);
+                }
             }
-            // SANDBOX: GHL webhook BYPASSED — no real CRM touches during sandbox testing
-            // fetch('https://services.leadconnectorhq.com/hooks/g7AY3bmahEzCyvglO9IG/webhook-trigger/400a382a-e338-4897-b7dc-da92812468a0', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lid: leadId, website_url: websiteUrl, first_name: firstName, email: email }) }).catch(function (e) { console.warn('GHL webhook failed:', e); });
-            console.log('SANDBOX: GHL webhook skipped (production bypass)');
+
+            // Timeout — proceed anyway, Bella will handle stub gracefully
+            console.warn('Loading: fast-intel timeout after 10s — proceeding with stub');
+            scrapedData = {};
             scraperDone = true;
             checkRedirect();
         }
