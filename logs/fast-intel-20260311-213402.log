@@ -1,0 +1,74 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.72.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-03-11T12:03:38Z
+Connected to fast-intel-sandbox, waiting for logs...
+OPTIONS https://fast-intel-sandbox.trentbelasco.workers.dev/fast-intel - Ok @ 11/03/2026, 9:34:43 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_5mbvl17p - Ok @ 11/03/2026, 9:34:44 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_5mbvl17p - Ok @ 11/03/2026, 9:34:45 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_5mbvl17p - Ok @ 11/03/2026, 9:34:46 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_5mbvl17p - Ok @ 11/03/2026, 9:34:47 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_5mbvl17p - Ok @ 11/03/2026, 9:34:48 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_5mbvl17p - Ok @ 11/03/2026, 9:34:49 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_5mbvl17p - Ok @ 11/03/2026, 9:34:51 pm
+POST https://fast-intel-sandbox.trentbelasco.workers.dev/fast-intel - Ok @ 11/03/2026, 9:34:43 pm
+  (log) [fast-intel 1.1.0] [REQUEST] POST /fast-intel lid=anon_5mbvl17p url=https://www.andersen.com fn=Trent
+  (log) [fast-intel 1.1.0] [START] lid=anon_5mbvl17p url=https://www.andersen.com firstName=Trent
+  (log) [fast-intel 1.1.0] [FIRECRAWL] HTTP 408 — falling back to null
+  (log) [fast-intel 1.1.0] [FALLBACK] Firecrawl failed — trying ScrapingAnt
+  (log) [fast-intel 1.1.0] [SCRAPINGANT] Done in 9850ms — 437278 chars
+  (log) [fast-intel 1.1.0] [FALLBACK] ScrapingAnt HTML → fc stub built (437278 chars)
+  (log) [fast-intel 1.1.0] [CONSULTANT] Done in 20928ms fallback=false
+  (log) [fast-intel 1.1.0] [KV] Written lid=anon_5mbvl17p biz="Andersen" fn="Trent" 26489 bytes
+  (log) [fast-intel 1.1.0] [BIG_SCRAPER_TRIGGER] lid=anon_5mbvl17p {"v":1,"lid":"anon_5mbvl17p","ts":"2026-03-11T10:35:26.030Z","firstName":"Trent","first_name":"Trent","websiteUrl":"https://www.andersen.com","business_name":"andersen.com","fast_context":{"v":1,"lid":"anon_5mbvl17p","ts":"2026-03-11T10:35:26.030Z","business":{"name":"andersen.com","domain":"andersen.com","location":"","rating":0,"review_count":0,"logo_url":""},"hero":{"v":1,"url":"https://www.andersen.com","h1":"","h2":"","h3":"","title":"","meta_description":"","og_title":"","og_description":""},"person":{"first_name":"Trent","job_title":"Unknown Role","tenure":"","source":"stub"},"ads":{"is_running_ads":false,"estimated_monthly_spend_aud":0,"facebook_ads_running":false,"google_ads_running":false},"numbers":{"one_real_number_for_opener":0},"normalized_name":"andersen.com","target_audience":"","business_description":"","benefits":[],"pain_points":[],"usps":[],"services":[],"pricing_info":"","confidence_score":0,"critical_fixes":[],"marketing_intelligence":{"overallGrade":"pending"}},"intel":{"grade":"D","top_fixes":[],"memory_prefill":{"country":"AU","currency":"AUD","runs_ads":false,"crm_detected":false},"bella_opener":"Hi Trent! I was just looking at your site — looking forward to chatting about andersen.com.","phaseA":{"success":true,"scrapeStatus":"pending","business_name":"andersen.com","firstName":"Trent","lid":"anon_5mbvl17p","url":"https://www.andersen.com","deepScrapeStatus":"processing","marketing_intelligence":{"overallGrade":"pending","grades":{"speedToLead":{"grade":"—","score":null},"reputation":{"grade":"—","score":null},"websiteConversion":{"grade":"—","score":null},"techStack":{"grade":"—","score":null},"adEfficiency":{"grade":"—","score":null},"overall":{"grade":"—","score":null}},"adIntelligence":{"isRunningAds":false,"verdict":"pending"},"reputationIntelligence":{"googleRating":null,"reviewCount":null},"techStackIntelligence":{"score":null,"level":"pending","missing":[]},"reviewMining":{"agentNeedIndicators":{"alex":[],"maddie":[],"chris":[],"sarah":[],"james":[]},"summary":{"alex":0,"maddie":0,"chris":0,"sarah":0,"james":0}},"landingPageScore":null,"socialMedia":{},"scraperResults":{"tier":"pending"}}},"deep":{"status":"processing"}}}
+  (log) [fast-intel 1.1.0] [APIFY_TRIGGER] lid=anon_5mbvl17p {"ok":true,"lid":"anon_5mbvl17p","status":"complete","note":"already_exists"}
+OPTIONS https://fast-intel-sandbox.trentbelasco.workers.dev/fast-intel - Ok @ 11/03/2026, 9:44:48 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_cfoja3rb - Ok @ 11/03/2026, 9:44:49 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_cfoja3rb - Ok @ 11/03/2026, 9:44:51 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_cfoja3rb - Ok @ 11/03/2026, 9:44:52 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_cfoja3rb - Ok @ 11/03/2026, 9:44:53 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_cfoja3rb - Ok @ 11/03/2026, 9:44:54 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_cfoja3rb - Ok @ 11/03/2026, 9:44:55 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_cfoja3rb - Ok @ 11/03/2026, 9:44:56 pm
+POST https://fast-intel-sandbox.trentbelasco.workers.dev/fast-intel - Ok @ 11/03/2026, 9:44:49 pm
+  (log) [fast-intel 1.1.0] [REQUEST] POST /fast-intel lid=anon_cfoja3rb url=https://www.pitcher.com.au fn=Trent
+  (log) [fast-intel 1.1.0] [START] lid=anon_cfoja3rb url=https://www.pitcher.com.au firstName=Trent
+  (log) [fast-intel 1.1.0] [FIRECRAWL] HTTP 408 — falling back to null
+  (log) [fast-intel 1.1.0] [FALLBACK] Firecrawl failed — trying ScrapingAnt
+  (log) [fast-intel 1.1.0] [SCRAPINGANT] Timed out after 20s
+  (log) [fast-intel 1.1.0] [FALLBACK] ScrapingAnt also failed — trying direct fetch
+  (log) [fast-intel 1.1.0] [DIRECT] Done in 48ms — 321459 chars
+  (log) [fast-intel 1.1.0] [FALLBACK] Direct fetch HTML → fc stub built (321459 chars)
+  (log) [fast-intel 1.1.0] [CONSULTANT] Done in 21678ms fallback=false
+  (log) [fast-intel 1.1.0] [KV] Written lid=anon_cfoja3rb biz="Pitcher Partners" fn="Trent" 28308 bytes
+  (log) [fast-intel 1.1.0] [BIG_SCRAPER_TRIGGER] lid=anon_cfoja3rb {"v":1,"lid":"anon_cfoja3rb","ts":"2026-03-11T10:45:42.442Z","firstName":"Trent","first_name":"Trent","websiteUrl":"https://www.pitcher.com.au","business_name":"pitcher.com.au","fast_context":{"v":1,"lid":"anon_cfoja3rb","ts":"2026-03-11T10:45:42.442Z","business":{"name":"pitcher.com.au","domain":"pitcher.com.au","location":"","rating":0,"review_count":0,"logo_url":""},"hero":{"v":1,"url":"https://www.pitcher.com.au","h1":"","h2":"","h3":"","title":"","meta_description":"","og_title":"","og_description":""},"person":{"first_name":"Trent","job_title":"Unknown Role","tenure":"","source":"stub"},"ads":{"is_running_ads":false,"estimated_monthly_spend_aud":0,"facebook_ads_running":false,"google_ads_running":false},"numbers":{"one_real_number_for_opener":0},"normalized_name":"pitcher.com.au","target_audience":"","business_description":"","benefits":[],"pain_points":[],"usps":[],"services":[],"pricing_info":"","confidence_score":0,"critical_fixes":[],"marketing_intelligence":{"overallGrade":"pending"}},"intel":{"grade":"D","top_fixes":[],"memory_prefill":{"country":"AU","currency":"AUD","runs_ads":false,"crm_detected":false},"bella_opener":"Hi Trent! I was just looking at your site — looking forward to chatting about pitcher.com.au.","phaseA":{"success":true,"scrapeStatus":"pending","business_name":"pitcher.com.au","firstName":"Trent","lid":"anon_cfoja3rb","url":"https://www.pitcher.com.au","deepScrapeStatus":"processing","marketing_intelligence":{"overallGrade":"pending","grades":{"speedToLead":{"grade":"—","score":null},"reputation":{"grade":"—","score":null},"websiteConversion":{"grade":"—","score":null},"techStack":{"grade":"—","score":null},"adEfficiency":{"grade":"—","score":null},"overall":{"grade":"—","score":null}},"adIntelligence":{"isRunningAds":false,"verdict":"pending"},"reputationIntelligence":{"googleRating":null,"reviewCount":null},"techStackIntelligence":{"score":null,"level":"pending","missing":[]},"reviewMining":{"agentNeedIndicators":{"alex":[],"maddie":[],"chris":[],"sarah":[],"james":[]},"summary":{"alex":0,"maddie":0,"chris":0,"sarah":0,"james":0}},"landingPageScore":null,"socialMedia":{},"scraperResults":{"tier":"pending"}}},"deep":{"status":"processing"}}}
+  (log) [fast-intel 1.1.0] [APIFY_TRIGGER] lid=anon_cfoja3rb {"ok":true,"lid":"anon_cfoja3rb","status":"complete","note":"already_exists"}
+OPTIONS https://fast-intel-sandbox.trentbelasco.workers.dev/fast-intel - Ok @ 11/03/2026, 9:50:29 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_md5bttbz - Ok @ 11/03/2026, 9:50:30 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_md5bttbz - Ok @ 11/03/2026, 9:50:31 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_md5bttbz - Ok @ 11/03/2026, 9:50:32 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_md5bttbz - Ok @ 11/03/2026, 9:50:33 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_md5bttbz - Ok @ 11/03/2026, 9:50:35 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_md5bttbz - Ok @ 11/03/2026, 9:50:36 pm
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/status?lid=anon_md5bttbz - Ok @ 11/03/2026, 9:50:37 pm
+POST https://fast-intel-sandbox.trentbelasco.workers.dev/fast-intel - Ok @ 11/03/2026, 9:50:29 pm
+  (log) [fast-intel 1.1.0] [REQUEST] POST /fast-intel lid=anon_md5bttbz url=https://www.pitcher.com.au fn=Trent
+  (log) [fast-intel 1.1.0] [START] lid=anon_md5bttbz url=https://www.pitcher.com.au firstName=Trent
+  (log) [fast-intel 1.1.0] [FIRECRAWL] HTTP 408 — falling back to null
+  (log) [fast-intel 1.1.0] [FALLBACK] Firecrawl failed — trying ScrapingAnt
+  (log) [fast-intel 1.1.0] [SCRAPINGANT] Timed out after 20s
+  (log) [fast-intel 1.1.0] [FALLBACK] ScrapingAnt also failed — trying direct fetch
+  (log) [fast-intel 1.1.0] [DIRECT] Done in 61ms — 321459 chars
+  (log) [fast-intel 1.1.0] [FALLBACK] Direct fetch HTML → fc stub built (321459 chars)
+  (log) [fast-intel 1.1.0] [CONSULTANT] Done in 23926ms fallback=false
+  (log) [fast-intel 1.1.0] [KV] Written lid=anon_md5bttbz biz="Pitcher Partners" fn="Trent" 27735 bytes
+  (log) [fast-intel 1.1.0] [BIG_SCRAPER_TRIGGER] lid=anon_md5bttbz {"v":1,"lid":"anon_md5bttbz","ts":"2026-03-11T10:51:25.125Z","firstName":"Trent","first_name":"Trent","websiteUrl":"https://www.pitcher.com.au","business_name":"pitcher.com.au","fast_context":{"v":1,"lid":"anon_md5bttbz","ts":"2026-03-11T10:51:25.125Z","business":{"name":"pitcher.com.au","domain":"pitcher.com.au","location":"","rating":0,"review_count":0,"logo_url":""},"hero":{"v":1,"url":"https://www.pitcher.com.au","h1":"","h2":"","h3":"","title":"","meta_description":"","og_title":"","og_description":""},"person":{"first_name":"Trent","job_title":"Unknown Role","tenure":"","source":"stub"},"ads":{"is_running_ads":false,"estimated_monthly_spend_aud":0,"facebook_ads_running":false,"google_ads_running":false},"numbers":{"one_real_number_for_opener":0},"normalized_name":"pitcher.com.au","target_audience":"","business_description":"","benefits":[],"pain_points":[],"usps":[],"services":[],"pricing_info":"","confidence_score":0,"critical_fixes":[],"marketing_intelligence":{"overallGrade":"pending"}},"intel":{"grade":"D","top_fixes":[],"memory_prefill":{"country":"AU","currency":"AUD","runs_ads":false,"crm_detected":false},"bella_opener":"Hi Trent! I was just looking at your site — looking forward to chatting about pitcher.com.au.","phaseA":{"success":true,"scrapeStatus":"pending","business_name":"pitcher.com.au","firstName":"Trent","lid":"anon_md5bttbz","url":"https://www.pitcher.com.au","deepScrapeStatus":"processing","marketing_intelligence":{"overallGrade":"pending","grades":{"speedToLead":{"grade":"—","score":null},"reputation":{"grade":"—","score":null},"websiteConversion":{"grade":"—","score":null},"techStack":{"grade":"—","score":null},"adEfficiency":{"grade":"—","score":null},"overall":{"grade":"—","score":null}},"adIntelligence":{"isRunningAds":false,"verdict":"pending"},"reputationIntelligence":{"googleRating":null,"reviewCount":null},"techStackIntelligence":{"score":null,"level":"pending","missing":[]},"reviewMining":{"agentNeedIndicators":{"alex":[],"maddie":[],"chris":[],"sarah":[],"james":[]},"summary":{"alex":0,"maddie":0,"chris":0,"sarah":0,"james":0}},"landingPageScore":null,"socialMedia":{},"scraperResults":{"tier":"pending"}}},"deep":{"status":"processing"}}}
+  (log) [fast-intel 1.1.0] [APIFY_TRIGGER] lid=anon_md5bttbz {"ok":true,"lid":"anon_md5bttbz","status":"complete","note":"already_exists"}
+FatalError: Tail disconnected, exiting.
+    at createFatalError (/Users/trentbelasco/node_modules/wrangler/wrangler-dist/cli.js:716:12)
+    at Timeout._onTimeout (/Users/trentbelasco/node_modules/wrangler/wrangler-dist/cli.js:273043:21)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  telemetryMessage: 'Tail disconnected, exiting.',
+  code: 1
+}

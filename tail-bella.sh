@@ -3,15 +3,15 @@
 # bridge + voice-agent + fast-intel
 # Usage: ./tail-bella.sh
 
-BASE="/Users/trentbelasco/Desktop/BELLA_V6_SANDBOX_COMPLETE_SYSTEM"
+BASE="/Users/trentbelasco/Desktop/BELLA_v9_SANDBOX_COMPLETE_SYSTEM"
 
 declare -A WORKER_DIRS=(
   ["fast-intel-sandbox"]="$BASE/fast-intel-sandbox"
-  ["deepgram-bridge-sandbox-v6"]="$BASE/deepgram-bridge-v6"
-  ["bella-voice-agent-sandbox-v6"]="$BASE/voice-agent-v6"
+  ["deepgram-bridge-sandbox-v9"]="$BASE/deepgram-bridge-v9"
+  ["bella-voice-agent-sandbox-v9"]="$BASE/voice-agent-v9"
 )
 
-for WORKER in fast-intel-sandbox deepgram-bridge-sandbox-v6 bella-voice-agent-sandbox-v6; do
+for WORKER in fast-intel-sandbox deepgram-bridge-sandbox-v9 bella-voice-agent-sandbox-v9; do
   WDIR="${WORKER_DIRS[$WORKER]}"
   osascript <<EOF
 tell application "Terminal"

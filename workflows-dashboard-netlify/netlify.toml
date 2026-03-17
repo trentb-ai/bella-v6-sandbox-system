@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NEXT_PUBLIC_API_BASE = "https://workflows-backend.trentbelasco.workers.dev/api"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

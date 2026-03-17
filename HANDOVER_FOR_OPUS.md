@@ -52,12 +52,12 @@ Unknown Event - Ok
 
 | Worker | URL | Version |
 |---|---|---|
-| Voice Agent DO | bella-voice-agent-sandbox-v5.trentbelasco.workers.dev | v2.9.0 (V4 code) |
-| BYO LLM Bridge | deepgram-bridge-sandbox-v5.trentbelasco.workers.dev | v5.3.1 |
-| Tools Worker | bella-tools-worker-v5.trentbelasco.workers.dev | — |
-| Consultant | consultant-sandbox-v5.trentbelasco.workers.dev | — |
+| Voice Agent DO | bella-voice-agent-sandbox-v9.trentbelasco.workers.dev | v9.9.0 (V4 code) |
+| BYO LLM Bridge | deepgram-bridge-sandbox-v9.trentbelasco.workers.dev | v9.3.1 |
+| Tools Worker | bella-tools-worker-v9.trentbelasco.workers.dev | — |
+| Consultant | consultant-sandbox-v9.trentbelasco.workers.dev | — |
 | Scraper/Orch | personalisedaidemofinal-sandbox.trentbelasco.workers.dev | — |
-| MCP Worker | leads-mcp-worker-sandbox-v5.trentbelasco.workers.dev | — |
+| MCP Worker | leads-mcp-worker-sandbox-v9.trentbelasco.workers.dev | — |
 
 **Netlify:** bellademosandbox.netlify.app
 
@@ -70,11 +70,11 @@ Unknown Event - Ok
 
 | Worker | Secret | Value |
 |---|---|---|
-| bella-voice-agent-sandbox-v5 | DEEPGRAM_API_KEY | [REDACTED] |
-| bella-voice-agent-sandbox-v5 | TOOLS_BEARER | [REDACTED] |
-| deepgram-bridge-sandbox-v5 | GEMINI_API_KEY | [REDACTED] |
-| deepgram-bridge-sandbox-v5 | TOOLS_BEARER | [REDACTED] |
-| bella-tools-worker-v5 | BEARER_TOKEN | [REDACTED] |
+| bella-voice-agent-sandbox-v9 | DEEPGRAM_API_KEY | [REDACTED] |
+| bella-voice-agent-sandbox-v9 | TOOLS_BEARER | [REDACTED] |
+| deepgram-bridge-sandbox-v9 | GEMINI_API_KEY | [REDACTED] |
+| deepgram-bridge-sandbox-v9 | TOOLS_BEARER | [REDACTED] |
+| bella-tools-worker-v9 | BEARER_TOKEN | [REDACTED] |
 
 ---
 
@@ -113,7 +113,7 @@ The bridge (v5.3.1) is a full orchestrator. On each request it:
 
 The bridge DOES return SSE. Direct curl test works:
 ```bash
-curl -X POST https://deepgram-bridge-sandbox-v5.trentbelasco.workers.dev/v1/chat/completions \
+curl -X POST https://deepgram-bridge-sandbox-v9.trentbelasco.workers.dev/v9/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"system","content":"lead_id: test"},{"role":"user","content":"hello"}]}'
 # Returns valid SSE ✅
@@ -142,18 +142,18 @@ curl -X POST https://deepgram-bridge-sandbox-v5.trentbelasco.workers.dev/v1/chat
 ## FILE LOCATIONS
 
 ```
-/Users/trentbelasco/Desktop/BELLA_V5_SANDBOX_COMPLETE_SYSTEM/
-├── voice-agent-v5-fresh/          ← ACTIVE voice agent (V4 code as V5)
+/Users/trentbelasco/Desktop/BELLA_v9_SANDBOX_COMPLETE_SYSTEM/
+├── voice-agent-v9-fresh/          ← ACTIVE voice agent (V4 code as V5)
 │   └── src/index.ts               ← Line 720: bridge URL injected here
-├── deepgram-bridge-v5/
+├── deepgram-bridge-v9/
 │   └── src/index.ts               ← The bridge (v5.3.1) — this is what needs fixing
-├── bella-tools-worker-v5/
+├── bella-tools-worker-v9/
 │   └── src/index.ts
 ├── consultant-sandbox/
 │   └── worker.js
 ├── netlify-funnel-sandbox/
 │   ├── bella-voice-client.js      ← Line 19: AGENT_BASE URL
-│   └── demo_v15_hybrid.html
+│   └── demo_v95_hybrid.html
 └── workers-sandbox/
     └── sandbox_personalisedaidemofinal.js  ← Scraper/orchestrator
 ```
@@ -265,19 +265,19 @@ Then switch to bridge LLM once latency is resolved.
 
 ```bash
 # Test bridge directly
-curl -X POST https://deepgram-bridge-sandbox-v5.trentbelasco.workers.dev/v1/chat/completions \
+curl -X POST https://deepgram-bridge-sandbox-v9.trentbelasco.workers.dev/v9/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"system","content":"lead_id: test-123"},{"role":"user","content":"hello"}]}'
 
 # Check bridge health
-curl https://deepgram-bridge-sandbox-v5.trentbelasco.workers.dev/health
+curl https://deepgram-bridge-sandbox-v9.trentbelasco.workers.dev/health
 
 # Check voice agent health
-curl https://bella-voice-agent-sandbox-v5.trentbelasco.workers.dev/health
+curl https://bella-voice-agent-sandbox-v9.trentbelasco.workers.dev/health
 
 # Watch logs
-npx wrangler tail bella-voice-agent-sandbox-v5 --format pretty
-npx wrangler tail deepgram-bridge-sandbox-v5 --format pretty
+npx wrangler tail bella-voice-agent-sandbox-v9 --format pretty
+npx wrangler tail deepgram-bridge-sandbox-v9 --format pretty
 
 # Check KV for a lead
 npx wrangler kv key list --namespace-id=0fec6982d8644118aba1830afd4a58cb
@@ -289,9 +289,9 @@ npx wrangler kv key list --namespace-id=0fec6982d8644118aba1830afd4a58cb
 
 ```bash
 # In bella-voice-client.js line 19, change:
-# wss://bella-voice-agent-sandbox-v5.trentbelasco.workers.dev
+# wss://bella-voice-agent-sandbox-v9.trentbelasco.workers.dev
 # back to:
-# wss://antigrav-bella-voice-agent-v4-sandbox.trentbelasco.workers.dev
+# wss://antigrav-bella-voice-agent-v9-sandbox.trentbelasco.workers.dev
 # Then redeploy Netlify
 ```
 

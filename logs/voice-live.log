@@ -1,0 +1,1448 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.72.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-03-11T05:13:40Z
+Connected to bella-voice-agent-sandbox-v6, waiting for logs...
+Unknown Event - Ok @ 3/11/2026, 3:14:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:16 PM
+  (log) [BellaV4 3.0.1-v6] [DG] [+1441ms] connected — sending Settings
+  (log) {
+  displayMessage: 'State updated',
+  id: 'hwYFH1_3izQRlNfXW4gnW',
+  payload: {},
+  timestamp: 1773202456555,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.0.1-v6] [DG] [+1441ms] Settings sent
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] Welcome
+  (log) [BellaV4 3.0.1-v6] [DG] [+1441ms] Welcome received
+Unknown Event - Ok @ 3/11/2026, 3:14:16 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] SettingsApplied
+  (log) [BellaV4 3.0.1-v6] [DG] [+1656ms] pipeline configured ✓
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:16 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:21 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:26 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:27 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:14:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:31 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:36 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:40 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:14:40 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:40 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:40 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:41 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:41 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:41 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:41 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:42 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:42 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:42 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:42 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:43 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:43 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:43 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:45 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:46 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:46 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:46 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:47 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:14:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:51 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:51 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:51 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:51 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:54 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:14:54 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:54 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:54 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:56 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:56 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:56 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:56 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:00 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:00 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:00 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:01 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:15:01 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:01 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:01 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:06 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:06 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:15:06 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:11 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:11 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:11 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] Warning
+  (log) [BellaV4 3.0.1-v6] [DG-WARN] [+56925ms] {"type":"Warning","description":"We have now waited 5 seconds for think response.","code":"SLOW_THINK_REQUEST"}
+Unknown Event - Ok @ 3/11/2026, 3:15:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:12 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:15 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+Unknown Event - Ok @ 3/11/2026, 3:15:16 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:16 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:15:16 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:16 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:21 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:22 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:15:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:24 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:26 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:27 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:31 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:32 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:32 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:15:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:36 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:37 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:15:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:39 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:40 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:40 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:40 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:40 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:41 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:41 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:41 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:41 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:42 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:42 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:42 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:43 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:43 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:43 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:43 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:46 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:46 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:46 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:46 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:47 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:15:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:51 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:51 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:51 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:51 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:54 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:54 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:54 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:54 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:15:55 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:56 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:56 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:56 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:56 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:00 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:16:00 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:00 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:01 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:01 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:16:01 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:01 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:06 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:06 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:16:06 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:06 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:07 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:16:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:08 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:16:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:11 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:16:11 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:11 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:11 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:15 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:16:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:16 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:16 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:16:16 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:16 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:18 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:16:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:21 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:16:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:22 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:16:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:23 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:16:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:26 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:16:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:31 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:16:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:35 PM
+  (log) [BellaV4 3.0.1-v6] [CLOSE] browser requested end
+GET https://bella-voice-agent-sandbox-v6.trentbelasco.workers.dev/agents/bella-agent/anon_xh4oyaiv?fn=trent - Ok @ 3/11/2026, 3:14:14 PM
+  (log) {
+  displayMessage: 'State updated',
+  id: 'kdakgOuTzws8DtL52VZ7q',
+  payload: {},
+  timestamp: 1773202455114,
+  type: 'state:update'
+}
+  (log) {
+  displayMessage: 'Connection established',
+  id: 'n4juVhC6acCNxnfAU-iCk',
+  payload: { connectionId: 'Cvn67-JCj2VLAwU1rTA0s' },
+  timestamp: 1773202455114,
+  type: 'connect'
+}
+  (log) [BellaV4 3.0.1-v6] [CONNECT] [+0ms] lid="anon_xh4oyaiv" reconnect=false
+  (log) {
+  displayMessage: 'State updated',
+  id: '7UylDXZ1cp-c0FU3FVAVO',
+  payload: {},
+  timestamp: 1773202455114,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+0ms] fetching for lid="anon_xh4oyaiv"
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+374ms] MCP success=true biz="KPMG" status="complete" fn="Trent"
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+376ms] KV: intel=true
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+379ms] raw KV hit: fn="Trent" web="https://www.kpmg.com"
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+379ms] final: biz="KPMG" fn="Trent" kvIntel=true
+  (log) {
+  displayMessage: 'State updated',
+  id: '_DE68aY5rGU69xuSvVzvT',
+  payload: {},
+  timestamp: 1773202455785,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+671ms] using v3.0.0 structured prompt (25058 chars)
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+671ms] Consultant opener: "Hey Trent! We've taken a proper look at KPMG, and a few things stood out straigh..."
+  (log) [BellaV4 3.0.1-v6] [DG] [+671ms] opening WebSocket
+Unknown Event - Ok @ 3/11/2026, 3:16:35 PM
+  (log) [BellaV4 3.0.1-v6] [CLOSE] browser disconnected
+  (log) [BellaV4 3.0.1-v6] [DG] [+140948ms] closed: code=1005 reason=""
+GET https://bella-voice-agent-sandbox-v6.trentbelasco.workers.dev/agents/bella-agent/anon_xh4oyaiv?fn=trent - Ok @ 3/11/2026, 3:14:14 PM
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    Unknown Event - Ok @ 3/11/2026, 3:14:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:16 PM
+  (log) [BellaV4 3.0.1-v6] [DG] [+1441ms] connected — sending Settings
+  (log) {
+  displayMessage: 'State updated',
+  id: 'hwYFH1_3izQRlNfXW4gnW',
+  payload: {},
+  timestamp: 1773202456555,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.0.1-v6] [DG] [+1441ms] Settings sent
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] Welcome
+  (log) [BellaV4 3.0.1-v6] [DG] [+1441ms] Welcome received
+Unknown Event - Ok @ 3/11/2026, 3:14:16 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] SettingsApplied
+  (log) [BellaV4 3.0.1-v6] [DG] [+1656ms] pipeline configured ✓
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:16 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:21 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:26 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:27 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:14:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:31 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:36 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:40 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:14:40 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:40 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:40 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:41 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:41 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:41 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:41 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:42 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:42 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:42 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:42 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:43 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:43 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:43 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:45 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:46 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:46 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:46 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:47 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:14:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:51 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:51 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:51 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:51 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:54 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:14:54 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:54 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:54 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:56 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:14:56 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:56 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:56 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:14:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:14:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:00 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:00 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:00 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:01 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:15:01 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:01 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:01 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:06 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:06 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:15:06 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:11 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:11 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:11 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] Warning
+  (log) [BellaV4 3.0.1-v6] [DG-WARN] [+56925ms] {"type":"Warning","description":"We have now waited 5 seconds for think response.","code":"SLOW_THINK_REQUEST"}
+Unknown Event - Ok @ 3/11/2026, 3:15:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:12 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:15 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+Unknown Event - Ok @ 3/11/2026, 3:15:16 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:16 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:15:16 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:16 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:21 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:22 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:15:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:24 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:26 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:27 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:31 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:32 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:32 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:15:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:36 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:36 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:37 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:37 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:15:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:38 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:39 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:39 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:40 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:40 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:40 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:40 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:41 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:41 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:41 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:41 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:42 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:42 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:42 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:43 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:43 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:43 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:43 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:44 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:45 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:46 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:46 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:46 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:46 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:47 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:15:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:47 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:48 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:49 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:50 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:51 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:51 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:51 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:51 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:52 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:53 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:54 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:54 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:54 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:54 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:15:55 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:15:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:55 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:56 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:56 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:15:56 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:56 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:57 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:58 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:15:59 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:00 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:16:00 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:00 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:01 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:01 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:16:01 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:01 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:02 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:03 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:04 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:05 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:06 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:06 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:16:06 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:06 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:07 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:16:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:07 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:08 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:16:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:08 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:09 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:10 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:11 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:16:11 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:11 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:11 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:12 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:13 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:14 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:15 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 3/11/2026, 3:16:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:15 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:16 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:16 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:16:16 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:16 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:17 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:18 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:18 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:16:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:19 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:20 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:21 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:16:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:21 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:22 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 3/11/2026, 3:16:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:22 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:23 PM
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 3/11/2026, 3:16:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:23 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:24 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:25 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:26 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:16:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:26 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:27 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:28 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:29 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:30 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:31 PM
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 3/11/2026, 3:16:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:31 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:32 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:33 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:34 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:35 PM
+Unknown Event - Ok @ 3/11/2026, 3:16:35 PM
+  (log) [BellaV4 3.0.1-v6] [CLOSE] browser requested end
+GET https://bella-voice-agent-sandbox-v6.trentbelasco.workers.dev/agents/bella-agent/anon_xh4oyaiv?fn=trent - Ok @ 3/11/2026, 3:14:14 PM
+  (log) {
+  displayMessage: 'State updated',
+  id: 'kdakgOuTzws8DtL52VZ7q',
+  payload: {},
+  timestamp: 1773202455114,
+  type: 'state:update'
+}
+  (log) {
+  displayMessage: 'Connection established',
+  id: 'n4juVhC6acCNxnfAU-iCk',
+  payload: { connectionId: 'Cvn67-JCj2VLAwU1rTA0s' },
+  timestamp: 1773202455114,
+  type: 'connect'
+}
+  (log) [BellaV4 3.0.1-v6] [CONNECT] [+0ms] lid="anon_xh4oyaiv" reconnect=false
+  (log) {
+  displayMessage: 'State updated',
+  id: '7UylDXZ1cp-c0FU3FVAVO',
+  payload: {},
+  timestamp: 1773202455114,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+0ms] fetching for lid="anon_xh4oyaiv"
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+374ms] MCP success=true biz="KPMG" status="complete" fn="Trent"
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+376ms] KV: intel=true
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+379ms] raw KV hit: fn="Trent" web="https://www.kpmg.com"
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+379ms] final: biz="KPMG" fn="Trent" kvIntel=true
+  (log) {
+  displayMessage: 'State updated',
+  id: '_DE68aY5rGU69xuSvVzvT',
+  payload: {},
+  timestamp: 1773202455785,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+671ms] using v3.0.0 structured prompt (25058 chars)
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+671ms] Consultant opener: "Hey Trent! We've taken a proper look at KPMG, and a few things stood out straigh..."
+  (log) [BellaV4 3.0.1-v6] [DG] [+671ms] opening WebSocket
+Unknown Event - Ok @ 3/11/2026, 3:16:35 PM
+  (log) [BellaV4 3.0.1-v6] [CLOSE] browser disconnected
+  (log) [BellaV4 3.0.1-v6] [DG] [+140948ms] closed: code=1005 reason=""
+GET https://bella-voice-agent-sandbox-v6.trentbelasco.workers.dev/agents/bella-agent/anon_xh4oyaiv?fn=trent - Ok @ 3/11/2026, 3:14:14 PM
+This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). The promise rejected with the reason:
+APIError: A request to the Cloudflare API (/accounts/9488d0601315a70cac36f9bd87aa4e82/workers/scripts/bella-voice-agent-sandbox-v6/tails/f800446bc4804f3387abadc4c0523ba2) failed.
+    at throwFetchError (/Users/trentbelasco/node_modules/wrangler/wrangler-dist/cli.js:122503:18)
+    at fetchResult (/Users/trentbelasco/node_modules/wrangler/wrangler-dist/cli.js:122399:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async deleteTail (/Users/trentbelasco/node_modules/wrangler/wrangler-dist/cli.js:228187:5)
+    at async _WebSocket.exit (/Users/trentbelasco/node_modules/wrangler/wrangler-dist/cli.js:273031:11)

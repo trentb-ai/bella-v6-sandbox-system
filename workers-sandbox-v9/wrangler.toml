@@ -1,0 +1,29 @@
+name = "personalisedaidemofinal-v9"
+main = "sandbox_personalisedaidemofinal.js"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "9488d0601315a70cac36f9bd87aa4e82"
+
+[[kv_namespaces]]
+binding = "LEADS_KV"
+id = "0fec6982d8644118aba1830afd4a58cb"
+
+[[services]]
+binding = "CONSULTANT"
+service = "consultant-v9"
+
+[[services]]
+binding = "DEEP_SCRAPE"
+service = "deep-scrape-workflow-v9"
+
+[vars]
+# Non-secret vars only. All API keys must be set via `wrangler secret put`.
+# Required secrets: APIFY_API_KEY, GEMINI_API_KEY, GOOGLE_PLACES_API_KEY,
+#                   SCRAPINGBEE_KEY, FIRECRAWL_KEY, BUILTWITH_API_KEY
+
+[observability]
+enabled = true
+
+[observability.logs]
+invocation_logs = true
+head_sampling_rate = 1

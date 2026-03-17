@@ -1,0 +1,138 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.72.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-03-11T10:12:59Z
+Connected to deepgram-bridge-sandbox-v6, waiting for logs...
+GET https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/health - Ok @ 11/03/2026, 5:39:27 pm
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 5:40:04 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_e2e_v110_1 msgs=2
+  (log) [bridge 6.8.0-D] [DIAG] turn=2 sys_chars=47 lid_found=true sys_preview="You are Bella. Your lead ID is: anon_e2e_v110_1"
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_e2e_v110_1 turn=2 fast=true apify=true full=false kv_bytes=48091
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_e2e_v110_1 stage=wow utt_chars=2 utt_preview="Hi"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_e2e_v110_1 stage=wow extractions=0
+  (log) [bridge 6.8.0-D] [PROMPT] stage=wow system_chars=6381
+  (log) [bridge 6.8.0-D] [STREAM] stage=wow history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 11/03/2026, 5:48:00 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=3
+  (log) [bridge 6.8.0-D] [INIT] lid=anon_hlbwsehd queue=[ch_website]
+  (log) [bridge 6.8.0-D] [APIFY] deep intel landed for lid=anon_hlbwsehd — gate will open next advance
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=3 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=wow utt_chars=10 utt_preview="Hi, Bella."
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=wow extractions=0
+  (log) [bridge 6.8.0-D] [PROMPT] stage=wow system_chars=4755
+  (log) [bridge 6.8.0-D] [STREAM] stage=wow history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 11/03/2026, 5:48:08 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=3
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=3 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=wow utt_chars=63 utt_preview="Hi, Bella. How you doing? What's going on in your world, Bella?"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=wow extractions=0
+  (log) [bridge 6.8.0-D] [ADVANCE] → anchor_acv
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4455
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 11/03/2026, 5:48:04 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=3
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=3 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=wow utt_chars=25 utt_preview="Hi, Bella. How you doing?"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=wow extractions=0
+  (log) [bridge 6.8.0-D] [PROMPT] stage=wow system_chars=4635
+  (log) [bridge 6.8.0-D] [STREAM] stage=wow history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 11/03/2026, 5:48:11 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=3
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=3 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=anchor_acv utt_chars=105 utt_preview="Hi, Bella. How you doing? What's going on in your world, Bella? You are you firi"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=anchor_acv extractions=0
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4455
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 11/03/2026, 5:48:18 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=3
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=3 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=anchor_acv utt_chars=192 utt_preview="Hi, Bella. How you doing? What's going on in your world, Bella? You are you firi"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=anchor_acv extractions=0
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4455
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 11/03/2026, 5:48:16 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=3
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=3 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=anchor_acv utt_chars=178 utt_preview="Hi, Bella. How you doing? What's going on in your world, Bella? You are you firi"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=anchor_acv extractions=0
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4455
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 11/03/2026, 5:48:20 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=3
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=3 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=anchor_acv utt_chars=223 utt_preview="Hi, Bella. How you doing? What's going on in your world, Bella? You are you firi"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=anchor_acv extractions=0
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4455
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 11/03/2026, 5:48:25 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=3
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=3 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=anchor_acv utt_chars=304 utt_preview="Hi, Bella. How you doing? What's going on in your world, Bella? You are you firi"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=anchor_acv extractions=0
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4455
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 11/03/2026, 5:48:29 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=3
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=3 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=anchor_acv utt_chars=330 utt_preview="Hi, Bella. How you doing? What's going on in your world, Bella? You are you firi"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=anchor_acv extractions=0
+  (log) [bridge 6.8.0-D] [STALL] waiting for data at anchor_acv (7 turns)
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4455
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 11/03/2026, 5:48:27 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=3
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=3 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=anchor_acv utt_chars=315 utt_preview="Hi, Bella. How you doing? What's going on in your world, Bella? You are you firi"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=anchor_acv extractions=0
+  (log) [bridge 6.8.0-D] [STALL] waiting for data at anchor_acv (6 turns)
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4455
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 5:48:32 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=3
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=3 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=anchor_acv utt_chars=367 utt_preview="Hi, Bella. How you doing? What's going on in your world, Bella? You are you firi"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=anchor_acv extractions=0
+  (log) [bridge 6.8.0-D] [STALL] waiting for data at anchor_acv (8 turns)
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4455
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 5:48:58 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=5
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=5 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=anchor_acv utt_chars=5 utt_preview="About"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=anchor_acv extractions=0
+  (log) [bridge 6.8.0-D] [STALL] waiting for data at anchor_acv (9 turns)
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4455
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=3 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 5:49:01 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=5
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=5 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=anchor_acv utt_chars=41 utt_preview="About oh, a quarter of a million dollars."
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=anchor_acv extractions=0
+  (log) [bridge 6.8.0-D] [STALL] waiting for data at anchor_acv (10 turns)
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4455
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=3 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 5:49:14 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=7
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=7 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=anchor_acv utt_chars=8 utt_preview="Monthly."
+  (log) [bridge 6.8.0-D] [CAPTURED] timeframe="monthly"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=anchor_acv extractions=1 fields=timeframe
+  (log) [bridge 6.8.0-D] [STALL] waiting for data at anchor_acv (11 turns)
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4557
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 5:50:17 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=9
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=9 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=anchor_acv utt_chars=21 utt_preview="Don't abandon me now."
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=anchor_acv extractions=0
+  (log) [bridge 6.8.0-D] [STALL] waiting for data at anchor_acv (12 turns)
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4557
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 5:50:38 pm
+  (log) [bridge 6.8.0-D] [REQ] lid=anon_hlbwsehd msgs=11
+  (log) [bridge 6.8.0-D] [KV_STATUS] lid=anon_hlbwsehd turn=11 fast=true apify=true full=false kv_bytes=23167
+  (log) [bridge 6.8.0-D] [UTT] lid=anon_hlbwsehd stage=anchor_acv utt_chars=1 utt_preview="-"
+  (log) [bridge 6.8.0-D] [EXTRACT] lid=anon_hlbwsehd stage=anchor_acv extractions=0
+  (log) [bridge 6.8.0-D] [STALL] waiting for data at anchor_acv (13 turns)
+  (log) [bridge 6.8.0-D] [PROMPT] stage=anchor_acv system_chars=4557
+  (log) [bridge 6.8.0-D] [STREAM] stage=anchor_acv history=5 turns → streaming

@@ -1,0 +1,88 @@
+"use client";
+
+import { Alert, AlertTitle, CrossHatchBackground } from "@/components";
+import { REQUIRED_PERMISSIONS } from "@/config/setup";
+
+export function OverviewTab() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">
+          What is workers++?
+        </h2>
+        <p className="text-gray-600 text-sm leading-relaxed">
+          A visual workflow builder to create, deploy, and manage serverless
+          applications on Cloudflare's edge network using drag-and-drop
+          interfaces.
+        </p>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">
+          Capabilities
+        </h3>
+        <ul className="space-y-2 text-gray-600 text-sm">
+          <li className="flex items-start gap-2">
+            <span className="text-orange-600 font-bold">•</span>
+            <span>Visual drag-and-drop workflow builder</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-orange-600 font-bold">•</span>
+            <span>Deploy as optimized Cloudflare Workers</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-orange-600 font-bold">•</span>
+            <span>
+              Integrate with D1, KV, R2, Workers AI, Vectorize, and other
+              Cloudflare products
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          Required API Token Permissions
+        </h3>
+        <p className="text-gray-600 text-xs leading-relaxed mb-2">
+          Your API token needs the following permissions:
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+          {REQUIRED_PERMISSIONS.map((perm, idx) => (
+            <div
+              key={idx}
+              className="p-2 bg-gray-50 rounded border border-gray-200 relative overflow-hidden"
+            >
+              <CrossHatchBackground pattern="small" opacity={0.02} />
+              <div className="relative z-10">
+                <p className="font-medium text-gray-900 text-xs">
+                  {perm.permission}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5 leading-tight">
+                  {perm.reason}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Alert>
+        <AlertTitle className="text-sm">Security Note</AlertTitle>
+        <p className="text-xs text-gray-600 mt-1">
+          Your API token is stored locally in your browser and attached to
+          requests. This is open source -{" "}
+          <a
+            href="https://github.com/vaishnav-mk/workflows-dashboard"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline"
+          >
+            view the code
+          </a>
+          .
+        </p>
+      </Alert>
+    </div>
+  );
+}

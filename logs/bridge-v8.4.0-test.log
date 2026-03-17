@@ -1,0 +1,34 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.72.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-03-12T06:07:09Z
+Connected to deepgram-bridge-sandbox-v8, waiting for logs...
+GET https://deepgram-bridge-sandbox-v8.trentbelasco.workers.dev/health - Ok @ 12/03/2026, 2:49:13 pm
+POST https://deepgram-bridge-sandbox-v8.trentbelasco.workers.dev/v1/chat/completions - Ok @ 12/03/2026, 2:53:12 pm
+  (log) [bridge 8.5.0] [REQ] lid=anon_4vm90uzr msgs=3
+  (log) [bridge 8.5.0] [KV_MERGE] lid=anon_4vm90uzr sources=[deep-intel] merged_keys=6
+  (log) [bridge 8.5.0] [FALLBACK] first_name="Trent" from DG system prompt
+  (log) [bridge 8.5.0] [FALLBACK] business_name="Pitcher Partners Sydney" from DG system prompt
+  (log) [bridge 8.5.0] [KV_STATUS] lid=anon_4vm90uzr turn=3 fast=false apify=true full=false kv_bytes=538
+  (log) [bridge 8.5.0] [UTT] lid=anon_4vm90uzr stage=anchor_acv utt_chars=14 utt_preview="Oh, hi, Bella."
+  (log) [bridge 8.5.0] [EXTRACT] lid=anon_4vm90uzr stage=anchor_acv extractions=0
+  (log) [bridge 8.5.0] [DEDUP] lid=anon_4vm90uzr turn=3 duplicate content — stall=0
+  (log) [bridge 8.5.0] [PROMPT] stage=anchor_acv system_chars=7403
+  (log) [bridge 8.5.0] [STREAM] stage=anchor_acv history=1 turns → streaming
+  (log) [bridge 8.5.0] [GEMINI_TTFB] 573ms (status=200)
+  (log) [bridge 8.5.0] [GEMINI_FIRST_CHUNK] 573ms
+  (log) [bridge 8.5.0] [GEMINI_USAGE] prompt=1889 cached=0 completion=3 total=1892
+  (log) [bridge 8.5.0] [GEMINI_USAGE] prompt=1889 cached=0 completion=22 total=1911
+  (log) [bridge 8.5.0] [GEMINI_USAGE] prompt=1889 cached=0 completion=66 total=1955
+  (log) [bridge 8.5.0] [BELLA_SAID] Hi there! Great to connect with Pitcher Partners today. I've done a good dive into your business and I'm keen to explore how AI can genuinely support your growth.
+
+To make sure my calculations are spot on for Pitcher Partners, what's the annual value of a new client for you, roughly?
+  (log) [bridge 8.5.0] [GEMINI_DONE] total=912ms chunks=6 first_chunk=573ms
+FatalError: Tail disconnected, exiting.
+    at createFatalError (/Users/trentbelasco/node_modules/wrangler/wrangler-dist/cli.js:716:12)
+    at Timeout._onTimeout (/Users/trentbelasco/node_modules/wrangler/wrangler-dist/cli.js:273043:21)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  telemetryMessage: 'Tail disconnected, exiting.',
+  code: 1
+}

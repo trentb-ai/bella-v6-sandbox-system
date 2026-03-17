@@ -1,0 +1,31 @@
+name = "bella-scrape-workflow-v9-test"
+main = "src/deployed.js"
+compatibility_date = "2025-10-22"
+compatibility_flags = ["nodejs_compat"]
+account_id = "9488d0601315a70cac36f9bd87aa4e82"
+
+# ─── KV ────────────────────────────────────────────────────────────────────────
+[[kv_namespaces]]
+binding = "WORKFLOWS_KV"
+id = "0fec6982d8644118aba1830afd4a58cb"
+
+# ─── Workflows ─────────────────────────────────────────────────────────────────
+[[workflows]]
+name = "bella-scrape-workflow-v9-test"
+binding = "BELLAV9ORCHESTRATOR_WORKFLOW"
+class_name = "BellaV9Orchestrator"
+
+# ─── Secrets ───────────────────────────────────────────────────────────────────
+# APIFY_TOKEN
+# FIRECRAWL_KEY
+# GEMINI_API_KEY
+
+[ai]
+binding = "AI"
+
+[observability]
+enabled = true
+
+[observability.logs]
+invocation_logs = true
+head_sampling_rate = 1

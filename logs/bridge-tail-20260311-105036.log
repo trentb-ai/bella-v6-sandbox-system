@@ -1,0 +1,73 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.72.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-03-11T05:13:38Z
+Connected to deepgram-bridge-sandbox-v6, waiting for logs...
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Exception Thrown @ 3/11/2026, 11:00:07 AM
+  (log) [bridge 6.2.1-D] [REQ] lid=anon_ni3i8fqd msgs=3
+  (log) [bridge 6.2.1-D] [INIT] lid=anon_ni3i8fqd queue=[ch_ads,ch_website,ch_phone]
+  (log) [bridge 6.2.1-D] [KV_STATUS] lid=anon_ni3i8fqd turn=3 fast=true apify=false full=false kv_bytes=18087
+  (log) [bridge 6.2.1-D] [PROMPT] stage=wow chars=9385 lid_injected=true
+  (log) [bridge 6.2.1-D] [STREAM] stage=wow history=1 turns → streaming
+  (log) [bridge 6.2.1-D] [CAPTURED] wants_numbers=true
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m  TimeoutError: The operation was aborted due to timeout[0m
+
+
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Exception Thrown @ 3/11/2026, 11:00:13 AM
+  (log) [bridge 6.2.1-D] [REQ] lid=anon_ni3i8fqd msgs=3
+  (log) [bridge 6.2.1-D] [KV_STATUS] lid=anon_ni3i8fqd turn=3 fast=true apify=false full=false kv_bytes=18087
+  (log) [bridge 6.2.1-D] [PROMPT] stage=wow chars=9385 lid_injected=true
+  (log) [bridge 6.2.1-D] [STREAM] stage=wow history=1 turns → streaming
+  (log) [bridge 6.2.1-D] [CAPTURED] wants_numbers=true
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m  TimeoutError: The operation was aborted due to timeout[0m
+
+
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 11:00:19 AM
+  (log) [bridge 6.2.1-D] [REQ] lid=anon_ni3i8fqd msgs=3
+  (log) [bridge 6.2.1-D] [KV_STATUS] lid=anon_ni3i8fqd turn=3 fast=true apify=false full=false kv_bytes=18087
+  (log) [bridge 6.2.1-D] [PROMPT] stage=wow chars=9385 lid_injected=true
+  (log) [bridge 6.2.1-D] [STREAM] stage=wow history=1 turns → streaming
+  (log) [bridge 6.2.1-D] [EXTRACT_ERR] TimeoutError: The operation was aborted due to timeout
+GET https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/ - Ok @ 3/11/2026, 11:31:00 AM
+GET https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/health - Ok @ 3/11/2026, 11:31:46 AM
+GET https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/debug/anon_ni3i8fqd - Ok @ 3/11/2026, 11:31:57 AM
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 11:32:37 AM
+  (log) [bridge 6.2.3-D] [REQ] lid=anon_ni3i8fqd msgs=2
+  (log) [bridge 6.2.3-D] [DIAG] turn=2 sys_chars=22 lid_found=true sys_preview="lead_id: anon_ni3i8fqd"
+  (log) [bridge 6.2.3-D] [KV_STATUS] lid=anon_ni3i8fqd turn=2 fast=true apify=false full=false kv_bytes=18082
+  (log) [bridge 6.2.3-D] [PROMPT] stage=wow chars=9385 lid_injected=true
+  (log) [bridge 6.2.3-D] [STREAM] stage=wow history=1 turns → streaming
+GET https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/health - Ok @ 3/11/2026, 11:37:00 AM
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 11:37:07 AM
+  (log) [bridge 6.2.4-D] [REQ] lid=anon_ni3i8fqd msgs=2
+  (log) [bridge 6.2.4-D] [DIAG] turn=2 sys_chars=22 lid_found=true sys_preview="lead_id: anon_ni3i8fqd"
+  (log) [bridge 6.2.4-D] [KV_STATUS] lid=anon_ni3i8fqd turn=2 fast=true apify=false full=false kv_bytes=18082
+  (log) [bridge 6.2.4-D] [PROMPT] stage=wow chars=9499 lid_injected=true
+  (log) [bridge 6.2.4-D] [STREAM] stage=wow history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 11:40:02 AM
+  (log) [bridge 6.2.5-D] [REQ] lid=anon_ni3i8fqd msgs=2
+  (log) [bridge 6.2.5-D] [DIAG] turn=2 sys_chars=22 lid_found=true sys_preview="lead_id: anon_ni3i8fqd"
+  (log) [bridge 6.2.5-D] [KV_STATUS] lid=anon_ni3i8fqd turn=2 fast=true apify=false full=false kv_bytes=18082
+  (log) [bridge 6.2.5-D] [STALL] waiting for data at wow (6 turns)
+  (log) [bridge 6.2.5-D] [PROMPT] stage=wow chars=9457 lid_injected=true
+  (log) [bridge 6.2.5-D] [STREAM] stage=wow history=1 turns → streaming
+GET https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/health - Ok @ 3/11/2026, 11:43:01 AM
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 11:43:09 AM
+  (log) [bridge 6.2.6-D] [REQ] lid=anon_ni3i8fqd msgs=2
+  (log) [bridge 6.2.6-D] [DIAG] turn=2 sys_chars=22 lid_found=true sys_preview="lead_id: anon_ni3i8fqd"
+  (log) [bridge 6.2.6-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: HubSpot)
+  (log) [bridge 6.2.6-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.2.6-D] [KV_STATUS] lid=anon_ni3i8fqd turn=2 fast=true apify=false full=false kv_bytes=18082
+  (log) [bridge 6.2.6-D] [STALL] waiting for data at wow (7 turns)
+  (log) [bridge 6.2.6-D] [PROMPT] stage=wow chars=9457 lid_injected=true
+  (log) [bridge 6.2.6-D] [STREAM] stage=wow history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 11:44:30 AM
+  (log) [bridge 6.2.6-D] [REQ] lid=anon_ni3i8fqd msgs=2
+  (log) [bridge 6.2.6-D] [DIAG] turn=2 sys_chars=22 lid_found=true sys_preview="lead_id: anon_ni3i8fqd"
+  (log) [bridge 6.2.6-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: HubSpot)
+  (log) [bridge 6.2.6-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.2.6-D] [KV_STATUS] lid=anon_ni3i8fqd turn=2 fast=true apify=false full=false kv_bytes=18082
+  (log) [bridge 6.2.6-D] [STALL] waiting for data at wow (8 turns)
+  (log) [bridge 6.2.6-D] [PROMPT] stage=wow chars=9457 lid_injected=true
+  (log) [bridge 6.2.6-D] [STREAM] stage=wow history=1 turns → streaming
+🪵  Logs were written to "/Users/trentbelasco/.wrangler/logs/wrangler-2026-03-10_23-50-38_475.log"

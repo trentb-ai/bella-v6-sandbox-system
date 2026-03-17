@@ -1,0 +1,1033 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.72.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-03-11T05:13:38Z
+Connected to deepgram-bridge-sandbox-v6, waiting for logs...
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 12:33:23 PM
+  (log) [bridge 6.2.7-D] [REQ] lid=anon_m6n8vudl msgs=3
+  (log) [bridge 6.2.7-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.2.7-D] [INIT] lid=anon_m6n8vudl queue=[ch_ads,ch_website,ch_phone]
+  (log) [bridge 6.2.7-D] [KV_STATUS] lid=anon_m6n8vudl turn=3 fast=true apify=false full=false kv_bytes=49481
+  (log) [bridge 6.2.7-D] [PROMPT] stage=wow chars=10154 lid_injected=true
+  (log) [bridge 6.2.7-D] [STREAM] stage=wow history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 12:33:29 PM
+  (log) [bridge 6.2.7-D] [REQ] lid=anon_m6n8vudl msgs=3
+  (log) [bridge 6.2.7-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.2.7-D] [KV_STATUS] lid=anon_m6n8vudl turn=3 fast=true apify=false full=false kv_bytes=49481
+  (log) [bridge 6.2.7-D] [PROMPT] stage=wow chars=10154 lid_injected=true
+  (log) [bridge 6.2.7-D] [STREAM] stage=wow history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 12:33:51 PM
+  (log) [bridge 6.2.7-D] [REQ] lid=anon_m6n8vudl msgs=5
+  (log) [bridge 6.2.7-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.2.7-D] [KV_STATUS] lid=anon_m6n8vudl turn=5 fast=true apify=false full=false kv_bytes=49481
+  (log) [bridge 6.2.7-D] [PROMPT] stage=wow chars=10154 lid_injected=true
+  (log) [bridge 6.2.7-D] [STREAM] stage=wow history=3 turns → streaming
+  (log) [bridge 6.2.7-D] [CAPTURED] wants_numbers=true
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 12:34:15 PM
+  (log) [bridge 6.2.7-D] [REQ] lid=anon_m6n8vudl msgs=7
+  (log) [bridge 6.2.7-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.2.7-D] [KV_STATUS] lid=anon_m6n8vudl turn=7 fast=true apify=false full=false kv_bytes=49481
+  (log) [bridge 6.2.7-D] [PROMPT] stage=wow chars=10154 lid_injected=true
+  (log) [bridge 6.2.7-D] [STREAM] stage=wow history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 12:34:17 PM
+  (log) [bridge 6.2.7-D] [REQ] lid=anon_m6n8vudl msgs=7
+  (log) [bridge 6.2.7-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.2.7-D] [KV_STATUS] lid=anon_m6n8vudl turn=7 fast=true apify=false full=false kv_bytes=49481
+  (log) [bridge 6.2.7-D] [PROMPT] stage=wow chars=10154 lid_injected=true
+  (log) [bridge 6.2.7-D] [STREAM] stage=wow history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 12:34:40 PM
+  (log) [bridge 6.2.7-D] [REQ] lid=anon_m6n8vudl msgs=9
+  (log) [bridge 6.2.7-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.2.7-D] [KV_STATUS] lid=anon_m6n8vudl turn=9 fast=true apify=false full=false kv_bytes=49481
+  (log) [bridge 6.2.7-D] [STALL] waiting for data at wow (6 turns)
+  (log) [bridge 6.2.7-D] [CAPTURED] wants_numbers=true
+  (log) [bridge 6.2.7-D] [DISTIL] compressed 2 turns → 257 chars
+  (log) [bridge 6.2.7-D] [PROMPT] stage=wow chars=10154 lid_injected=true
+  (log) [bridge 6.2.7-D] [STREAM] stage=wow history=5 turns → streaming
+GET https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/health - Ok @ 3/11/2026, 1:29:41 PM
+GET https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/health - Ok @ 3/11/2026, 1:34:54 PM
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 1:41:35 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=test_1773196850 msgs=3
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.3.0-D] [INIT] lid=test_1773196850 queue=[ch_website,ch_reviews]
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=test_1773196850 turn=3 fast=false apify=false full=false kv_bytes=1088
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] built + cached bridge_system for lid=test_1773196850 chars=12651
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=13151 turn_chars=472 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=1 turns → streaming
+  (log) [bridge 6.3.0-D] [MEMORY] updated conv_memory for lid=test_1773196850 chars=35
+  (log) [bridge 6.3.0-D] [EXTRACT] lid=test_1773196850 extractions=0 memory=updated
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Exception Thrown @ 3/11/2026, 1:41:40 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=test_1773196850 msgs=3
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=test_1773196850 turn=3 fast=false apify=false full=false kv_bytes=1088
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=12651
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=13199 turn_chars=520 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=1 turns → streaming
+  (log) [bridge 6.3.0-D] [MEMORY] updated conv_memory for lid=test_1773196850 chars=96
+  (log) [bridge 6.3.0-D] [EXTRACT] lid=test_1773196850 extractions=0 memory=updated
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m  TimeoutError: The operation was aborted due to timeout[0m
+
+
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Exception Thrown @ 3/11/2026, 1:41:43 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=test_1773196850 msgs=3
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=test_1773196850 turn=3 fast=false apify=false full=false kv_bytes=1088
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=12651
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=13199 turn_chars=520 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=1 turns → streaming
+  (log) [bridge 6.3.0-D] [MEMORY] updated conv_memory for lid=test_1773196850 chars=118
+  (log) [bridge 6.3.0-D] [EXTRACT] lid=test_1773196850 extractions=0 memory=updated
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m  TimeoutError: The operation was aborted due to timeout[0m
+
+
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Exception Thrown @ 3/11/2026, 1:41:46 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=test_1773196850 msgs=3
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=test_1773196850 turn=3 fast=false apify=false full=false kv_bytes=1088
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=12651
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=13282 turn_chars=603 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=1 turns → streaming
+  (log) [bridge 6.3.0-D] [MEMORY] updated conv_memory for lid=test_1773196850 chars=252
+  (log) [bridge 6.3.0-D] [EXTRACT] lid=test_1773196850 extractions=0 memory=updated
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m  TimeoutError: The operation was aborted due to timeout[0m
+
+
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:41:57 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=test_1773196850 msgs=3
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=test_1773196850 turn=3 fast=false apify=false full=false kv_bytes=1088
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=12651
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=13416 turn_chars=737 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=1 turns → streaming
+  (log) [bridge 6.3.0-D] [MEMORY] updated conv_memory for lid=test_1773196850 chars=390
+  (log) [bridge 6.3.0-D] [EXTRACT] lid=test_1773196850 extractions=0 memory=updated
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:42:27 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=test_1773196850 msgs=5
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=test_1773196850 turn=5 fast=false apify=false full=false kv_bytes=1088
+  (log) [bridge 6.3.0-D] [STALL] waiting for data at wow (6 turns)
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=12651
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=13554 turn_chars=875 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=3 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:42:40 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=test_1773196850 msgs=7
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=test_1773196850 turn=7 fast=false apify=false full=false kv_bytes=1088
+  (log) [bridge 6.3.0-D] [STALL] waiting for data at wow (7 turns)
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=12651
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=13554 turn_chars=875 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:42:52 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=test_1773196850 msgs=9
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=test_1773196850 turn=9 fast=false apify=false full=false kv_bytes=1088
+  (log) [bridge 6.3.0-D] [STALL] waiting for data at wow (8 turns)
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=12651
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=13554 turn_chars=875 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:43:04 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=test_1773196850 msgs=11
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=test_1773196850 turn=11 fast=false apify=false full=false kv_bytes=1088
+  (log) [bridge 6.3.0-D] [STALL] waiting for data at wow (9 turns)
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=12651
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=13554 turn_chars=875 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:43:21 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=test_1773196850 msgs=13
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=test_1773196850 turn=13 fast=false apify=false full=false kv_bytes=1088
+  (log) [bridge 6.3.0-D] [STALL] waiting for data at wow (10 turns)
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=12651
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=13554 turn_chars=875 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.0-D] [EXTRACT_ERR] TimeoutError: The operation was aborted due to timeout
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 1:43:39 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=test_1773196850 msgs=15
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=test_1773196850 turn=15 fast=false apify=false full=false kv_bytes=1088
+  (log) [bridge 6.3.0-D] [STALL] waiting for data at wow (11 turns)
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=12651
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=13554 turn_chars=875 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.0-D] [EXTRACT] lid=test_1773196850 extractions=0 memory=none
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:43:42 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=test_1773196850 msgs=15
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] review_signals overridden to true (29 reviews found)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=test_1773196850 turn=15 fast=false apify=false full=false kv_bytes=1088
+  (log) [bridge 6.3.0-D] [STALL] waiting for data at wow (12 turns)
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=12651
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=13554 turn_chars=875 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:50:58 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=48808
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=19491 turn_chars=552 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=1 turns → streaming
+  (log) [bridge 6.3.0-D] [MEMORY] updated conv_memory for lid=anon_iiddbd3f chars=223
+  (log) [bridge 6.3.0-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=updated
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Exception Thrown @ 3/11/2026, 1:50:52 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.0-D] [INIT] lid=anon_iiddbd3f queue=[ch_ads,ch_website,ch_phone]
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=48808
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] built + cached bridge_system for lid=anon_iiddbd3f chars=18913
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=19387 turn_chars=448 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=1 turns → streaming
+  (log) [bridge 6.3.0-D] [MEMORY] updated conv_memory for lid=anon_iiddbd3f chars=91
+  (log) [bridge 6.3.0-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=updated
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m  TimeoutError: The operation was aborted due to timeout[0m
+
+
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 1:51:21 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=anon_iiddbd3f msgs=5
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=5 fast=true apify=false full=false kv_bytes=48808
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=19623 turn_chars=684 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=3 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:51:24 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=anon_iiddbd3f msgs=5
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=5 fast=true apify=false full=false kv_bytes=48808
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=19623 turn_chars=684 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=3 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:51:44 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=anon_iiddbd3f msgs=7
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=7 fast=true apify=false full=false kv_bytes=48808
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=19623 turn_chars=684 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:52:03 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=anon_iiddbd3f msgs=9
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=9 fast=true apify=false full=false kv_bytes=48808
+  (log) [bridge 6.3.0-D] [STALL] waiting for data at wow (6 turns)
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=19623 turn_chars=684 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:52:19 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=anon_iiddbd3f msgs=11
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=11 fast=true apify=false full=false kv_bytes=48808
+  (log) [bridge 6.3.0-D] [STALL] waiting for data at wow (7 turns)
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=19623 turn_chars=684 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:52:39 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=anon_iiddbd3f msgs=13
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=13 fast=true apify=false full=false kv_bytes=48808
+  (log) [bridge 6.3.0-D] [STALL] waiting for data at wow (8 turns)
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=19623 turn_chars=684 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.0-D] [MEMORY] updated conv_memory for lid=anon_iiddbd3f chars=439
+  (log) [bridge 6.3.0-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=updated
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 1:53:15 PM
+  (log) [bridge 6.3.0-D] [REQ] lid=anon_iiddbd3f msgs=15
+  (log) [bridge 6.3.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=15 fast=true apify=false full=false kv_bytes=48808
+  (log) [bridge 6.3.0-D] [STALL] waiting for data at wow (9 turns)
+  (log) [bridge 6.3.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.0-D] [PROMPT] stage=wow system_chars=19839 turn_chars=900 cached=true
+  (log) [bridge 6.3.0-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.0-D] [MEMORY] updated conv_memory for lid=anon_iiddbd3f chars=596
+  (log) [bridge 6.3.0-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=updated
+GET https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/health - Ok @ 3/11/2026, 1:58:07 PM
+GET https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/health - Ok @ 3/11/2026, 2:03:55 PM
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:09:35 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.3.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:intel exists=true bytes=48245
+  (log) [bridge 6.3.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:script_state exists=true bytes=538
+  (log) [bridge 6.3.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:conv_memory exists=true bytes=596
+  (log) [bridge 6.3.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:bridge_system exists=true bytes=18913
+  (log) [bridge 6.3.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:captured_inputs exists=true bytes=412
+  (log) [bridge 6.3.1-D] [KV_DIAG] intel top-level keys: [v, lid, ts, firstName, first_name, websiteUrl, business_name, fast_intel, core_identity, consultant, flags, tech_stack, bella_opener, fast_context, intel, website_health, star_rating, review_count, location, logo_url]
+  (log) [bridge 6.3.1-D] [KV_DIAG] intel.business_name=KPMG intel.core_identity?.business_name=KPMG
+  (log) [bridge 6.3.1-D] [KV_DIAG] intel.consultant exists=true intel.tech_stack exists=true intel.flags exists=true
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=19 utt_preview="Yeah. That's right."
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (10 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1057 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=1 turns → streaming
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=none
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:09:55 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=5
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=5 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=46 utt_preview="Probably about a quarter of a million dollars."
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (11 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1057 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=3 turns → streaming
+  (log) [bridge 6.3.1-D] [MEMORY] updated conv_memory for lid=anon_iiddbd3f chars=696
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=updated
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:10:15 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=7
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=7 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=25 utt_preview="Uh, Oh, probably monthly."
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (12 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1157 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [MEMORY] updated conv_memory for lid=anon_iiddbd3f chars=794
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=updated
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:10:28 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=9
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=9 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=5 utt_preview="Yeah."
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (13 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1255 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [MEMORY] updated conv_memory for lid=anon_iiddbd3f chars=849
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=updated
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:10:44 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=11
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=11 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=33 utt_preview="Oh, um, I'd say about a thousand."
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (14 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1310 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [MEMORY] updated conv_memory for lid=anon_iiddbd3f chars=960
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=updated
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:11:00 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=13
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=13 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=19 utt_preview="Probably a hundred."
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (15 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1421 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [MEMORY] updated conv_memory for lid=anon_iiddbd3f chars=1070
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=updated
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:11:19 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=15
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=15 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=12 utt_preview="Oh, probably"
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (16 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1531 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [EXTRACT_ERR] TimeoutError: The operation was aborted due to timeout
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:11:22 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=15
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=15 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=43 utt_preview="Oh, probably probably same day or next day."
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (17 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1531 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [MEMORY] updated conv_memory for lid=anon_iiddbd3f chars=1177
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=updated
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:11:42 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=17
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=17 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=3 utt_preview="Oh,"
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (18 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1638 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=none
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:11:44 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=17
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=17 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=19 utt_preview="Oh, probably, like,"
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (19 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1638 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=none
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:11:47 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=17
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=17 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=47 utt_preview="Oh, probably, like, I don't know, two thousand."
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (20 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1638 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [MEMORY] updated conv_memory for lid=anon_iiddbd3f chars=1290
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=updated
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:11:45 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=17
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=17 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=33 utt_preview="Oh, probably, like, I don't know,"
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (20 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1638 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [MEMORY] updated conv_memory for lid=anon_iiddbd3f chars=1270
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=updated
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:12:03 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=19
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=19 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=23 utt_preview="Either go to voice mail"
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (21 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1751 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [MEMORY] updated conv_memory for lid=anon_iiddbd3f chars=1394
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=updated
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:12:12 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=21
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=21 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=1 utt_preview="-"
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (22 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1855 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=none
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:12:15 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=21
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=21 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=8 utt_preview="- Hello?"
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (23 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1855 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=none
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:12:20 PM
+  (log) [bridge 6.3.1-D] [REQ] lid=anon_iiddbd3f msgs=23
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.3.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.3.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=23 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.3.1-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=6 utt_preview="Hello?"
+  (log) [bridge 6.3.1-D] [STALL] waiting for data at wow (24 turns)
+  (log) [bridge 6.3.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.3.1-D] [PROMPT] stage=wow system_chars=18937 turn_chars=1855 cached=true
+  (log) [bridge 6.3.1-D] [STREAM] stage=wow history=5 turns → streaming
+  (log) [bridge 6.3.1-D] [EXTRACT] lid=anon_iiddbd3f extractions=0 memory=none
+GET https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/health - Ok @ 3/11/2026, 2:21:02 PM
+GET https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/health - Ok @ 3/11/2026, 2:32:54 PM
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:40:13 PM
+  (log) [bridge 6.4.0-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:intel exists=true bytes=48245
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:script_state exists=true bytes=550
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:conv_memory exists=true bytes=1394
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:bridge_system exists=true bytes=18913
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:captured_inputs exists=true bytes=412
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel top-level keys: [v, lid, ts, firstName, first_name, websiteUrl, business_name, fast_intel, core_identity, consultant, flags, tech_stack, bella_opener, fast_context, intel, website_health, star_rating, review_count, location, logo_url]
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.business_name=KPMG intel.core_identity?.business_name=KPMG
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.consultant exists=true intel.tech_stack exists=true intel.flags exists=true
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.0-D] [UTT] lid=anon_iiddbd3f stage=anchor_acv utt_chars=11 utt_preview="It's Hello?"
+  (log) [bridge 6.4.0-D] [EXTRACT] lid=anon_iiddbd3f stage=anchor_acv extractions=0
+  (log) [bridge 6.4.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.0-D] [PROMPT] stage=anchor_acv system_chars=18937 turn_chars=1739 cached=true
+  (log) [bridge 6.4.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+  (log) [bridge 6.4.0-D] [MEMORY] nothing notable from utterance
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Exception Thrown @ 3/11/2026, 2:40:08 PM
+  (log) [bridge 6.4.0-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:intel exists=true bytes=48245
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:script_state exists=true bytes=539
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:conv_memory exists=true bytes=1394
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:bridge_system exists=true bytes=18913
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:captured_inputs exists=true bytes=412
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel top-level keys: [v, lid, ts, firstName, first_name, websiteUrl, business_name, fast_intel, core_identity, consultant, flags, tech_stack, bella_opener, fast_context, intel, website_health, star_rating, review_count, location, logo_url]
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.business_name=KPMG intel.core_identity?.business_name=KPMG
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.consultant exists=true intel.tech_stack exists=true intel.flags exists=true
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.0-D] [UTT] lid=anon_iiddbd3f stage=wow utt_chars=4 utt_preview="It's"
+  (log) [bridge 6.4.0-D] [EXTRACT] lid=anon_iiddbd3f stage=wow extractions=0
+  (log) [bridge 6.4.0-D] [ADVANCE] → anchor_acv
+  (log) [bridge 6.4.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.0-D] [PROMPT] stage=anchor_acv system_chars=18937 turn_chars=1739 cached=true
+  (log) [bridge 6.4.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m  TimeoutError: The operation was aborted due to timeout[0m
+
+
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Exception Thrown @ 3/11/2026, 2:40:18 PM
+  (log) [bridge 6.4.0-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:intel exists=true bytes=48245
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:script_state exists=true bytes=550
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:conv_memory exists=true bytes=1394
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:bridge_system exists=true bytes=18913
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:captured_inputs exists=true bytes=412
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel top-level keys: [v, lid, ts, firstName, first_name, websiteUrl, business_name, fast_intel, core_identity, consultant, flags, tech_stack, bella_opener, fast_context, intel, website_health, star_rating, review_count, location, logo_url]
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.business_name=KPMG intel.core_identity?.business_name=KPMG
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.consultant exists=true intel.tech_stack exists=true intel.flags exists=true
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.0-D] [UTT] lid=anon_iiddbd3f stage=anchor_acv utt_chars=18 utt_preview="It's Hello? Hello?"
+  (log) [bridge 6.4.0-D] [EXTRACT] lid=anon_iiddbd3f stage=anchor_acv extractions=0
+  (log) [bridge 6.4.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.0-D] [PROMPT] stage=anchor_acv system_chars=18937 turn_chars=1739 cached=true
+  (log) [bridge 6.4.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+  (log) [bridge 6.4.0-D] [MEMORY] saved 54 chars of qualitative signals
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m  TimeoutError: The operation was aborted due to timeout[0m
+
+
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Exception Thrown @ 3/11/2026, 2:40:23 PM
+  (log) [bridge 6.4.0-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:intel exists=true bytes=48245
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:script_state exists=true bytes=550
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:conv_memory exists=true bytes=1449
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:bridge_system exists=true bytes=18913
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:captured_inputs exists=true bytes=412
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel top-level keys: [v, lid, ts, firstName, first_name, websiteUrl, business_name, fast_intel, core_identity, consultant, flags, tech_stack, bella_opener, fast_context, intel, website_health, star_rating, review_count, location, logo_url]
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.business_name=KPMG intel.core_identity?.business_name=KPMG
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.consultant exists=true intel.tech_stack exists=true intel.flags exists=true
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.0-D] [UTT] lid=anon_iiddbd3f stage=anchor_acv utt_chars=32 utt_preview="It's Hello? Hello? Hello, Bella."
+  (log) [bridge 6.4.0-D] [EXTRACT] lid=anon_iiddbd3f stage=anchor_acv extractions=0
+  (log) [bridge 6.4.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.0-D] [PROMPT] stage=anchor_acv system_chars=18937 turn_chars=1794 cached=true
+  (log) [bridge 6.4.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+  (log) [bridge 6.4.0-D] [MEMORY] saved 54 chars of qualitative signals
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m  TimeoutError: The operation was aborted due to timeout[0m
+
+
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Exception Thrown @ 3/11/2026, 2:40:28 PM
+  (log) [bridge 6.4.0-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:intel exists=true bytes=48245
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:script_state exists=true bytes=550
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:conv_memory exists=true bytes=1504
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:bridge_system exists=true bytes=18913
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:captured_inputs exists=true bytes=412
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel top-level keys: [v, lid, ts, firstName, first_name, websiteUrl, business_name, fast_intel, core_identity, consultant, flags, tech_stack, bella_opener, fast_context, intel, website_health, star_rating, review_count, location, logo_url]
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.business_name=KPMG intel.core_identity?.business_name=KPMG
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.consultant exists=true intel.tech_stack exists=true intel.flags exists=true
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.0-D] [UTT] lid=anon_iiddbd3f stage=anchor_acv utt_chars=59 utt_preview="It's Hello? Hello? Hello, Bella. Belli, you've disappeared."
+  (log) [bridge 6.4.0-D] [EXTRACT] lid=anon_iiddbd3f stage=anchor_acv extractions=0
+  (log) [bridge 6.4.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.0-D] [PROMPT] stage=anchor_acv system_chars=18937 turn_chars=1849 cached=true
+  (log) [bridge 6.4.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+  (log) [bridge 6.4.0-D] [MEMORY] saved 36 chars of qualitative signals
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m  TimeoutError: The operation was aborted due to timeout[0m
+
+
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Exception Thrown @ 3/11/2026, 2:40:38 PM
+  (log) [bridge 6.4.0-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:intel exists=true bytes=48245
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:script_state exists=true bytes=550
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:conv_memory exists=true bytes=1541
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:bridge_system exists=true bytes=18913
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:captured_inputs exists=true bytes=412
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel top-level keys: [v, lid, ts, firstName, first_name, websiteUrl, business_name, fast_intel, core_identity, consultant, flags, tech_stack, bella_opener, fast_context, intel, website_health, star_rating, review_count, location, logo_url]
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.business_name=KPMG intel.core_identity?.business_name=KPMG
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.consultant exists=true intel.tech_stack exists=true intel.flags exists=true
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.0-D] [UTT] lid=anon_iiddbd3f stage=anchor_acv utt_chars=59 utt_preview="It's Hello? Hello? Hello, Bella. Belli, you've disappeared."
+  (log) [bridge 6.4.0-D] [EXTRACT] lid=anon_iiddbd3f stage=anchor_acv extractions=0
+  (log) [bridge 6.4.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.0-D] [PROMPT] stage=anchor_acv system_chars=18937 turn_chars=1886 cached=true
+  (log) [bridge 6.4.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+  (log) [bridge 6.4.0-D] [MEMORY] saved 60 chars of qualitative signals
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m  TimeoutError: The operation was aborted due to timeout[0m
+
+
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:40:43 PM
+  (log) [bridge 6.4.0-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:intel exists=true bytes=48245
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:script_state exists=true bytes=550
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:conv_memory exists=true bytes=1602
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:bridge_system exists=true bytes=18913
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:captured_inputs exists=true bytes=412
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel top-level keys: [v, lid, ts, firstName, first_name, websiteUrl, business_name, fast_intel, core_identity, consultant, flags, tech_stack, bella_opener, fast_context, intel, website_health, star_rating, review_count, location, logo_url]
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.business_name=KPMG intel.core_identity?.business_name=KPMG
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.consultant exists=true intel.tech_stack exists=true intel.flags exists=true
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.0-D] [UTT] lid=anon_iiddbd3f stage=anchor_acv utt_chars=66 utt_preview="It's Hello? Hello? Hello, Bella. Belli, you've disappeared. Bella,"
+  (log) [bridge 6.4.0-D] [EXTRACT] lid=anon_iiddbd3f stage=anchor_acv extractions=0
+  (log) [bridge 6.4.0-D] [STALL] waiting for data at anchor_acv (6 turns)
+  (log) [bridge 6.4.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.0-D] [PROMPT] stage=anchor_acv system_chars=18937 turn_chars=1947 cached=true
+  (log) [bridge 6.4.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+  (log) [bridge 6.4.0-D] [MEMORY] saved 39 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Exception Thrown @ 3/11/2026, 2:40:48 PM
+  (log) [bridge 6.4.0-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:intel exists=true bytes=48245
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:script_state exists=true bytes=550
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:conv_memory exists=true bytes=1642
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:bridge_system exists=true bytes=18913
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:captured_inputs exists=true bytes=412
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel top-level keys: [v, lid, ts, firstName, first_name, websiteUrl, business_name, fast_intel, core_identity, consultant, flags, tech_stack, bella_opener, fast_context, intel, website_health, star_rating, review_count, location, logo_url]
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.business_name=KPMG intel.core_identity?.business_name=KPMG
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.consultant exists=true intel.tech_stack exists=true intel.flags exists=true
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.0-D] [UTT] lid=anon_iiddbd3f stage=anchor_acv utt_chars=73 utt_preview="It's Hello? Hello? Hello, Bella. Belli, you've disappeared. Bella, Bella."
+  (log) [bridge 6.4.0-D] [EXTRACT] lid=anon_iiddbd3f stage=anchor_acv extractions=0
+  (log) [bridge 6.4.0-D] [STALL] waiting for data at anchor_acv (7 turns)
+  (log) [bridge 6.4.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.0-D] [PROMPT] stage=anchor_acv system_chars=18937 turn_chars=1987 cached=true
+  (log) [bridge 6.4.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+  (log) [bridge 6.4.0-D] [MEMORY] saved 51 chars of qualitative signals
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m  TimeoutError: The operation was aborted due to timeout[0m
+
+
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Exception Thrown @ 3/11/2026, 2:40:58 PM
+  (log) [bridge 6.4.0-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:intel exists=true bytes=48245
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:script_state exists=true bytes=550
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:conv_memory exists=true bytes=1694
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:bridge_system exists=true bytes=18913
+  (log) [bridge 6.4.0-D] [KV_DIAG] key=lead:anon_iiddbd3f:captured_inputs exists=true bytes=412
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel top-level keys: [v, lid, ts, firstName, first_name, websiteUrl, business_name, fast_intel, core_identity, consultant, flags, tech_stack, bella_opener, fast_context, intel, website_health, star_rating, review_count, location, logo_url]
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.business_name=KPMG intel.core_identity?.business_name=KPMG
+  (log) [bridge 6.4.0-D] [KV_DIAG] intel.consultant exists=true intel.tech_stack exists=true intel.flags exists=true
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.0-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.0-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.0-D] [UTT] lid=anon_iiddbd3f stage=anchor_acv utt_chars=73 utt_preview="It's Hello? Hello? Hello, Bella. Belli, you've disappeared. Bella, Bella."
+  (log) [bridge 6.4.0-D] [EXTRACT] lid=anon_iiddbd3f stage=anchor_acv extractions=0
+  (log) [bridge 6.4.0-D] [STALL] waiting for data at anchor_acv (8 turns)
+  (log) [bridge 6.4.0-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.0-D] [PROMPT] stage=anchor_acv system_chars=18937 turn_chars=2039 cached=true
+  (log) [bridge 6.4.0-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+  (log) [bridge 6.4.0-D] [MEMORY] saved 44 chars of qualitative signals
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m  TimeoutError: The operation was aborted due to timeout[0m
+
+
+GET https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/health - Ok @ 3/11/2026, 2:43:00 PM
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:47:51 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.4.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:intel exists=true bytes=48245
+  (log) [bridge 6.4.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:script_state exists=true bytes=550
+  (log) [bridge 6.4.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:conv_memory exists=true bytes=1739
+  (log) [bridge 6.4.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:bridge_system exists=true bytes=18913
+  (log) [bridge 6.4.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:captured_inputs exists=true bytes=412
+  (log) [bridge 6.4.1-D] [KV_DIAG] intel top-level keys: [v, lid, ts, firstName, first_name, websiteUrl, business_name, fast_intel, core_identity, consultant, flags, tech_stack, bella_opener, fast_context, intel, website_health, star_rating, review_count, location, logo_url]
+  (log) [bridge 6.4.1-D] [KV_DIAG] intel.business_name=KPMG intel.core_identity?.business_name=KPMG
+  (log) [bridge 6.4.1-D] [KV_DIAG] intel.consultant exists=true intel.tech_stack exists=true intel.flags exists=true
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=anchor_acv utt_chars=29 utt_preview="Yeah. That'd be right. Hello?"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=anchor_acv extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at anchor_acv (10 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=anchor_acv system_chars=18937 turn_chars=2084 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 28 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:47:39 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=3
+  (log) [bridge 6.4.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:intel exists=true bytes=48245
+  (log) [bridge 6.4.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:script_state exists=true bytes=550
+  (log) [bridge 6.4.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:conv_memory exists=true bytes=1739
+  (log) [bridge 6.4.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:bridge_system exists=true bytes=18913
+  (log) [bridge 6.4.1-D] [KV_DIAG] key=lead:anon_iiddbd3f:captured_inputs exists=true bytes=412
+  (log) [bridge 6.4.1-D] [KV_DIAG] intel top-level keys: [v, lid, ts, firstName, first_name, websiteUrl, business_name, fast_intel, core_identity, consultant, flags, tech_stack, bella_opener, fast_context, intel, website_health, star_rating, review_count, location, logo_url]
+  (log) [bridge 6.4.1-D] [KV_DIAG] intel.business_name=KPMG intel.core_identity?.business_name=KPMG
+  (log) [bridge 6.4.1-D] [KV_DIAG] intel.consultant exists=true intel.tech_stack exists=true intel.flags exists=true
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=3 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=anchor_acv utt_chars=22 utt_preview="Yeah. That'd be right."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=anchor_acv extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at anchor_acv (9 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=anchor_acv system_chars=18937 turn_chars=2084 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=anchor_acv history=1 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] nothing notable from utterance
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:48:11 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=5
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=5 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=anchor_acv utt_chars=57 utt_preview="All would probably be two hundred fifty thousand dollars."
+  (log) [bridge 6.4.1-D] [CAPTURED] acv=50000
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=anchor_acv extractions=1 fields=acv
+  (log) [bridge 6.4.1-D] [ADVANCE] → anchor_timeframe
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=anchor_timeframe system_chars=18937 turn_chars=2167 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=anchor_timeframe history=3 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 30 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:48:09 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=5
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=5 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=anchor_acv utt_chars=21 utt_preview="All would probably be"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=anchor_acv extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at anchor_acv (11 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=anchor_acv system_chars=18937 turn_chars=2113 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=anchor_acv history=3 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] nothing notable from utterance
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:48:27 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=7
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=7 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=anchor_timeframe utt_chars=8 utt_preview="Monthly."
+  (log) [bridge 6.4.1-D] [CAPTURED] timeframe="monthly"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=anchor_timeframe extractions=1 fields=timeframe
+  (log) [bridge 6.4.1-D] [ADVANCE] → ch_ads
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2222 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:48:42 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=9
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=9 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=17 utt_preview="About a thousand."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2222 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] nothing notable from utterance
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:48:55 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=11
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=11 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=10 utt_preview="A hundred."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2222 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:49:21 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=13
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=13 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=33 utt_preview="Oh, sorry. What was the question?"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2222 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 50 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:49:20 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=13
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=13 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=3 utt_preview="Oh,"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2222 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:49:36 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=15
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=15 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=7 utt_preview="Hundred"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2273 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:49:53 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=17
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=17 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=13 utt_preview="Twenty or so."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (6 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2273 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] nothing notable from utterance
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:50:13 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=19
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=19 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=7 utt_preview="I guess"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (7 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2273 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:50:14 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=19
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=19 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=23 utt_preview="I guess couple hundred."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (8 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2273 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] nothing notable from utterance
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:50:30 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=21
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=21 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=15 utt_preview="Well, I suppose"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (9 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2273 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 28 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:50:35 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=21
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=21 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=43 utt_preview="Well, I suppose I don't know, maybe twenty."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (10 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2302 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 50 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:50:55 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=23
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=23 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=56 utt_preview="Oh, probably every or probably same day or the next day."
+  (log) [bridge 6.4.1-D] [CAPTURED] ads_followup="3h_to_24h"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=1 fields=ads_followup
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (11 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2413 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] nothing notable from utterance
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:51:19 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=25
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=25 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=28 utt_preview="Didn't I just tell you that?"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (12 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2413 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 42 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:51:36 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=27
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=27 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=23 utt_preview="Oh, maybe five hundred."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (13 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2456 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] nothing notable from utterance
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:51:51 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=29
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=29 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=29 utt_preview="Um, they'll go to voice mail."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (14 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2456 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] nothing notable from utterance
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:52:19 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=31
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=31 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=85 utt_preview="Didn't didn't oh, I'd say maybe, I don't know, maybe a hundred. To two hundred m"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (17 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2483 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 36 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:52:16 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=31
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=31 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=32 utt_preview="Didn't didn't oh, I'd say maybe,"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (15 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2456 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 51 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:52:18 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=31
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=31 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=63 utt_preview="Didn't didn't oh, I'd say maybe, I don't know, maybe a hundred."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (16 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2483 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 39 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:52:41 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=33
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=33 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=34 utt_preview="I think you already asked me that."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (18 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2483 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 41 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:52:55 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=35
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=35 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=5 utt_preview="Yeah."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (19 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2483 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:53:08 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=36
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=36 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=44 utt_preview="You've asked me all these questions already."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (20 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2483 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 43 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:53:28 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=36
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=36 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=52 utt_preview="So you are now, like, looping don't you, like, check"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (22 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2483 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 36 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:53:33 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=31
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=31 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=130 utt_preview="So you are now, like, looping don't you, like, check your logs before you ask me"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (23 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2483 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 43 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 3/11/2026, 2:53:25 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=37
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=37 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=29 utt_preview="So you are now, like, looping"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (21 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2483 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 43 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:53:58 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=25
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=25 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=111 utt_preview="Asked me all these questions, Bella. I think you're supposed to, like, make some"
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (24 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2483 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 27 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:54:28 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=26
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=26 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=5 utt_preview="Yeah."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (25 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2483 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:54:50 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=26
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=26 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=26 utt_preview="No. I'll jump into a demo."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (26 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2483 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] saved 39 chars of qualitative signals
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 3/11/2026, 2:55:07 PM
+  (log) [bridge 6.4.1-D] [REQ] lid=anon_iiddbd3f msgs=27
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] no_crm overridden to false (CRM detected: Salesforce/Pardot)
+  (log) [bridge 6.4.1-D] [FIX_FLAGS] review_signals overridden to true (83 reviews found)
+  (log) [bridge 6.4.1-D] [KV_STATUS] lid=anon_iiddbd3f turn=27 fast=true apify=false full=false kv_bytes=49113
+  (log) [bridge 6.4.1-D] [UTT] lid=anon_iiddbd3f stage=ch_ads utt_chars=11 utt_preview="Yeah. I am."
+  (log) [bridge 6.4.1-D] [EXTRACT] lid=anon_iiddbd3f stage=ch_ads extractions=0
+  (log) [bridge 6.4.1-D] [STALL] waiting for data at ch_ads (27 turns)
+  (log) [bridge 6.4.1-D] [SYSTEM_CTX] loaded from KV cache chars=18913
+  (log) [bridge 6.4.1-D] [PROMPT] stage=ch_ads system_chars=18937 turn_chars=2483 cached=true
+  (log) [bridge 6.4.1-D] [STREAM] stage=ch_ads history=5 turns → streaming
+  (log) [bridge 6.4.1-D] [MEMORY] nothing notable from utterance
+FatalError: Tail disconnected, exiting.
+    at createFatalError (/Users/trentbelasco/Desktop/BELLA_V6_SANDBOX_COMPLETE_SYSTEM/deepgram-bridge-v6/node_modules/wrangler/wrangler-dist/cli.js:716:12)
+    at Timeout._onTimeout (/Users/trentbelasco/Desktop/BELLA_V6_SANDBOX_COMPLETE_SYSTEM/deepgram-bridge-v6/node_modules/wrangler/wrangler-dist/cli.js:273043:21)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  telemetryMessage: 'Tail disconnected, exiting.',
+  code: 1
+}
+🪵  Logs were written to "/Users/trentbelasco/.wrangler/logs/wrangler-2026-03-11_01-26-52_223.log"

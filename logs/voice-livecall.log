@@ -1,0 +1,410 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.72.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-03-11T12:21:58Z
+Connected to bella-voice-agent-sandbox-v6, waiting for logs...
+Unknown Event - Ok @ 11/03/2026, 5:25:23 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:23 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:23 pm
+  (log) [BellaV4 3.0.1-v6] [DG] [+1674ms] connected — sending Settings
+  (log) {
+  displayMessage: 'State updated',
+  id: 'xU61SaGcpJ1Ybp7KIX6yl',
+  payload: {},
+  timestamp: 1773210324252,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.0.1-v6] [DG] [+1674ms] Settings sent
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] Welcome
+  (log) [BellaV4 3.0.1-v6] [DG] [+1674ms] Welcome received
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] SettingsApplied
+  (log) [BellaV4 3.0.1-v6] [DG] [+1874ms] pipeline configured ✓
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 5:25:24 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:24 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:25 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 11/03/2026, 5:25:25 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:25 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:25 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:25 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:26 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:26 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:26 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:26 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:27 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 11/03/2026, 5:25:27 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:27 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:27 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 5:25:28 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:28 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:28 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:28 pm
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 5:25:29 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:29 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:29 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:29 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:30 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:30 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:30 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:30 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:31 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:31 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:31 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:31 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:32 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:32 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:32 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:33 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] Warning
+  (log) [BellaV4 3.0.1-v6] [DG-WARN] [+10728ms] {"type":"Warning","description":"We have now waited 5 seconds for think response.","code":"SLOW_THINK_REQUEST"}
+Unknown Event - Ok @ 11/03/2026, 5:25:33 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:33 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:33 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 5:25:34 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:34 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:34 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 11/03/2026, 5:25:34 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 5:25:35 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:35 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:35 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:35 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:36 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:36 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:36 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:36 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:37 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:37 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:37 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:37 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:38 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:38 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 5:25:38 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:39 pm
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 5:25:39 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:39 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:39 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:39 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:40 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:40 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:40 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:40 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 5:25:41 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:41 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:41 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:42 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:42 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:42 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 11/03/2026, 5:25:42 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:42 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:43 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:43 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:43 pm
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 5:25:44 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:44 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:44 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:44 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:45 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:45 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:45 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:45 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:46 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:46 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:46 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:46 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:47 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:47 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:47 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:47 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:48 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:48 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:48 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:48 pm
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 5:25:49 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:49 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:49 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 11/03/2026, 5:25:50 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:50 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:50 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:50 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 5:25:51 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:51 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:51 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:51 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:51 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:52 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:52 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:52 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:53 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:53 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:53 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:53 pm
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 5:25:54 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 5:25:54 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:54 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:55 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:55 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:55 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:55 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:56 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:56 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:56 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:56 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:57 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:57 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:57 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:57 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:58 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:58 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:58 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:58 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:58 pm
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 5:25:59 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:59 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:59 pm
+Unknown Event - Ok @ 11/03/2026, 5:25:59 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:00 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:00 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:00 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:00 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:01 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:01 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:01 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:01 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:02 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:02 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:02 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:02 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:03 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:03 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 5:26:03 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 11/03/2026, 5:26:04 pm
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 5:26:04 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:04 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:04 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:05 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:05 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:05 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:05 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:06 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:06 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:06 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:06 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:07 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:07 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:07 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:07 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:08 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:08 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:08 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:08 pm
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 5:26:09 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:09 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:09 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:09 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:10 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:10 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:10 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:10 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:11 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:11 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:11 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 11/03/2026, 5:26:12 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:12 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:12 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:12 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:12 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:13 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:13 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:13 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:13 pm
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 5:26:14 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:14 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:14 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:15 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:15 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:15 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:15 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:16 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:16 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:16 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:16 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:17 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:17 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:17 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:17 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:18 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:18 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:18 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:18 pm
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 5:26:19 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:19 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:19 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:19 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:20 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:20 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:20 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:20 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:21 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:21 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:21 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:21 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:22 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:22 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:22 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:22 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:23 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 5:26:23 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:23 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:24 pm
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 5:26:24 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:24 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:24 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:25 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:25 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:25 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:25 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:26 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:26 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:26 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:26 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:27 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:27 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:27 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:27 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:28 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:28 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:28 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:28 pm
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 5:26:29 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:29 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:29 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:29 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 5:26:30 pm
+  (log) [BellaV4 3.0.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 11/03/2026, 5:26:30 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:30 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:30 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:31 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:31 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:31 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:31 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:32 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:32 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:32 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:32 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:33 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:33 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:33 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:33 pm
+  (log) [BellaV4 3.0.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 5:26:34 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:34 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:34 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:34 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:35 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:35 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:35 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:36 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:36 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:36 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:36 pm
+Unknown Event - Ok @ 11/03/2026, 5:26:37 pm
+  (log) [BellaV4 3.0.1-v6] [CLOSE] browser requested end
+Unknown Event - Ok @ 11/03/2026, 5:26:37 pm
+  (log) [BellaV4 3.0.1-v6] [CLOSE] browser disconnected
+  (log) [BellaV4 3.0.1-v6] [DG] [+74752ms] closed: code=1005 reason=""
+GET https://bella-voice-agent-sandbox-v6.trentbelasco.workers.dev/agents/bella-agent/anon_qif5ce5z?fn=Trent - Ok @ 11/03/2026, 5:25:22 pm
+  (log) {
+  displayMessage: 'State updated',
+  id: 'Teh09NdhliXUym8_cFvit',
+  payload: {},
+  timestamp: 1773210322578,
+  type: 'state:update'
+}
+  (log) {
+  displayMessage: 'Connection established',
+  id: 'MfdRro7KAjyb4MpClZBEU',
+  payload: { connectionId: 'Y0nqnlarEhh0CInP58L03' },
+  timestamp: 1773210322578,
+  type: 'connect'
+}
+  (log) [BellaV4 3.0.1-v6] [CONNECT] [+0ms] lid="anon_qif5ce5z" reconnect=false
+  (log) {
+  displayMessage: 'State updated',
+  id: 'GLDWkWw13ZtHJ0cgTnY9w',
+  payload: {},
+  timestamp: 1773210322578,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+0ms] fetching for lid="anon_qif5ce5z"
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+773ms] MCP success=true biz="KPMG" status="complete" fn="Trent"
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+780ms] KV: intel=true
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+788ms] raw KV hit: fn="Trent" web="https://www.kpmg.com"
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+788ms] final: biz="KPMG" fn="Trent" kvIntel=true
+  (log) {
+  displayMessage: 'State updated',
+  id: 'hOxMv2CjYnxtM2SXfBzOL',
+  payload: {},
+  timestamp: 1773210323669,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+1091ms] using v3.0.0 structured prompt (21294 chars)
+  (log) [BellaV4 3.0.1-v6] [INTEL] [+1091ms] fallback greeting
+  (log) [BellaV4 3.0.1-v6] [DG] [+1091ms] opening WebSocket
+GET https://bella-voice-agent-sandbox-v6.trentbelasco.workers.dev/agents/bella-agent/anon_qif5ce5z?fn=Trent - Ok @ 11/03/2026, 5:25:21 pm

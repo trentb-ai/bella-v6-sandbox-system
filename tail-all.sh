@@ -5,14 +5,14 @@
 
 WORKERS=(
   "fast-intel-sandbox"
-  "deepgram-bridge-sandbox-v6"
-  "bella-voice-agent-sandbox-v6"
+  "deepgram-bridge-sandbox-v9"
+  "bella-voice-agent-sandbox-v9"
   "personalisedaidemofinal-sandbox"
   "deep-scrape-workflow-sandbox"
-  "consultant-sandbox-v6"
+  "consultant-sandbox-v9"
 )
 
-BASE="/Users/trentbelasco/Desktop/BELLA_V6_SANDBOX_COMPLETE_SYSTEM"
+BASE="/Users/trentbelasco/Desktop/BELLA_v9_SANDBOX_COMPLETE_SYSTEM"
 
 echo "Starting tail logs for ${#WORKERS[@]} workers..."
 

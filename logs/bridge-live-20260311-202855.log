@@ -1,0 +1,41 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.72.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-03-11T10:12:59Z
+Connected to deepgram-bridge-sandbox-v6, waiting for logs...
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 8:30:43 pm
+  (log) [bridge 6.13.1-D] [REQ] lid=anon_mcxi569i msgs=3
+  (log) [bridge 6.13.1-D] [ENRICH] review_signals=true (1217 reviews from deep-scrape)
+  (log) [bridge 6.13.1-D] [INIT] lid=anon_mcxi569i queue=[ch_ads,ch_website,ch_reviews]
+  (log) [bridge 6.13.1-D] [KV_STATUS] lid=anon_mcxi569i turn=3 fast=false apify=false full=false kv_bytes=1002
+  (log) [bridge 6.13.1-D] [UTT] lid=anon_mcxi569i stage=wow utt_chars=10 utt_preview="Hi, Bella."
+  (log) [bridge 6.13.1-D] [EXTRACT] lid=anon_mcxi569i stage=wow extractions=0
+  (log) [bridge 6.13.1-D] [PROMPT] stage=wow system_chars=5941
+  (log) [bridge 6.13.1-D] [STREAM] stage=wow history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 11/03/2026, 8:37:07 pm
+  (log) [bridge 6.14.0-D] [REQ] lid=anon_sicqjsvo msgs=3
+  (log) [bridge 6.14.0-D] [ENRICH] review_signals=true (1217 reviews from deep-scrape)
+  (log) [bridge 6.14.0-D] [INIT] lid=anon_sicqjsvo queue=[ch_ads,ch_website,ch_reviews]
+  (log) [bridge 6.14.0-D] [APIFY] deep intel landed for lid=anon_sicqjsvo — gate will open next advance
+  (log) [bridge 6.14.0-D] [KV_STATUS] lid=anon_sicqjsvo turn=3 fast=true apify=true full=false kv_bytes=22219
+  (log) [bridge 6.14.0-D] [UTT] lid=anon_sicqjsvo stage=wow utt_chars=14 utt_preview="Oh, hi, Bella."
+  (log) [bridge 6.14.0-D] [EXTRACT] lid=anon_sicqjsvo stage=wow extractions=0
+  (log) [bridge 6.14.0-D] [PROMPT] stage=wow system_chars=5958
+  (log) [bridge 6.14.0-D] [STREAM] stage=wow history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Canceled @ 11/03/2026, 8:37:11 pm
+  (log) [bridge 6.14.0-D] [REQ] lid=anon_sicqjsvo msgs=3
+  (log) [bridge 6.14.0-D] [ENRICH] review_signals=true (1217 reviews from deep-scrape)
+  (log) [bridge 6.14.0-D] [KV_STATUS] lid=anon_sicqjsvo turn=3 fast=true apify=true full=false kv_bytes=22219
+  (log) [bridge 6.14.0-D] [UTT] lid=anon_sicqjsvo stage=wow utt_chars=40 utt_preview="Oh, hi, Bella. Hi, Bella. How are doing?"
+  (log) [bridge 6.14.0-D] [EXTRACT] lid=anon_sicqjsvo stage=wow extractions=0
+  (log) [bridge 6.14.0-D] [DEDUP] lid=anon_sicqjsvo turn=3 duplicate content — stall=1
+  (log) [bridge 6.14.0-D] [PROMPT] stage=wow system_chars=5958
+  (log) [bridge 6.14.0-D] [STREAM] stage=wow history=1 turns → streaming
+FatalError: Tail disconnected, exiting.
+    at createFatalError (/Users/trentbelasco/node_modules/wrangler/wrangler-dist/cli.js:716:12)
+    at Timeout._onTimeout (/Users/trentbelasco/node_modules/wrangler/wrangler-dist/cli.js:273043:21)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  telemetryMessage: 'Tail disconnected, exiting.',
+  code: 1
+}

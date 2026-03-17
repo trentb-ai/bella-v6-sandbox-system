@@ -1,0 +1,27 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.72.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-03-11T11:47:24Z
+Connected to fast-intel-sandbox, waiting for logs...
+POST https://fast-intel-sandbox.trentbelasco.workers.dev/fast-intel - Ok @ 11/03/2026, 4:47:41 pm
+  (log) [fast-intel 1.0.0] [REQUEST] POST /fast-intel lid=anon_diag_test5 url=https://www.example.com fn=Test
+  (log) [fast-intel 1.0.0] [START] lid=anon_diag_test5 url=https://www.example.com firstName=Test
+  (log) [fast-intel 1.0.0] [FIRECRAWL] Done in 3471ms — markdown 167 chars, html 258 chars
+  (log) [fast-intel 1.0.0] [CONSULTANT] Done in 18401ms fallback=false
+  (log) [fast-intel 1.0.0] [KV] Written lid=anon_diag_test5 biz="Example Domain" fn="Test" 24831 bytes
+  (log) [fast-intel 1.0.0] [BIG_SCRAPER_ERR] lid=anon_diag_test5 Unexpected token 'e', "error code: 1042" is not valid JSON
+  (log) [fast-intel 1.0.0] [APIFY_TRIGGER_ERR] lid=anon_diag_test5 Unexpected token 'e', "error code: 1042" is not valid JSON
+GET https://fast-intel-sandbox.trentbelasco.workers.dev/ - Ok @ 11/03/2026, 4:55:14 pm
+POST https://fast-intel-sandbox.trentbelasco.workers.dev/fast-intel - Ok @ 11/03/2026, 4:55:45 pm
+  (log) [fast-intel 1.1.0] [REQUEST] POST /fast-intel lid=anon_v110_test1 url=https://www.kpmg.com fn=Trent
+  (log) [fast-intel 1.1.0] [START] lid=anon_v110_test1 url=https://www.kpmg.com firstName=Trent
+  (log) [fast-intel 1.1.0] [FIRECRAWL] HTTP 408 — falling back to null
+  (log) [fast-intel 1.1.0] [FALLBACK] Firecrawl failed — trying ScrapingAnt
+  (log) [fast-intel 1.1.0] [SCRAPINGANT] Timed out after 20s
+  (log) [fast-intel 1.1.0] [FALLBACK] ScrapingAnt also failed — trying direct fetch
+  (log) [fast-intel 1.1.0] [DIRECT] Done in 920ms — 162101 chars
+  (log) [fast-intel 1.1.0] [FALLBACK] Direct fetch HTML → fc stub built (162101 chars)
+  (log) [fast-intel 1.1.0] [CONSULTANT] Done in 18887ms fallback=false
+  (log) [fast-intel 1.1.0] [KV] Written lid=anon_v110_test1 biz="KPMG" fn="Trent" 26890 bytes
+  (log) [fast-intel 1.1.0] [BIG_SCRAPER_TRIGGER] lid=anon_v110_test1 {"v":1,"lid":"anon_v110_test1","ts":"2026-03-11T05:56:37.501Z","firstName":"Trent","first_name":"Trent","websiteUrl":"https://www.kpmg.com","business_name":"kpmg.com","fast_context":{"v":1,"lid":"anon_v110_test1","ts":"2026-03-11T05:56:37.501Z","business":{"name":"kpmg.com","domain":"kpmg.com","location":"","rating":0,"review_count":0,"logo_url":""},"hero":{"v":1,"url":"https://www.kpmg.com","h1":"","h2":"","h3":"","title":"","meta_description":"","og_title":"","og_description":""},"person":{"first_name":"Trent","job_title":"Unknown Role","tenure":"","source":"stub"},"ads":{"is_running_ads":false,"estimated_monthly_spend_aud":0,"facebook_ads_running":false,"google_ads_running":false},"numbers":{"one_real_number_for_opener":0},"normalized_name":"kpmg.com","target_audience":"","business_description":"","benefits":[],"pain_points":[],"usps":[],"services":[],"pricing_info":"","confidence_score":0,"critical_fixes":[],"marketing_intelligence":{"overallGrade":"pending"}},"intel":{"grade":"D","top_fixes":[],"memory_prefill":{"country":"AU","currency":"AUD","runs_ads":false,"crm_detected":false},"bella_opener":"Hi Trent! I was just looking at your site — looking forward to chatting about kpmg.com.","phaseA":{"success":true,"scrapeStatus":"pending","business_name":"kpmg.com","firstName":"Trent","lid":"anon_v110_test1","url":"https://www.kpmg.com","deepScrapeStatus":"processing","marketing_intelligence":{"overallGrade":"pending","grades":{"speedToLead":{"grade":"—","score":null},"reputation":{"grade":"—","score":null},"websiteConversion":{"grade":"—","score":null},"techStack":{"grade":"—","score":null},"adEfficiency":{"grade":"—","score":null},"overall":{"grade":"—","score":null}},"adIntelligence":{"isRunningAds":false,"verdict":"pending"},"reputationIntelligence":{"googleRating":null,"reviewCount":null},"techStackIntelligence":{"score":null,"level":"pending","missing":[]},"reviewMining":{"agentNeedIndicators":{"alex":[],"maddie":[],"chris":[],"sarah":[],"james":[]},"summary":{"alex":0,"maddie":0,"chris":0,"sarah":0,"james":0}},"landingPageScore":null,"socialMedia":{},"scraperResults":{"tier":"pending"}}},"deep":{"status":"processing"}}}
+  (log) [fast-intel 1.1.0] [APIFY_TRIGGER] lid=anon_v110_test1 {"ok":true,"lid":"anon_v110_test1","instanceId":"deep-anon_v110_test1","status":"queued"}

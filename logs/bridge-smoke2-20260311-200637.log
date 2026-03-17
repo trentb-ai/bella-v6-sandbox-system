@@ -1,0 +1,71 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.72.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-03-11T10:12:59Z
+Connected to deepgram-bridge-sandbox-v6, waiting for logs...
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 8:08:15 pm
+  (log) [bridge 6.13.1-D] [REQ] lid=anon_smoke2_1773220005 msgs=3
+  (log) [bridge 6.13.1-D] [INIT] lid=anon_smoke2_1773220005 queue=[ch_ads,ch_website,ch_phone]
+  (log) [bridge 6.13.1-D] [APIFY] deep intel landed for lid=anon_smoke2_1773220005 — gate will open next advance
+  (log) [bridge 6.13.1-D] [KV_STATUS] lid=anon_smoke2_1773220005 turn=3 fast=true apify=true full=false kv_bytes=74018
+  (log) [bridge 6.13.1-D] [UTT] lid=anon_smoke2_1773220005 stage=wow utt_chars=42 utt_preview="Oh hey Bella, yeah tell me what you found."
+  (log) [bridge 6.13.1-D] [EXTRACT] lid=anon_smoke2_1773220005 stage=wow extractions=0
+  (log) [bridge 6.13.1-D] [PROMPT] stage=wow system_chars=7556
+  (log) [bridge 6.13.1-D] [STREAM] stage=wow history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 8:08:27 pm
+  (log) [bridge 6.13.1-D] [REQ] lid=anon_smoke2_1773220005 msgs=3
+  (log) [bridge 6.13.1-D] [KV_STATUS] lid=anon_smoke2_1773220005 turn=3 fast=true apify=true full=false kv_bytes=74018
+  (log) [bridge 6.13.1-D] [UTT] lid=anon_smoke2_1773220005 stage=wow utt_chars=42 utt_preview="Oh hey Bella, yeah tell me what you found."
+  (log) [bridge 6.13.1-D] [EXTRACT] lid=anon_smoke2_1773220005 stage=wow extractions=0
+  (log) [bridge 6.13.1-D] [DEDUP] lid=anon_smoke2_1773220005 turn=3 duplicate content — stall=1
+  (log) [bridge 6.13.1-D] [PROMPT] stage=wow system_chars=7556
+  (log) [bridge 6.13.1-D] [STREAM] stage=wow history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 8:08:36 pm
+  (log) [bridge 6.13.1-D] [REQ] lid=anon_smoke2_1773220005 msgs=5
+  (log) [bridge 6.13.1-D] [KV_STATUS] lid=anon_smoke2_1773220005 turn=5 fast=true apify=true full=false kv_bytes=74018
+  (log) [bridge 6.13.1-D] [UTT] lid=anon_smoke2_1773220005 stage=wow utt_chars=55 utt_preview="Yeah we have been working on that for a while actually."
+  (log) [bridge 6.13.1-D] [EXTRACT] lid=anon_smoke2_1773220005 stage=wow extractions=0
+  (log) [bridge 6.13.1-D] [PROMPT] stage=wow system_chars=7431
+  (log) [bridge 6.13.1-D] [STREAM] stage=wow history=3 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 8:08:41 pm
+  (log) [bridge 6.13.1-D] [REQ] lid=anon_smoke2_1773220005 msgs=7
+  (log) [bridge 6.13.1-D] [KV_STATUS] lid=anon_smoke2_1773220005 turn=7 fast=true apify=true full=false kv_bytes=74018
+  (log) [bridge 6.13.1-D] [UTT] lid=anon_smoke2_1773220005 stage=wow utt_chars=60 utt_preview="Yeah we have been thinking about adding something like that."
+  (log) [bridge 6.13.1-D] [EXTRACT] lid=anon_smoke2_1773220005 stage=wow extractions=0
+  (log) [bridge 6.13.1-D] [ADVANCE] → anchor_acv
+  (log) [bridge 6.13.1-D] [PROMPT] stage=anchor_acv system_chars=7256
+  (log) [bridge 6.13.1-D] [STREAM] stage=anchor_acv history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 8:08:46 pm
+  (log) [bridge 6.13.1-D] [REQ] lid=anon_smoke2_1773220005 msgs=9
+  (log) [bridge 6.13.1-D] [KV_STATUS] lid=anon_smoke2_1773220005 turn=9 fast=true apify=true full=false kv_bytes=74018
+  (log) [bridge 6.13.1-D] [UTT] lid=anon_smoke2_1773220005 stage=anchor_acv utt_chars=63 utt_preview="Interesting. So what kind of numbers are we talking about here?"
+  (log) [bridge 6.13.1-D] [EXTRACT] lid=anon_smoke2_1773220005 stage=anchor_acv extractions=0
+  (log) [bridge 6.13.1-D] [PROMPT] stage=anchor_acv system_chars=7256
+  (log) [bridge 6.13.1-D] [STREAM] stage=anchor_acv history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 8:09:18 pm
+  (log) [bridge 6.13.1-D] [REQ] lid=anon_smoke2_1773220005 msgs=9
+  (log) [bridge 6.13.1-D] [KV_STATUS] lid=anon_smoke2_1773220005 turn=9 fast=true apify=true full=false kv_bytes=74018
+  (log) [bridge 6.13.1-D] [UTT] lid=anon_smoke2_1773220005 stage=anchor_acv utt_chars=58 utt_preview="About a quarter of a million dollars per year I would say."
+  (log) [bridge 6.13.1-D] [CAPTURED] acv=250000
+  (log) [bridge 6.13.1-D] [EXTRACT] lid=anon_smoke2_1773220005 stage=anchor_acv extractions=1 fields=acv
+  (log) [bridge 6.13.1-D] [DEDUP] lid=anon_smoke2_1773220005 turn=9 duplicate content — stall=1
+  (log) [bridge 6.13.1-D] [ADVANCE] → anchor_timeframe
+  (log) [bridge 6.13.1-D] [PROMPT] stage=anchor_timeframe system_chars=7373
+  (log) [bridge 6.13.1-D] [STREAM] stage=anchor_timeframe history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 8:19:21 pm
+  (log) [bridge 6.13.1-D] [REQ] lid=anon_v692f6z3 msgs=3
+  (log) [bridge 6.13.1-D] [ENRICH] review_signals=true (1217 reviews from deep-scrape)
+  (log) [bridge 6.13.1-D] [INIT] lid=anon_v692f6z3 queue=[ch_ads,ch_website,ch_reviews]
+  (log) [bridge 6.13.1-D] [KV_STATUS] lid=anon_v692f6z3 turn=3 fast=true apify=false full=false kv_bytes=21795
+  (log) [bridge 6.13.1-D] [UTT] lid=anon_v692f6z3 stage=wow utt_chars=14 utt_preview="Oh, hi, Bella."
+  (log) [bridge 6.13.1-D] [EXTRACT] lid=anon_v692f6z3 stage=wow extractions=0
+  (log) [bridge 6.13.1-D] [PROMPT] stage=wow system_chars=5941
+  (log) [bridge 6.13.1-D] [STREAM] stage=wow history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 8:19:45 pm
+  (log) [bridge 6.13.1-D] [REQ] lid=anon_v692f6z3 msgs=5
+  (log) [bridge 6.13.1-D] [ENRICH] review_signals=true (1217 reviews from deep-scrape)
+  (log) [bridge 6.13.1-D] [KV_STATUS] lid=anon_v692f6z3 turn=5 fast=true apify=false full=false kv_bytes=21795
+  (log) [bridge 6.13.1-D] [UTT] lid=anon_v692f6z3 stage=wow utt_chars=57 utt_preview="Oh, that's interesting. You think we're a window company."
+  (log) [bridge 6.13.1-D] [EXTRACT] lid=anon_v692f6z3 stage=wow extractions=0
+  (log) [bridge 6.13.1-D] [PROMPT] stage=wow system_chars=5828
+  (log) [bridge 6.13.1-D] [STREAM] stage=wow history=3 turns → streaming

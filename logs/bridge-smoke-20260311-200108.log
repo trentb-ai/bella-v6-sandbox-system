@@ -1,0 +1,17 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.72.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-03-11T10:12:59Z
+Connected to deepgram-bridge-sandbox-v6, waiting for logs...
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 8:04:22 pm
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 8:04:34 pm
+  (log) [bridge 6.13.0-D] [REQ] lid=anon_smoke_1773219768 msgs=3
+  (log) [bridge 6.13.0-D] [INIT] lid=anon_smoke_1773219768 queue=[ch_ads,ch_website,ch_phone]
+  (log) [bridge 6.13.0-D] [APIFY] deep intel landed for lid=anon_smoke_1773219768 — gate will open next advance
+  (log) [bridge 6.13.0-D] [KV_STATUS] lid=anon_smoke_1773219768 turn=3 fast=true apify=true full=false kv_bytes=49698
+  (log) [bridge 6.13.0-D] [UTT] lid=anon_smoke_1773219768 stage=wow utt_chars=44 utt_preview="Hi Bella yeah that sounds great tell me more"
+  (log) [bridge 6.13.0-D] [EXTRACT] lid=anon_smoke_1773219768 stage=wow extractions=0
+  (log) [bridge 6.13.0-D] [DEDUP] lid=anon_smoke_1773219768 turn=3 duplicate content — stall=0
+  (log) [bridge 6.13.0-D] [MEMORY] regex signals: - Strong positive signal
+  (log) [bridge 6.13.0-D] [PROMPT] stage=wow system_chars=7398
+  (log) [bridge 6.13.0-D] [STREAM] stage=wow history=1 turns → streaming

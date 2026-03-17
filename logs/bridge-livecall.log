@@ -1,0 +1,40 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.72.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-03-11T10:12:59Z
+Connected to deepgram-bridge-sandbox-v6, waiting for logs...
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 5:25:28 pm
+  (log) [bridge 6.7.0-D] [REQ] lid=anon_qif5ce5z msgs=3
+  (log) [bridge 6.7.0-D] [ENRICH] review_signals=true (83 reviews from deep-scrape)
+  (log) [bridge 6.7.0-D] [INIT] lid=anon_qif5ce5z queue=[ch_website,ch_reviews]
+  (log) [bridge 6.7.0-D] [APIFY] deep intel landed for lid=anon_qif5ce5z — gate will open next advance
+  (log) [bridge 6.7.0-D] [KV_STATUS] lid=anon_qif5ce5z turn=3 fast=true apify=true full=false kv_bytes=12054
+  (log) [bridge 6.7.0-D] [UTT] lid=anon_qif5ce5z stage=wow utt_chars=14 utt_preview="Oh, hi, Bella."
+  (log) [bridge 6.7.0-D] [EXTRACT] lid=anon_qif5ce5z stage=wow extractions=0
+  (log) [bridge 6.7.0-D] [PROMPT] stage=wow system_chars=2124
+  (log) [bridge 6.7.0-D] [STREAM] stage=wow history=1 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 5:25:35 pm
+  (log) [bridge 6.7.0-D] [REQ] lid=anon_qif5ce5z msgs=5
+  (log) [bridge 6.7.0-D] [ENRICH] review_signals=true (83 reviews from deep-scrape)
+  (log) [bridge 6.7.0-D] [KV_STATUS] lid=anon_qif5ce5z turn=5 fast=true apify=true full=false kv_bytes=12054
+  (log) [bridge 6.7.0-D] [UTT] lid=anon_qif5ce5z stage=wow utt_chars=12 utt_preview="Hello, Bill."
+  (log) [bridge 6.7.0-D] [EXTRACT] lid=anon_qif5ce5z stage=wow extractions=0
+  (log) [bridge 6.7.0-D] [PROMPT] stage=wow system_chars=1999
+  (log) [bridge 6.7.0-D] [STREAM] stage=wow history=3 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 5:25:51 pm
+  (log) [bridge 6.7.0-D] [REQ] lid=anon_qif5ce5z msgs=7
+  (log) [bridge 6.7.0-D] [ENRICH] review_signals=true (83 reviews from deep-scrape)
+  (log) [bridge 6.7.0-D] [KV_STATUS] lid=anon_qif5ce5z turn=7 fast=true apify=true full=false kv_bytes=12054
+  (log) [bridge 6.7.0-D] [UTT] lid=anon_qif5ce5z stage=wow utt_chars=38 utt_preview="Well, what do you know about the firm?"
+  (log) [bridge 6.7.0-D] [EXTRACT] lid=anon_qif5ce5z stage=wow extractions=0
+  (log) [bridge 6.7.0-D] [ADVANCE] → anchor_acv
+  (log) [bridge 6.7.0-D] [PROMPT] stage=anchor_acv system_chars=1824
+  (log) [bridge 6.7.0-D] [STREAM] stage=anchor_acv history=5 turns → streaming
+POST https://deepgram-bridge-sandbox-v6.trentbelasco.workers.dev/v1/chat/completions - Ok @ 11/03/2026, 5:26:19 pm
+  (log) [bridge 6.7.0-D] [REQ] lid=anon_qif5ce5z msgs=9
+  (log) [bridge 6.7.0-D] [ENRICH] review_signals=true (83 reviews from deep-scrape)
+  (log) [bridge 6.7.0-D] [KV_STATUS] lid=anon_qif5ce5z turn=9 fast=true apify=true full=false kv_bytes=12054
+  (log) [bridge 6.7.0-D] [UTT] lid=anon_qif5ce5z stage=anchor_acv utt_chars=184 utt_preview="Well, hang on. Wait a sec. I just wanna understand more. Did you even did you lo"
+  (log) [bridge 6.7.0-D] [EXTRACT] lid=anon_qif5ce5z stage=anchor_acv extractions=0
+  (log) [bridge 6.7.0-D] [PROMPT] stage=anchor_acv system_chars=1824
+  (log) [bridge 6.7.0-D] [STREAM] stage=anchor_acv history=5 turns → streaming

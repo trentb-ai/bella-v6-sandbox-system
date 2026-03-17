@@ -1,0 +1,33 @@
+{
+  "name": "bella-scrape-workflow-v9-test",
+  "main": "index.mjs",
+  "compatibility_date": "2025-10-22",
+  "workflows": [
+    {
+      "name": "BellaV9Orchestrator",
+      "binding": "BELLAV9ORCHESTRATOR_WORKFLOW",
+      "class_name": "BellaV9Orchestrator"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "WORKFLOWS_KV",
+      "id": "0fec6982d8644118aba1830afd4a58cb",
+      "preview_id": ""
+    },
+    {
+      "binding": "LEADS_KV",
+      "id": "0fec6982d8644118aba1830afd4a58cb",
+      "preview_id": ""
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "vars": {
+    "ENABLE_DEEP_MAX": "true"
+  }
+}

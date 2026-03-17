@@ -1,0 +1,549 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.72.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-03-11T12:21:58Z
+Connected to bella-voice-agent-sandbox-v6, waiting for logs...
+Unknown Event - Ok @ 11/03/2026, 8:12:56 pm
+Unknown Event - Ok @ 11/03/2026, 8:12:56 pm
+Unknown Event - Ok @ 11/03/2026, 8:12:56 pm
+  (log) [BellaV4 3.2.0-v6] [DG] [+1380ms] connected — sending Settings
+  (log) {
+  displayMessage: 'State updated',
+  id: '5oQima7O7AarFYTOW8lpb',
+  payload: {},
+  timestamp: 1773220377077,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.2.0-v6] [DG] [+1380ms] Settings sent
+  (log) [BellaV4 3.2.0-v6] [DG-MSG] Welcome
+  (log) [BellaV4 3.2.0-v6] [DG] [+1380ms] Welcome received
+  (log) [BellaV4 3.2.0-v6] [DG-MSG] Error
+  (log) [BellaV4 3.2.0-v6] [DG-ERR] [+1581ms] {"type":"Error","description":"Error parsing client message. Check the agent.listen.endpointing field against the API spec.","code":"UNPARSABLE_CLIENT_MESSAGE"}
+  (log) [BellaV4 3.2.0-v6] [DG] [+1581ms] closed: code=1005 reason=""
+Unknown Event - Ok @ 11/03/2026, 8:12:57 pm
+Unknown Event - Ok @ 11/03/2026, 8:12:57 pm
+Unknown Event - Ok @ 11/03/2026, 8:12:57 pm
+Unknown Event - Ok @ 11/03/2026, 8:12:57 pm
+Unknown Event - Ok @ 11/03/2026, 8:12:58 pm
+Unknown Event - Ok @ 11/03/2026, 8:12:58 pm
+Unknown Event - Ok @ 11/03/2026, 8:12:58 pm
+Unknown Event - Ok @ 11/03/2026, 8:12:58 pm
+Unknown Event - Ok @ 11/03/2026, 8:12:59 pm
+Unknown Event - Ok @ 11/03/2026, 8:12:59 pm
+Unknown Event - Ok @ 11/03/2026, 8:12:59 pm
+Unknown Event - Ok @ 11/03/2026, 8:12:59 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:00 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:00 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:00 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:00 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:01 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:01 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:01 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:01 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:02 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:02 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:02 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:02 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:03 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:03 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:03 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:03 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:04 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:04 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:04 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:05 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:05 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:05 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:05 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:06 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:06 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:06 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:06 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:07 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:07 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:07 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:07 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:08 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:08 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:08 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:08 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:09 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:09 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:09 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:09 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:10 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:10 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:10 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:10 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:11 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:11 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:11 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:11 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:12 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:12 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:12 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:12 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:13 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:13 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:13 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:13 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:14 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:14 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:14 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:14 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:15 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:15 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:15 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:16 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:16 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:16 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:16 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:17 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:17 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:17 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:17 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:18 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:18 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:18 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:18 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:19 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:19 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:19 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:19 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:20 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:20 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:20 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:20 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:21 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:21 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:21 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:21 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:22 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:22 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:22 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:22 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:23 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:23 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:23 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:23 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:24 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:24 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:24 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:25 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:25 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:25 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:25 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:26 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:26 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:26 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:26 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:27 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:27 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:27 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:27 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:28 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:28 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:28 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:28 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:29 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:29 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:29 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:29 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:30 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:30 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:30 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:30 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:31 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:31 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:31 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:31 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:32 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:32 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:32 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:32 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:33 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:33 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:33 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:33 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:34 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:34 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:34 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:34 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:35 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:35 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:35 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:35 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:36 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:36 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:36 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:37 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:37 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:37 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:37 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:38 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:38 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:38 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:38 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:39 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:39 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:39 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:39 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:40 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:40 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:40 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:40 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:41 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:41 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:41 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:41 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:42 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:42 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:42 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:42 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:43 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:43 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:43 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:43 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:44 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:44 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:44 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:44 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:45 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:45 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:45 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:45 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:46 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:46 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:46 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:47 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:47 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:47 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:47 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:48 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:48 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:48 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:48 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:49 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:49 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:49 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:49 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:50 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:50 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:50 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:50 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:51 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:51 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:51 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:51 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:52 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:52 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:52 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:52 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:53 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:53 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:53 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:53 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:54 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:54 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:54 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:54 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:55 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:55 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:55 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:55 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:56 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:56 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:56 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:57 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:57 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:57 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:57 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:58 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:58 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:58 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:58 pm
+Unknown Event - Ok @ 11/03/2026, 8:13:59 pm
+  (log) [BellaV4 3.2.0-v6] [CLOSE] browser disconnected
+GET https://bella-voice-agent-sandbox-v6.trentbelasco.workers.dev/agents/bella-agent/anon_m1qt3n1b?fn=Trent - Canceled @ 11/03/2026, 8:12:55 pm
+  (log) {
+  displayMessage: 'State updated',
+  id: 'tSsUFxXWjmJLHH4aKlJqr',
+  payload: {},
+  timestamp: 1773220375697,
+  type: 'state:update'
+}
+  (log) {
+  displayMessage: 'Connection established',
+  id: 'bH1_9QZHv90b1OSX1WVIS',
+  payload: { connectionId: '05xRpi5BOZQBedlWLB0JZ' },
+  timestamp: 1773220375697,
+  type: 'connect'
+}
+  (log) [BellaV4 3.2.0-v6] [CONNECT] [+0ms] lid="anon_m1qt3n1b"
+  (log) {
+  displayMessage: 'State updated',
+  id: 'C8cZTD0Q7t-g3UAM1d68q',
+  payload: {},
+  timestamp: 1773220375697,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.2.0-v6] [INTEL] [+0ms] fetching for lid="anon_m1qt3n1b"
+  (log) [BellaV4 3.2.0-v6] [INTEL] [+431ms] MCP success=true biz="Andersen" status="complete" fn="Trent"
+  (log) [BellaV4 3.2.0-v6] [INTEL] [+434ms] KV: intel=true
+  (log) [BellaV4 3.2.0-v6] [INTEL] [+437ms] raw KV hit: fn="Trent" web="https://www.andersen.com"
+  (log) [BellaV4 3.2.0-v6] [INTEL] [+437ms] final: biz="Andersen" fn="Trent" kvIntel=true
+  (log) {
+  displayMessage: 'State updated',
+  id: 'qILCdIw30FI1IDqbY6f-y',
+  payload: {},
+  timestamp: 1773220376435,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.2.0-v6] [INTEL] [+738ms] using v3.0.0 structured prompt (21318 chars)
+  (log) [BellaV4 3.2.0-v6] [INTEL] [+738ms] fallback greeting
+  (log) [BellaV4 3.2.0-v6] [DG] [+738ms] opening WebSocket
+GET https://bella-voice-agent-sandbox-v6.trentbelasco.workers.dev/agents/bella-agent/anon_m1qt3n1b?fn=Trent - Canceled @ 11/03/2026, 8:12:54 pm
+GET https://bella-voice-agent-sandbox-v6.trentbelasco.workers.dev/ - Ok @ 11/03/2026, 8:16:46 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:17 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:17 pm
+  (log) [BellaV4 3.2.1-v6] [DG] [+1418ms] connected — sending Settings
+  (log) {
+  displayMessage: 'State updated',
+  id: 'KKU2yVKE1eODFTlwoum9g',
+  payload: {},
+  timestamp: 1773220757994,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.2.1-v6] [DG] [+1418ms] Settings sent
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] Welcome
+  (log) [BellaV4 3.2.1-v6] [DG] [+1418ms] Welcome received
+Unknown Event - Ok @ 11/03/2026, 8:19:18 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:18 pm
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] SettingsApplied
+  (log) [BellaV4 3.2.1-v6] [DG] [+1622ms] pipeline configured ✓
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 8:19:18 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:18 pm
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 11/03/2026, 8:19:18 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:19 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:19 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:19 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:19 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:20 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:20 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:20 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:20 pm
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 11/03/2026, 8:19:21 pm
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 8:19:21 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:21 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:21 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:22 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:22 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:22 pm
+  (log) [BellaV4 3.2.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 8:19:22 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:23 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:23 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:23 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:24 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:24 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:24 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:24 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:25 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:25 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:25 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:25 pm
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 8:19:26 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:26 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:26 pm
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 8:19:27 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:27 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:27 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:27 pm
+  (log) [BellaV4 3.2.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 8:19:28 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:28 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:28 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:28 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:29 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:29 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:29 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:29 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:29 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:30 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:30 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:30 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:30 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:31 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:31 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:31 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:32 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:32 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:32 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:32 pm
+  (log) [BellaV4 3.2.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 8:19:32 pm
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 8:19:33 pm
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 11/03/2026, 8:19:33 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:33 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:34 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:34 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:34 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:34 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:35 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:35 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:35 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:35 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:36 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:36 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:36 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:36 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:37 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:37 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:37 pm
+  (log) [BellaV4 3.2.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 8:19:37 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:38 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:38 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:38 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:38 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:39 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:39 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:39 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:39 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:40 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:40 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:40 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:40 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:41 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:41 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:41 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:41 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:42 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:42 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:42 pm
+  (log) [BellaV4 3.2.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 8:19:42 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:43 pm
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] UserStartedSpeaking
+Unknown Event - Ok @ 11/03/2026, 8:19:43 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:43 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:44 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:44 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:44 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:44 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:45 pm
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 8:19:45 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:45 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:45 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:46 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:46 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:46 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:46 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:47 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:47 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:47 pm
+  (log) [BellaV4 3.2.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 8:19:47 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:48 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:48 pm
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 8:19:48 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:49 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:49 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:49 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:49 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:49 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:50 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:50 pm
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] ConversationText
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] History
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] unhandled: History
+Unknown Event - Ok @ 11/03/2026, 8:19:50 pm
+  (log) [BellaV4 3.2.1-v6] [DG-MSG] AgentAudioDone
+Unknown Event - Ok @ 11/03/2026, 8:19:51 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:51 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:51 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:51 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:51 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:52 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:52 pm
+  (log) [BellaV4 3.2.1-v6] [DG] KeepAlive sent
+Unknown Event - Ok @ 11/03/2026, 8:19:52 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:53 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:53 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:53 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:53 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:53 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:54 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:54 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:54 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:55 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:55 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:55 pm
+Unknown Event - Ok @ 11/03/2026, 8:19:55 pm
+  (log) [BellaV4 3.2.1-v6] [CLOSE] browser requested end
+Unknown Event - Ok @ 11/03/2026, 8:19:55 pm
+  (log) [BellaV4 3.2.1-v6] [CLOSE] browser disconnected
+  (log) [BellaV4 3.2.1-v6] [DG] [+39515ms] closed: code=1005 reason=""
+GET https://bella-voice-agent-sandbox-v6.trentbelasco.workers.dev/agents/bella-agent/anon_v692f6z3?fn=Trent - Ok @ 11/03/2026, 8:19:16 pm
+  (log) {
+  displayMessage: 'State updated',
+  id: 'EfHOD13Ys1J8ewe-fKgVa',
+  payload: {},
+  timestamp: 1773220756576,
+  type: 'state:update'
+}
+  (log) {
+  displayMessage: 'Connection established',
+  id: 'spBopuTFrj9CN_LzDB6Db',
+  payload: { connectionId: 'Uajk4TrHhQajbGQvVUU2w' },
+  timestamp: 1773220756576,
+  type: 'connect'
+}
+  (log) [BellaV4 3.2.1-v6] [CONNECT] [+0ms] lid="anon_v692f6z3"
+  (log) {
+  displayMessage: 'State updated',
+  id: 'JeZ_6yWvBwe2yZzyc1qt2',
+  payload: {},
+  timestamp: 1773220756576,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.2.1-v6] [INTEL] [+0ms] fetching for lid="anon_v692f6z3"
+  (log) [BellaV4 3.2.1-v6] [INTEL] [+483ms] MCP success=true biz="Andersen" status="complete" fn="Trent"
+  (log) [BellaV4 3.2.1-v6] [INTEL] [+486ms] KV: intel=true
+  (log) [BellaV4 3.2.1-v6] [INTEL] [+489ms] raw KV hit: fn="Trent" web="https://www.andersen.com"
+  (log) [BellaV4 3.2.1-v6] [INTEL] [+489ms] final: biz="Andersen" fn="Trent" kvIntel=true
+  (log) {
+  displayMessage: 'State updated',
+  id: 'Hd7dOTStvLR3fXpx7-_bw',
+  payload: {},
+  timestamp: 1773220757377,
+  type: 'state:update'
+}
+  (log) [BellaV4 3.2.1-v6] [INTEL] [+801ms] using v3.0.0 structured prompt (21318 chars)
+  (log) [BellaV4 3.2.1-v6] [INTEL] [+801ms] fallback greeting
+  (log) [BellaV4 3.2.1-v6] [DG] [+801ms] opening WebSocket
+GET https://bella-voice-agent-sandbox-v6.trentbelasco.workers.dev/agents/bella-agent/anon_v692f6z3?fn=Trent - Ok @ 11/03/2026, 8:19:15 pm

@@ -1,0 +1,20 @@
+name = "leads-mcp-worker-v9"
+main = "sandbox_mcp-worker.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "9488d0601315a70cac36f9bd87aa4e82"
+
+[[kv_namespaces]]
+binding = "LEADS_KV"
+id = "0fec6982d8644118aba1830afd4a58cb"
+
+[[services]]
+binding = "SCRAPE_WORKFLOW"
+service = "bella-scrape-workflow-v9-test"
+
+[observability]
+enabled = true
+
+[observability.logs]
+invocation_logs = true
+head_sampling_rate = 1
