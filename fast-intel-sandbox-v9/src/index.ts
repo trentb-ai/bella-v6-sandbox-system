@@ -36,7 +36,7 @@ import { Env, FastIntelResult, ConsultantPayload } from "./types";
 
 export { Env };
 
-const VERSION = "1.3.0"; // SCHEMA v4: Write to separate key (lead:{lid}:fast-intel) — no race conditions!
+const VERSION = "1.9.0"; // Fix: fast consultant is name authority — full consultant name no longer overwrites
 // KV_TTL removed — data persists permanently
 
 const CORS = {
@@ -128,7 +128,7 @@ async function firecrawlScrape(websiteUrl: string, apiKey: string): Promise<{
     const t0 = Date.now();
     const abortCtrl = new AbortController();
     const abortTimer = setTimeout(() => abortCtrl.abort(), 12000); // hard kill at 12s
-    const resp = await fetch("https://api.firecrawl.dev/v9/scrape", {
+    const resp = await fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
       signal: abortCtrl.signal,
       headers: {
@@ -233,7 +233,7 @@ async function scrapingAntFetch(websiteUrl: string, apiKey: string): Promise<str
   if (!apiKey) { log("SCRAPINGANT", "No key — skipping"); return null; }
   try {
     const t0 = Date.now();
-    const antUrl = `https://api.scrapingant.com/v9/general?url=${encodeURIComponent(websiteUrl)}&x-api-key=${apiKey}&render_js=false`;
+    const antUrl = `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(websiteUrl)}&x-api-key=${apiKey}&render_js=false`;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 20000);
     const resp = await fetch(antUrl, { signal: ctrl.signal });
@@ -280,7 +280,113 @@ function extractMetaFromHtml(html: string, websiteUrl: string): Record<string, a
                  || get(/<meta[^>]+content=["']([^"']{1,300})["'][^>]+name=["']description["']/i),
     ogTitle:        get(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']{1,200})["']/i),
     ogDescription:  get(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']{1,300})["']/i),
+    ogSiteName:     get(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']{1,200})["']/i),
   };
+}
+
+// ─── Extract nav items from HTML/markdown ────────────────────────────────────
+function extractNavItems(content: string): string {
+  // Try HTML nav extraction first
+  const navMatch = content.match(/<nav[\s\S]*?<\/nav>/i);
+  if (navMatch) {
+    const links = [...navMatch[0].matchAll(/>([^<]{2,40})</g)].map(m => m[1].trim()).filter(Boolean);
+    return links.length > 0 ? links.slice(0, 20).join(", ") : "";
+  }
+  // Markdown: first consecutive short lines are usually nav
+  const lines = content.split("\n").map(l => l.trim()).filter(Boolean);
+  const navLines: string[] = [];
+  for (const line of lines) {
+    if (line.length < 50 && !line.includes(". ")) navLines.push(line.replace(/^\[|\].*$/g, ""));
+    else break;
+    if (navLines.length >= 15) break;
+  }
+  return navLines.join(", ");
+}
+
+// ─── Extract post-H1 content slice for fast consultant read ──────────────────
+function extractPostH1Slice(content: string, maxChars: number = 4000): string {
+  // Find the H1 position in markdown or HTML
+  let h1Pos = -1;
+  // Markdown H1: line starting with "# "
+  const mdH1 = content.match(/^#\s+.+$/m);
+  if (mdH1?.index !== undefined) h1Pos = mdH1.index;
+  // HTML H1
+  if (h1Pos < 0) {
+    const htmlH1 = content.match(/<h1[^>]*>/i);
+    if (htmlH1?.index !== undefined) h1Pos = htmlH1.index;
+  }
+  // Fallback: skip first 500 chars (likely nav junk) and start from there
+  if (h1Pos < 0) h1Pos = Math.min(500, content.length);
+  return content.slice(h1Pos, h1Pos + maxChars);
+}
+
+// ─── Extract JSON-LD org name + footer copyright ─────────────────────────────
+function extractBizNameSignals(html: string): { jsonLdName: string; footerCopyright: string; ogSiteName: string } {
+  let jsonLdName = "";
+  try {
+    const ldBlocks = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+    for (const block of ldBlocks) {
+      const parsed = JSON.parse(block[1]);
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      for (const item of items) {
+        if ((item["@type"] === "Organization" || item["@type"] === "LocalBusiness") && item.name) {
+          jsonLdName = item.name;
+          break;
+        }
+      }
+      if (jsonLdName) break;
+    }
+  } catch {}
+  let footerCopyright = "";
+  const copyrightMatch = html.match(/(?:©|&copy;|copyright)\s*\d{4}\s+([^<\n]{3,60})/i);
+  if (copyrightMatch) footerCopyright = copyrightMatch[1].replace(/[.|,]\s*all rights.*/i, "").trim();
+  const ogSiteMatch = html.match(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']{1,200})["']/i);
+  const ogSiteName = ogSiteMatch?.[1]?.trim() ?? "";
+  return { jsonLdName, footerCopyright, ogSiteName };
+}
+
+// ─── Fire Apify early — called from fast consultant callback ─────────────────
+function fireApifyEarly(lid: string, websiteUrl: string, businessName: string, env: Env) {
+  log("APIFY_EARLY", `lid=${lid} biz="${businessName}" — firing Apify from fast consultant`);
+  try {
+    env.DEEP_SCRAPE.fetch(
+      new Request("https://deep-scrape/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lid, websiteUrl, businessName }),
+      })
+    )
+    .then(r => r.json())
+    .then(d => log("APIFY_EARLY_OK", `lid=${lid} ${JSON.stringify(d)}`))
+    .catch(e => log("APIFY_EARLY_ERR", `lid=${lid} ${e.message}`));
+  } catch (e: any) {
+    log("APIFY_EARLY_ERR", `lid=${lid} ${e.message}`);
+  }
+}
+
+// ─── Fast Consultant: stripped-down 3-5s call for conversation starters ──────
+async function callFastConsultant(
+  payload: Record<string, any>,
+  env: Env
+): Promise<Record<string, any> | null> {
+  try {
+    const t0 = Date.now();
+    if (!env.CONSULTANT) { log("CONSULTANT_FAST", "No service binding"); return null; }
+    const resp = await env.CONSULTANT.fetch(
+      new Request("https://consultant/fast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+    );
+    if (!resp.ok) { log("CONSULTANT_FAST", `HTTP ${resp.status}`); return null; }
+    const result = await resp.json() as Record<string, any>;
+    log("CONSULTANT_FAST", `Done in ${Date.now() - t0}ms name=${result.correctedName ?? "?"}`);
+    return result;
+  } catch (err: any) {
+    log("CONSULTANT_FAST", `Exception: ${err}`);
+    return null;
+  }
 }
 
 // ─── Consultant: call consultant-v9 with Firecrawl data ──────────────────────
@@ -427,20 +533,42 @@ async function runFastIntel(
 
   log("START", `lid=${lid} url=${websiteUrl} firstName=${fn}`);
 
-  // ── Step 1: Firecrawl — full page scrape ────────────────────────────────
-  let fc = await firecrawlScrape(websiteUrl, env.FIRECRAWL_API_KEY ?? "");
+  // ── Step 1: Parallel scrape — Firecrawl + direct fetch race ──────────────
+  // Firecrawl gives rich markdown but times out often (HTTP 408).
+  // Direct fetch is instant but gives raw HTML only.
+  // Fire both in parallel, use Firecrawl if it succeeds, else use direct fetch.
+  const [firecrawlResult, directHtml] = await Promise.all([
+    firecrawlScrape(websiteUrl, env.FIRECRAWL_API_KEY ?? "").catch(() => null),
+    directFetch(websiteUrl).catch(() => null),
+  ]);
 
-  // ── Step 1b: ScrapingAnt fallback — if Firecrawl failed/timed out ───────
-  let fallbackHtml: string | null = null;
-  if (!fc) {
-    log("FALLBACK", "Firecrawl failed — trying ScrapingAnt");
-    fallbackHtml = await scrapingAntFetch(websiteUrl, env.SCRAPINGANT_KEY ?? "");
-    if (fallbackHtml) {
-      // Build a minimal fc-compatible object from raw HTML so downstream still works
-      const meta = extractMetaFromHtml(fallbackHtml, websiteUrl);
+  let fc = firecrawlResult;
+  if (!fc && directHtml) {
+    log("FALLBACK", `Firecrawl failed, using direct fetch (${directHtml.length} chars)`);
+    const meta = extractMetaFromHtml(directHtml, websiteUrl);
+    fc = {
+      markdown:       "",
+      html:           directHtml,
+      title:          meta.title,
+      h1:             meta.h1,
+      h2:             "",
+      description:    meta.description,
+      ogTitle:        meta.ogTitle,
+      ogDescription:  meta.ogDescription,
+      ogImage:        "",
+      links:          [],
+      raw_text:       directHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 8000),
+      tech_stack:     detectTechStack(directHtml, {}),
+    } as any;
+  } else if (!fc) {
+    // Both failed — try ScrapingAnt as last resort
+    log("FALLBACK", "Firecrawl + direct both failed — trying ScrapingAnt");
+    const antHtml = await scrapingAntFetch(websiteUrl, env.SCRAPINGANT_KEY ?? "").catch(() => null);
+    if (antHtml) {
+      const meta = extractMetaFromHtml(antHtml, websiteUrl);
       fc = {
         markdown:       "",
-        html:           fallbackHtml,
+        html:           antHtml,
         title:          meta.title,
         h1:             meta.h1,
         h2:             "",
@@ -449,33 +577,12 @@ async function runFastIntel(
         ogDescription:  meta.ogDescription,
         ogImage:        "",
         links:          [],
-        raw_text:       fallbackHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 8000),
-        tech_stack:     detectTechStack(fallbackHtml, {}),
+        raw_text:       antHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 8000),
+        tech_stack:     detectTechStack(antHtml, {}),
       } as any;
-      log("FALLBACK", `ScrapingAnt HTML → fc stub built (${fallbackHtml.length} chars)`);
+      log("FALLBACK", `ScrapingAnt HTML → fc stub (${antHtml.length} chars)`);
     } else {
-      log("FALLBACK", "ScrapingAnt also failed — trying direct fetch");
-      const directHtml = await directFetch(websiteUrl);
-      if (directHtml) {
-        const meta = extractMetaFromHtml(directHtml, websiteUrl);
-        fc = {
-          markdown:       "",
-          html:           directHtml,
-          title:          meta.title,
-          h1:             meta.h1,
-          h2:             "",
-          description:    meta.description,
-          ogTitle:        meta.ogTitle,
-          ogDescription:  meta.ogDescription,
-          ogImage:        "",
-          links:          [],
-          raw_text:       directHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 8000),
-          tech_stack:     detectTechStack(directHtml, {}),
-        } as any;
-        log("FALLBACK", `Direct fetch HTML → fc stub built (${directHtml.length} chars)`);
-      } else {
-        log("FALLBACK", "All scrapers failed — proceeding with pure stub");
-      }
+      log("FALLBACK", "All scrapers failed — proceeding with pure stub");
     }
   }
 
@@ -500,20 +607,105 @@ async function runFastIntel(
     || fc?.h1?.slice(0, 40)?.trim()
     || bizNameTitle;
 
-  // ── Step 2: Consultant — Gemini analysis of Firecrawl data ──────────────
+  // ── Step 2: TWO parallel consultant calls ────────────────────────────────
+  // Fast read: nav + first 3-4K post-H1 → confirmed biz name + starter scriptFills
+  // Full read: entire page (unchanged) → complete analysis
   let consultant: Record<string, any> | null = null;
   if (fc) {
-    const consultantPayload = buildConsultantPayload(fc, {
+    const rawContent = fc.markdown ?? fc.raw_text ?? fc.html ?? "";
+    const htmlContent = fc.html ?? "";
+
+    // Extract name signals for cross-referencing
+    const nameSignals = extractBizNameSignals(htmlContent);
+    const navItems = extractNavItems(rawContent);
+    const postH1Slice = extractPostH1Slice(rawContent, 4000);
+
+    // Build fast consultant payload — small slice of content + name signals
+    const fastPayload = buildConsultantPayload(fc, {
       businessName: scrapedBizName,
       domain,
       websiteUrl,
       firstName: fn,
     });
-    consultant = await callConsultant(consultantPayload, env);
+    // Override websiteContent with the small slice + name cross-ref signals
+    (fastPayload as any).websiteContent = `NAV ITEMS: ${navItems}\n\n--- WEBSITE COPY (first sections after H1) ---\n${postH1Slice}`;
+    (fastPayload as any).nameSignals = {
+      ogSiteName: nameSignals.ogSiteName || fc.ogTitle || "",
+      jsonLdOrgName: nameSignals.jsonLdName,
+      footerCopyright: nameSignals.footerCopyright,
+      pageTitle: fc.title || "",
+      ogTitle: fc.ogTitle || "",
+      h1: fc.h1 || "",
+      domain,
+    };
+    (fastPayload as any).lid = lid;
+    (fastPayload as any)._fastRead = true;
+
+    // Build full consultant payload — entire page (unchanged from before)
+    const fullPayload = buildConsultantPayload(fc, {
+      businessName: scrapedBizName,
+      domain,
+      websiteUrl,
+      firstName: fn,
+    });
+    (fullPayload as any).lid = lid;
+
+    // Fire both in parallel — fast uses /fast endpoint (tiny prompt, 3-5s)
+    const t2 = Date.now();
+    const [fastResult, fullResult] = await Promise.all([
+      callFastConsultant(fastPayload, env).then(r => {
+        if (!r) return r;
+        log("CONSULTANT_FAST", `Done in ${Date.now() - t2}ms name=${r.correctedName ?? "?"}`);
+        // Fire Apify immediately with confirmed name
+        const confirmedName = r.correctedName || scrapedBizName;
+        fireApifyEarly(lid, websiteUrl, confirmedName, env);
+        // Write starter scriptFills to KV so bridge has data when call connects
+        const starterFills: Record<string, any> = {
+          business_name: confirmedName,
+          first_name: fn,
+          source: "fast_consultant",
+          consultant: {
+            scriptFills: {
+              icp_guess: r.icp_guess ?? null,
+              reference_offer: r.reference_offer ?? null,
+              website_positive_comment: r.website_insight ?? null,
+            },
+            businessIdentity: { correctedName: confirmedName, industry: r.industry ?? "business" },
+            routing: { priority_agents: [] },
+          },
+          market_positioning: r.market_positioning ?? null,
+          fast_context: { v: 1, lid, ts: new Date().toISOString() },
+        };
+        env.LEADS_KV.put(`lead:${lid}:fast-intel`, JSON.stringify(starterFills), { expirationTtl: 86400 })
+          .then(() => log("KV_STARTER", `Written lid=${lid}:fast-intel starter (${JSON.stringify(starterFills).length} bytes)`))
+          .catch(e => log("KV_STARTER_ERR", `${e}`));
+        return r;
+      }),
+      callConsultant(fullPayload, env).then(r => {
+        log("CONSULTANT_FULL", `Done in ${Date.now() - t2}ms name=${r?.businessIdentity?.correctedName ?? "?"}`);
+        return r;
+      }),
+    ]);
+
+    // Full consultant is the authority on analysis (ICP, routing, hooks, stage plan).
+    // Fast consultant is the authority on BUSINESS NAME (purpose-built for brand
+    // identification: reads header area + cross-references og:site_name, JSON-LD,
+    // footer copyright, domain). Full consultant can hallucinate names from generic
+    // page content (e.g. "Trusted Financial Advisors" instead of "Leading Advice").
+    consultant = fullResult ?? fastResult;
+
+    // Preserve fast consultant's correctedName — it has dedicated name signals
+    if (fastResult?.correctedName && consultant?.businessIdentity) {
+      const fastName = fastResult.correctedName;
+      const fullName = consultant.businessIdentity.correctedName ?? "";
+      if (fastName.toLowerCase() !== fullName.toLowerCase()) {
+        log("CONSULTANT_MERGE", `Name mismatch: fast="${fastName}" full="${fullName}" — using fast`);
+      }
+      consultant.businessIdentity.correctedName = fastName;
+    }
   }
 
-  // Consultant is the authority on business identity — it reads the full page
-  // and corrects <title> tag errors like "Home" → "Pitcher Partners"
+  // Fast consultant is the authority on name, full consultant for everything else
   const bi = consultant?.businessIdentity ?? {};
   const resolvedBizName = bi.correctedName || scrapedBizName;
 
@@ -927,6 +1119,108 @@ function inferIndustry(fc: Record<string, any>): string {
 }
 
 
+// ─── Google Places Text Search cross-ref (P2-T1) ────────────────────────────
+// Calls Places API to verify business name and grab rating + review count.
+// Returns { name, rating, reviewCount, placeId, verified } or null on failure.
+// Non-fatal — if Places fails, we keep the consultant name.
+
+interface PlacesResult {
+  name: string;
+  rating: number;
+  reviewCount: number;
+  placeId: string;
+  verified: boolean;
+  formattedAddress?: string;
+}
+
+async function crossRefGooglePlaces(
+  consultantName: string,
+  location: string,
+  domain: string,
+  apiKey: string
+): Promise<PlacesResult | null> {
+  const t0 = Date.now();
+  const query = location
+    ? `${consultantName} ${location}`
+    : `${consultantName} ${domain}`;
+
+  try {
+    const resp = await fetch("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": "places.displayName,places.rating,places.userRatingCount,places.id,places.formattedAddress,places.websiteUri",
+      },
+      body: JSON.stringify({ textQuery: query, maxResultCount: 3 }),
+      signal: AbortSignal.timeout(3000),
+    });
+
+    if (!resp.ok) {
+      log("PLACES", `HTTP ${resp.status} for "${query}" (${Date.now() - t0}ms)`);
+      return null;
+    }
+
+    const data: any = await resp.json();
+    const places: any[] = data.places ?? [];
+
+    if (places.length === 0) {
+      log("PLACES", `No results for "${query}" (${Date.now() - t0}ms)`);
+      return null;
+    }
+
+    // Score each result: prefer domain match, then name similarity
+    const domainLower = domain.toLowerCase().replace("www.", "");
+    let best: any = null;
+    let bestScore = -1;
+
+    for (const p of places) {
+      let score = 0;
+      const pName = (p.displayName?.text ?? "").toLowerCase();
+      const pUri = (p.websiteUri ?? "").toLowerCase();
+      const cName = consultantName.toLowerCase();
+
+      // Domain match is strongest signal
+      if (pUri && pUri.includes(domainLower)) score += 10;
+
+      // Name containment (either direction)
+      if (pName.includes(cName) || cName.includes(pName)) score += 5;
+      else {
+        // Partial word overlap
+        const pWords = new Set(pName.split(/\s+/));
+        const cWords = cName.split(/\s+/);
+        const overlap = cWords.filter(w => pWords.has(w)).length;
+        score += overlap;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = p;
+      }
+    }
+
+    if (!best || bestScore < 1) {
+      log("PLACES", `No confident match for "${query}" bestScore=${bestScore} (${Date.now() - t0}ms)`);
+      return null;
+    }
+
+    const result: PlacesResult = {
+      name: best.displayName?.text ?? consultantName,
+      rating: best.rating ?? 0,
+      reviewCount: best.userRatingCount ?? 0,
+      placeId: best.id ?? "",
+      verified: bestScore >= 5,
+      formattedAddress: best.formattedAddress ?? "",
+    };
+
+    log("PLACES", `MATCH "${result.name}" rating=${result.rating} reviews=${result.reviewCount} score=${bestScore} verified=${result.verified} (${Date.now() - t0}ms)`);
+    return result;
+  } catch (e: any) {
+    log("PLACES", `Error: ${e.message} (${Date.now() - t0}ms)`);
+    return null;
+  }
+}
+
 // ─── KV writer — merges fast_intel into lead:{lid}:intel ─────────────────────
 
 async function writeFastIntelToKV(
@@ -978,8 +1272,8 @@ async function writeFastIntelToKV(
         name:         fastIntel.core_identity.business_name,
         domain,
         location:     fastIntel.core_identity.location,
-        rating:       0,
-        review_count: 0,
+        rating:       (fastIntel as any).places?.rating ?? 0,
+        review_count: (fastIntel as any).places?.review_count ?? 0,
       },
       hero: fastIntel.hero,
       person: {
@@ -993,6 +1287,8 @@ async function writeFastIntelToKV(
         estimated_monthly_spend_aud: 0,  // Apify fills this
       },
     },
+    // Google Places cross-ref data (P2-T1) — if available
+    ...((fastIntel as any).places ? { places: (fastIntel as any).places } : {}),
     // Deep intel placeholder — filled by deep-scrape workflow
     // SCHEMA v3: deep at ROOT, not nested in intel.deep
     deep: { status: "processing" },
@@ -1043,27 +1339,44 @@ export default {
       // Run fast intel pipeline
       const fastIntel = await runFastIntel(lid, websiteUrl, firstName, env);
 
+      // P2-T1: Google Places cross-ref — verify name, grab rating + reviews
+      if (env.GOOGLE_PLACES_API_KEY) {
+        const places = await crossRefGooglePlaces(
+          fastIntel.core_identity.business_name,
+          fastIntel.core_identity.location,
+          extractDomain(websiteUrl),
+          env.GOOGLE_PLACES_API_KEY
+        );
+        if (places) {
+          // Use Places name as authority if verified (score >= 5)
+          if (places.verified && places.name) {
+            const oldName = fastIntel.core_identity.business_name;
+            fastIntel.core_identity.business_name = places.name;
+            log("PLACES_NAME", `"${oldName}" → "${places.name}" (verified)`);
+          }
+          // Always store rating + reviews if Places returned them
+          if (places.rating > 0 || places.reviewCount > 0) {
+            (fastIntel as any).places = {
+              name: places.name,
+              rating: places.rating,
+              review_count: places.reviewCount,
+              place_id: places.placeId,
+              verified: places.verified,
+              address: places.formattedAddress,
+            };
+            // Enrich flags with early review signals
+            if (places.reviewCount > 0) {
+              (fastIntel.flags as any).review_signals = true;
+            }
+          }
+        }
+      }
+
       // Write to KV
       await writeFastIntelToKV(lid, firstName, websiteUrl, fastIntel, env);
 
-      // Also kick off apify-intel workflow (fire-and-forget, continues in background)
-      // v9.1.0: Use service binding instead of public URL (error 1042 fix)
-      ctx.waitUntil(
-        env.DEEP_SCRAPE.fetch(
-          new Request("https://deep-scrape/trigger", {
-            method:  "POST",
-            headers: { "Content-Type": "application/json" },
-            body:    JSON.stringify({
-              lid,
-              websiteUrl,
-              businessName: fastIntel.core_identity.business_name,
-            }),
-          })
-        )
-        .then(r => r.json())
-        .then(d => log("APIFY_TRIGGER", `lid=${lid} ${JSON.stringify(d)}`))
-        .catch(e => log("APIFY_TRIGGER_ERR", `lid=${lid} ${e.message}`))
-      );
+      // Apify deep scrape already fired from inside runFastIntel (fast consultant callback)
+      // — do NOT fire again here. Only trigger the big scraper.
 
       // Also trigger big scraper for rich Phase B enrichment (Google reviews, AI extraction, marketing intel)
       // v9.1.0: Use service binding instead of public URL (error 1042 fix)

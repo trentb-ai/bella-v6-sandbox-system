@@ -114,3 +114,27 @@ backend/uploads/
 # Tests (moved to feature/tests branch)
 tests/workflows-backend/
 .cursor
+
+# wrangler files
+.wrangler
+*/.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
+
+# Logs
+logs/
+
+# OS
+.DS_Store
+
+# Excluded folders (not part of active system)
+voice-agent-source-sandbox-v9/
+workers-sandbox-v9/
+deep-scrape-workflow-sandbox-v9/
+netlify-funnel-sandbox-v9/
+workflows-dashboard*/
+workflows-test/
+temp-deploy-bella-v9/
+mcp-worker-v9/
+wrangler.jsonc

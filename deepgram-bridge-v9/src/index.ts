@@ -25,7 +25,7 @@ export interface Env {
   ENABLE_EMBEDDING?: string;
 }
 
-const VERSION = "8.11.0-DEEPFIX"; // Fix: read :deep_flags from workflow, normalize google_maps → googleMaps
+const VERSION = "9.13.2"; // Fix: adsOn false-negative (deep data path), shortBiz stop-word, tag stripping broadened
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -254,26 +254,40 @@ async function loadMergedIntel(lid: string, env: Env): Promise<Record<string, an
   // Inject deep-scrape data at intel.deep if present (from either pipeline)
   // Workflow writes snake_case (google_maps, fb_ads_count, indeed_count)
   // Bridge expects camelCase (googleMaps { rating, review_count, recent_reviews }, hiring { is_hiring })
-  if (deepFlags.google_maps || deepFlags.linkedin || deepFlags.indeed_count) {
-    const gm = deepFlags.google_maps ?? {};
+  if (deepFlags.google_rating !== undefined || deepFlags.google_maps || deepFlags.linkedin || deepFlags.indeed_count || deepFlags.google_search_count || deepFlags.google_ads_transparency_count) {
     intel.deep = {
       status: "done",
       googleMaps: {
-        rating: gm.totalScore ?? null,
-        review_count: gm.reviewsCount ?? 0,
-        title: gm.title ?? "",
-        address: gm.address ?? "",
-        recent_reviews: gm.text ? [{ text: gm.text, stars: gm.stars, publishAt: gm.publishAt }] : [],
+        rating: deepFlags.google_rating ?? null,
+        review_count: deepFlags.review_count ?? 0,
+        address: deepFlags.address ?? "",
+        categories: deepFlags.categories ?? [],
+        reviews_sample: deepFlags.reviews_sample ?? [],
+        opening_hours: deepFlags.opening_hours ?? null,
+        phone: deepFlags.phone ?? null,
+        listed_website: deepFlags.listed_website ?? null,
+        photos_count: deepFlags.photos_count ?? 0,
       },
       ads: {
         fb_ads_count: deepFlags.fb_ads_count ?? 0,
-        google_ads_count: deepFlags.google_ads_count ?? 0,
+        fb_ads_sample: deepFlags.fb_ads_sample ?? [],
+        google_search_count: deepFlags.google_search_count ?? 0,
+        google_search_results: deepFlags.google_search_results ?? [],
+        google_ads_count: deepFlags.google_ads_transparency_count ?? 0,
+        is_running_google_ads: deepFlags.is_running_google_ads ?? false,
+        google_ads_sample: deepFlags.google_ads_sample ?? [],
       },
       hiring: {
-        is_hiring: (deepFlags.indeed_count ?? 0) > 0,
+        is_hiring: (deepFlags.indeed_count ?? 0) > 0 || (deepFlags.seek_count ?? 0) > 0,
         indeed_count: deepFlags.indeed_count ?? 0,
+        jobs_sample: deepFlags.jobs_sample ?? [],
+        seek_count: deepFlags.seek_count ?? 0,
+        seek_sample: deepFlags.seek_sample ?? [],
+        hiring_agent_matches: deepFlags.hiring_agent_matches ?? [],
+        top_hiring_wedge: deepFlags.top_hiring_wedge ?? null,
       },
       linkedin: deepFlags.linkedin ?? {},
+      ad_landing_pages: deepFlags.ad_landing_pages ?? [],
     };
   } else if (deep.googleMaps || deep.linkedin || deep.hiring) {
     intel.deep = { status: "done", ...deep };
@@ -333,6 +347,9 @@ type Stage =
   | "ch_ads" | "ch_website" | "ch_phone" | "ch_old_leads" | "ch_reviews"
   | "roi_delivery" | "close";
 
+type ChannelStageKey =
+  | "ch_ads" | "ch_website" | "ch_phone" | "ch_old_leads" | "ch_reviews";
+
 interface Inputs {
   acv: number | null;
   timeframe: "weekly" | "monthly" | null;
@@ -366,13 +383,9 @@ interface State {
   init: string;
   _lastTurn: number;     // guards stall — only increment on new user turn, not DG interim transcripts
   _lastUttHash: string;  // content dedup — prevents stall inflation from DG re-sending same utterance
-  scriptStages?: Record<string, any>;  // consultant-generated stage scripts
-  // V8 stage tracking — set by the main loop when call_brief.stages is active
-  v8StageKey?: string;       // e.g. "alex_intro", "agent2_roi" — current V8 Stage.key
-  v8CaptureKey?: string;     // e.g. "follow_up_speed_hours" — current stage's capture field
-  v8StageIndex?: number;     // index into stages[] for advance tracking
-  // T007: Just Demo branch — prospect says "just show me" at demo_value_bridge
-  just_demo: boolean;        // true = skip all number capture stages, go to just_demo_pivot
+  // T007: Just Demo branch — prospect says "just show me"
+  just_demo: boolean;        // true = skip remaining channel stages, go to roi_delivery
+  trial_reviews_done: boolean; // true if review-linked free trial was delivered (prevents repeat at stall 5)
 }
 
 // ─── BLANK INPUTS ─────────────────────────────────────────────────────────────
@@ -386,47 +399,85 @@ const BLANK: Inputs = {
   star_rating: null, review_count: null, has_review_system: null, new_cust_per_period: null,
 };
 
-// ─── CHANNEL QUEUE BUILDER ────────────────────────────────────────────────────
+// ─── CHANNEL QUEUE: Branching eligibility + consultant swap ──────────────────
 
-function buildQueue(flags: Record<string, any>, intel: Record<string, any>): Stage[] {
-  const q: Stage[] = [];
-  const ci = intel.core_identity ?? {};
-  const deep = (intel as any).intel?.deep ?? intel.deep ?? {}; // Check intel.intel.deep (big scraper) then root deep
+const AGENT_TO_CHANNEL: Record<string, ChannelStageKey> = {
+  alex: "ch_ads", chris: "ch_website", maddie: "ch_phone",
+  sarah: "ch_old_leads", james: "ch_reviews",
+};
+interface QueueResult {
+  queue: Stage[];
+  tease: ChannelStageKey | null;
+}
+
+function buildQueue(flags: Record<string, any>, intel: Record<string, any>): QueueResult {
+  const deep = (intel as any).intel?.deep ?? intel.deep ?? {};
   const ts = intel.tech_stack ?? {};
+  const routing = intel.consultant?.routing ?? {};
+  const cea = intel.consultant?.conversionEventAnalysis ?? {};
 
-  // SCHEMA v3: Read ads signals from canonical sources (no website_health indirection)
-  // Priority: flags (fast-intel) → deep (Apify) → tech_stack → big scraper root fields
-  const adsRunning = flags.is_running_ads
-    ?? flags.has_fb_pixel
-    ?? flags.has_google_ads
-    ?? (deep.ads?.fb?.running || deep.ads?.google?.running)
-    ?? ts.is_running_ads
-    ?? intel.google_ads_running                     // big scraper root field
-    ?? intel.facebook_ads_running                   // big scraper root field
-    ?? false;
+  // ── Signal detection ──
+  const adsOrInbound = !!(flags.is_running_ads || flags.has_fb_pixel || flags.has_google_ads
+    || deep.ads?.is_running_google_ads
+    || (deep.ads?.google_ads_count ?? 0) > 0 || (deep.ads?.fb_ads_count ?? 0) > 0
+    || ts.is_running_ads || intel.google_ads_running || intel.facebook_ads_running
+    || (ts.social_channels?.length > 0) || ts.has_email_marketing);
 
-  const socialOrEmailTraffic = !!(
-    ts.social_channels?.length > 0
-    || ts.has_email_marketing
-    || flags.database_likely
-  );
+  const ctaType: string = cea.ctaType ?? "";
+  const phoneDominantCta = ctaType === "call" || ctaType === "phone"
+    || /\bcall\b/i.test(cea.primaryCTA ?? "");
 
-  if (adsRunning || socialOrEmailTraffic) q.push("ch_ads");
-  q.push("ch_website");
+  let queue: Stage[];
+  let tease: ChannelStageKey | null;
+  let scenario: string;
 
-  // Phone: Phase B flags, or if business has a phone number from any source
-  if (flags.speed_to_lead_needed || flags.call_handling_needed || ci.phone) q.push("ch_phone");
+  if (adsOrInbound) {
+    // Scenario 1: Ads / inbound funnel detected — Chris first-contact on landing pages, Alex speed-to-lead follow-up
+    queue = ["ch_website", "ch_ads"];
+    tease = "ch_phone"; // Maddie tease by default
+    scenario = "ads_or_inbound";
+  } else {
+    // Scenario 2: No ads / no visible inbound funnel — Chris always first
+    queue = ["ch_website"];
+    if (phoneDominantCta) {
+      queue.push("ch_phone");  // Maddie second (phone-dominant CTA)
+      tease = "ch_ads";        // Alex tease (follow up whatever comes in)
+      scenario = "no_ads+phone_cta";
+    } else {
+      queue.push("ch_ads");    // Alex second (follow up form/booking submissions)
+      tease = "ch_phone";      // Maddie tease
+      scenario = "no_ads+form_cta";
+    }
+  }
 
-  // Old leads/DBR: email marketing tool or ecommerce = database exists; or Apify hiring signals
-  if (flags.database_reactivation || flags.database_likely || flags.business_age_established
-    || deep.hiring?.is_hiring || ts.database_likely) q.push("ch_old_leads");
+  // ── Consultant swap: if top priority agent maps to slot 2, swap slots 1 & 2 ──
+  const topAgent = (routing.priority_agents?.[0] ?? "").toLowerCase();
+  const topChannel = AGENT_TO_CHANNEL[topAgent];
+  if (topChannel && queue.length >= 2 && topChannel === queue[1]) {
+    const tmp = queue[0]; queue[0] = queue[1]; queue[1] = tmp;
+    scenario += "+consultant_swap";
+  }
 
-  // SCHEMA v3: Reviews from deep.googleMaps (canonical source)
-  const rawReviewCount = deep.googleMaps?.review_count ?? intel.review_count ?? 0;
-  const reviewCount = typeof rawReviewCount === 'string' ? parseInt(rawReviewCount, 10) || 0 : rawReviewCount;
-  if (reviewCount > 0 || flags.review_signals) q.push("ch_reviews");
+  log("QUEUE_V2", `scenario=${scenario} queue=[${queue.join(',')}] tease=${tease ?? 'none'} ads=${adsOrInbound} ctaType=${ctaType || 'none'} topAgent=${topAgent || 'none'}`);
 
-  return q;
+  return { queue, tease };
+}
+
+// ─── REBUILD FUTURE QUEUE ON LATE DATA ───────────────────────────────────────
+function rebuildFutureQueueOnLateLoad(s: State, flags: Record<string, any>, intel: Record<string, any>): State {
+  // Don't rebuild if already past channel stages
+  if (s.stage === "roi_delivery" || s.stage === "close") return s;
+
+  const { queue: newChannels, tease } = buildQueue(flags, intel);
+
+  // Lock completed + current stages
+  const locked = new Set<string>([...s.done, s.stage]);
+  const futureChannels = newChannels.filter(ch => !locked.has(ch)) as Stage[];
+
+  log("REBUILD_QUEUE", `locked=[${[...locked].join(',')}] old_queue=[${s.queue.join(',')}] new_future=[${futureChannels.join(',')}] tease=${tease ?? 'none'}`);
+
+  s.queue = futureChannels;
+  return s;
 }
 
 // ─── STATE: KV LOAD / SAVE / INIT ────────────────────────────────────────────
@@ -443,44 +494,27 @@ async function saveState(lid: string, s: State, env: Env) {
 
 async function initState(lid: string, env: Env, preloadedIntel?: Record<string, any>): Promise<State> {
   let intel = preloadedIntel ?? {};
-  let scriptStages: Record<string, any> | undefined;
 
   if (!preloadedIntel) {
-    // SUPERGOD: Try call_brief first, fall back to merged keys
     const callBrief = await loadCallBrief(lid, env);
     if (callBrief && callBrief.status) {
       intel = callBrief;
-      // call_brief has stages embedded
-      if (callBrief.stages) scriptStages = callBrief.stages;
     } else {
-      // Fallback: SCHEMA v9 merged intel + script_stages
-      const [mergedIntel, stagesRaw] = await Promise.all([
-        loadMergedIntel(lid, env),
-        env.LEADS_KV.get(`lead:${lid}:script_stages`),
-      ]);
-      intel = mergedIntel;
-      try { if (stagesRaw) scriptStages = JSON.parse(stagesRaw); } catch (e) { console.warn('[bridge] Failed to parse script_stages:', e); }
+      intel = await loadMergedIntel(lid, env);
     }
   }
 
   const flags = intel.flags ?? intel.fast_context?.flags ?? {};
-  const queue = buildQueue(flags, intel);
-  let s: State = {
+  const { queue, tease } = buildQueue(flags, intel);
+
+  const s: State = {
     stage: "wow", queue, done: [], inputs: { ...BLANK },
-          maddie_skip: false, wants_numbers: false, just_demo: false, apify_done: false, calc_ready: false,
-    stall: 0, init: new Date().toISOString(), _lastTurn: 0, _lastUttHash: "",
-    scriptStages,
+    maddie_skip: false, wants_numbers: false, just_demo: false, apify_done: false, calc_ready: false,
+    trial_reviews_done: false, stall: 0, init: new Date().toISOString(), _lastTurn: 0, _lastUttHash: "",
   };
-  // V8: seed v8StageKey/v8CaptureKey/v8StageIndex from Stage[] if call_brief has stages
-  if (scriptStages?.stages) s = seedV8State(s);
-  
-  // Tag source for Hot-Swap logic
-  if (s.scriptStages) {
-    (s.scriptStages as any).source = (intel.consultant?.scriptFills || intel.stages?.source === 'consultant') ? 'consultant' : 'heuristic';
-  }
 
   await saveState(lid, s, env);
-  log("INIT", `lid=${lid} queue=[${queue.join(",")}] scriptStages=${!!scriptStages} source=${(s.scriptStages as any)?.source} v8Stage=${s.v8StageKey ?? 'none'}`);
+  log("INIT", `lid=${lid} queue=[${queue.join(",")}] tease=${tease ?? 'none'}`);
   return s;
 }
 
@@ -489,9 +523,8 @@ async function initState(lid: string, env: Env, preloadedIntel?: Record<string, 
 function gateOpen(s: State): boolean {
   const { stage: st, inputs: i } = s;
   switch (st) {
-    // WOW: at least 6 exchanges before advancing (welcome → positioning → ICP/problems → solutions → trained AI → ads/rep → bridge)
-    // User can fast-track by saying "let's see the numbers" at any point
-    case "wow": return s.stall >= 6;
+    // WOW: stalls 1-12, gate at 13 so stall 12 (bridge to numbers) renders before advancing
+    case "wow": return s.stall >= 13;
     // deep_dive: no longer a blocking stage — auto-advance
     case "deep_dive": return true;
     case "anchor_acv": return i.acv !== null;
@@ -501,8 +534,8 @@ function gateOpen(s: State): boolean {
     case "ch_phone": return i.after_hours !== null && i.phone_volume !== null;
     case "ch_old_leads": return i.old_leads !== null;
     case "ch_reviews": return i.new_cust_per_period !== null && i.star_rating !== null && i.review_count !== null && i.has_review_system !== null;
-    case "roi_delivery": return true;
-    case "close": return true;
+    case "roi_delivery": return s.stall >= 2;  // Must deliver ROI in stall 0, confirm in stall 1
+    case "close": return false;  // Terminal stage — never advance
   }
 }
 
@@ -511,6 +544,14 @@ function gateOpen(s: State): boolean {
 function advance(s: State): State {
   s.done.push(s.stage);
   s.stall = 0;
+
+  // T007: Just Demo — skip remaining channel stages, go to roi_delivery
+  if (s.just_demo && (s.stage === "anchor_timeframe" || s.stage.startsWith("ch_"))) {
+    s.stage = "roi_delivery";
+    log("ADVANCE", `→ ${s.stage} (just_demo skip)`);
+    return s;
+  }
+
   // wow → anchor_acv directly (deep_dive was a blocking dead-end without big scraper)
   if (s.stage === "wow") s.stage = "anchor_acv";
   else if (s.stage === "deep_dive") s.stage = "anchor_acv";
@@ -521,77 +562,6 @@ function advance(s: State): State {
   log("ADVANCE", `→ ${s.stage}`);
   return s;
 }
-
-// ─── V8 STAGE ADVANCE ─────────────────────────────────────────────────────────
-// Walks the Stage[] from call_brief, skipping inactive stages.
-// Updates v8StageKey, v8CaptureKey, v8StageIndex on state.
-// Also maps the current V8 stage key to the legacy Stage enum so gateOpen() remains valid.
-
-function getV8Stage(scriptStages: Record<string, any> | undefined, idx: number): any | null {
-  if (!scriptStages?.stages || !Array.isArray(scriptStages.stages)) return null;
-  return scriptStages.stages[idx] ?? null;
-}
-
-function advanceV8Stage(s: State): State {
-  if (!s.scriptStages?.stages || !Array.isArray(s.scriptStages.stages)) return advance(s);
-
-  const stages: any[] = s.scriptStages.stages;
-  let next = (s.v8StageIndex ?? 0) + 1;
-
-  // T007: Just Demo branch — jump directly to just_demo_pivot, skipping all number stages
-  if (s.just_demo) {
-    const demoIdx = stages.findIndex((st: any) => st?.key === "just_demo_pivot" && st?.active !== false);
-    if (demoIdx >= 0) {
-      const demo = stages[demoIdx];
-      s.v8StageIndex = demoIdx;
-      s.v8StageKey = demo.key;
-      s.v8CaptureKey = demo.capture ?? undefined;
-      s.stage = v8StageAlias(demo.key);
-      s.stall = 0;
-      log("JUST_DEMO", `→ jumping to just_demo_pivot at idx=${demoIdx}`);
-      return s;
-    }
-  }
-
-  // Skip inactive stages
-  while (next < stages.length && !stages[next]?.active) next++;
-
-  if (next >= stages.length) {
-    // End of V8 stages — fall through to legacy close
-    s.stage = "close";
-    s.v8StageKey = "close";
-    s.v8CaptureKey = undefined;
-    s.stall = 0;
-  } else {
-    const nxt = stages[next];
-    s.v8StageIndex = next;
-    s.v8StageKey = nxt.key;
-    s.v8CaptureKey = nxt.capture ?? undefined;
-    // Map to legacy stage so gateOpen() doesn't break
-    s.stage = v8StageAlias(nxt.key);
-    s.stall = 0;
-    log("V8_ADVANCE", `→ [${next}] key=${nxt.key} agent=${nxt.agent} capture=${nxt.capture ?? "none"}`);
-  }
-
-  return s;
-}
-
-// Auto-detect first active V8 stage from scriptStages and seed state
-function seedV8State(s: State): State {
-  if (!s.scriptStages?.stages || !Array.isArray(s.scriptStages.stages)) return s;
-  const stages: any[] = s.scriptStages.stages;
-  // Find first active stage
-  const firstIdx = stages.findIndex((st: any) => st?.active !== false);
-  if (firstIdx < 0) return s;
-  const first = stages[firstIdx];
-  s.v8StageIndex = firstIdx;
-  s.v8StageKey = first.key;
-  s.v8CaptureKey = first.capture ?? undefined;
-  s.stage = v8StageAlias(first.key);
-  log("V8_SEED", `firstStage=${first.key} idx=${firstIdx}`);
-  return s;
-}
-
 
 // ─── CALC ENGINE ─────────────────────────────────────────────────────────────
 
@@ -715,6 +685,34 @@ function calcAgentROI(agent: "Alex" | "Chris" | "Maddie" | "Sarah" | "James", i:
 
 // ─── BUSINESS NAME NORMALISATION ─────────────────────────────────────────────
 // Strip city suffixes, legal suffixes, and trailing noise so Bella says
+// P1-T2: Strip apology phrases from Gemini output before TTS delivery.
+// Handles both single-token and multi-token apology patterns.
+// Replacements pivot to confident consultant language.
+function stripApologies(text: string): string {
+  return text
+    // Strip ALL XML/HTML tags — no angle brackets belong in spoken TTS output
+    .replace(/<[^>]*>/g, "")
+    // Catch bare tag word if brackets were split across SSE chunks
+    .replace(/\bDELIVER_THIS\b/g, "")
+    .replace(/\bmy apologies\b/gi, "good catch")
+    .replace(/\bI apologise\b/gi, "thanks for clarifying")
+    .replace(/\bI apologize\b/gi, "thanks for clarifying")
+    .replace(/\bI'?m sorry\b/gi, "thanks for that")
+    .replace(/\bsorry about that\b/gi, "good point")
+    .replace(/\bsorry\b/gi, "thanks")
+    .replace(/\bapologies\b/gi, "understood");
+}
+
+// shortBiz: first word UNLESS it's a stop word (e.g. "Let there be change" → use full name)
+const STOP_WORDS = new Set(["the","a","an","let","all","we","our","my","your","its","and","or","for","to","in","on","at","of","by","with","from","is","are","be","it","no","not","get","do","go","how","new","one","best","top","just","about"]);
+
+function shortBizName(biz: string): string {
+  if (!biz.includes(" ")) return biz;
+  const first = biz.split(/\s+/)[0];
+  if (STOP_WORDS.has(first.toLowerCase())) return biz;
+  return first;
+}
+
 // "Pitcher Partners" not "Pitcher Partners Sydney" — conversational, not formal.
 
 function normaliseBizName(raw: string): string {
@@ -871,9 +869,110 @@ function inferAcvMultiplier(industry: string): number {
   return 10;
 }
 
+// ── Normalize spoken word-form numbers to digit strings ──
+// Converts "two hundred" → "200", "forty" → "40", "twenty five" → "25", etc.
+// Applied BEFORE regex extraction so all \b(\d+)\b patterns catch word numbers.
+function normalizeSpokenNumbers(text: string): string {
+  const units: Record<string, number> = {
+    zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5,
+    six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+    sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+  };
+  const tens: Record<string, number> = {
+    twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60,
+    seventy: 70, eighty: 80, ninety: 90,
+  };
+  const allWords = [...Object.keys(units), ...Object.keys(tens), "hundred", "thousand", "a"];
+
+  let s = text.toLowerCase();
+
+  // "a hundred" → "100", "a thousand" → "1000"
+  s = s.replace(/\ba\s+hundred\b/gi, "100");
+  s = s.replace(/\ba\s+thousand\b/gi, "1000");
+  // "a couple hundred" → "200", "a few hundred" → "300"
+  s = s.replace(/\ba?\s*couple\s*(?:of\s*)?hundred\b/gi, "200");
+  s = s.replace(/\ba?\s*few\s*hundred\b/gi, "300");
+  s = s.replace(/\ba?\s*couple\s*(?:of\s*)?thousand\b/gi, "2000");
+  s = s.replace(/\ba?\s*few\s*thousand\b/gi, "3000");
+  // Standalone "hundred" / "thousand" without article (common in speech: "maybe hundred", "probably thousand")
+  // Only convert when preceded by qualifier context to avoid false positives
+  s = s.replace(/(?:about|around|roughly|maybe|probably|say|like|approximately)\s+hundred\b/gi, (m) => m.replace(/hundred/i, "100"));
+  s = s.replace(/(?:about|around|roughly|maybe|probably|say|like|approximately)\s+thousand\b/gi, (m) => m.replace(/thousand/i, "1000"));
+
+  // Build compound patterns from most specific to least:
+  // Pattern: "[unit] hundred [and] [tens[-unit]]" → e.g. "two hundred and fifty" → 250
+  // Pattern: "[unit] hundred [and] [unit]" → e.g. "three hundred and five" → 305
+  // Pattern: "[unit] hundred" → e.g. "two hundred" → 200
+  // Pattern: "[tens] [unit]" → e.g. "twenty five" → 25
+  // Pattern: "[tens]-[unit]" → e.g. "twenty-five" → 25
+  // Pattern: standalone tens/units → e.g. "forty" → 40
+
+  // [unit] hundred [and] [tens[-unit]] thousand
+  const unitPat = Object.keys(units).join("|");
+  const tensPat = Object.keys(tens).join("|");
+
+  // X hundred [and] [Y[-Z]] thousand
+  s = s.replace(
+    new RegExp(`\\b(${unitPat})\\s+hundred\\s*(?:and\\s*)?(${tensPat})(?:[\\s-](${unitPat}))?\\s+thousand\\b`, "gi"),
+    (_, u, t, o) => String(((units[u.toLowerCase()] || 0) * 100 + (tens[t.toLowerCase()] || 0) + (o ? (units[o.toLowerCase()] || 0) : 0)) * 1000)
+  );
+
+  // X hundred thousand
+  s = s.replace(
+    new RegExp(`\\b(${unitPat})\\s+hundred\\s+thousand\\b`, "gi"),
+    (_, u) => String((units[u.toLowerCase()] || 0) * 100000)
+  );
+
+  // X thousand
+  s = s.replace(
+    new RegExp(`\\b(${unitPat}|${tensPat})\\s+thousand\\b`, "gi"),
+    (_, w) => String(((units[w.toLowerCase()] ?? tens[w.toLowerCase()]) || 0) * 1000)
+  );
+
+  // [unit] hundred [and] [tens[-unit]] (no thousand suffix)
+  s = s.replace(
+    new RegExp(`\\b(${unitPat})\\s+hundred\\s*(?:and\\s*)?(${tensPat})(?:[\\s-](${unitPat}))?\\b`, "gi"),
+    (_, u, t, o) => String((units[u.toLowerCase()] || 0) * 100 + (tens[t.toLowerCase()] || 0) + (o ? (units[o.toLowerCase()] || 0) : 0))
+  );
+
+  // [unit] hundred (standalone — "two hundred" → 200)
+  s = s.replace(
+    new RegExp(`\\b(${unitPat})\\s+hundred\\b`, "gi"),
+    (_, u) => String((units[u.toLowerCase()] || 0) * 100)
+  );
+
+  // [tens][-][unit] — "twenty five" or "twenty-five" → 25
+  s = s.replace(
+    new RegExp(`\\b(${tensPat})[\\s-](${unitPat})\\b`, "gi"),
+    (_, t, u) => String((tens[t.toLowerCase()] || 0) + (units[u.toLowerCase()] || 0))
+  );
+
+  // Standalone tens — "forty" → 40 (but NOT if followed by word that's part of a bigger number)
+  s = s.replace(
+    new RegExp(`\\b(${tensPat})\\b(?!\\s*(?:${unitPat}|hundred|thousand))`, "gi"),
+    (_, t) => String(tens[t.toLowerCase()] || 0)
+  );
+
+  // Standalone units ≤ 19 — only replace when they look like a quantity answer
+  // "one" is too common in speech ("one of the things..."), so skip 0-1.
+  // Only convert 2-19 when preceded by quantity context or standalone.
+  const contextPat = `(?:about|around|roughly|maybe|probably|say|like|approximately|get|getting|have|had|do|did|see|saw|receive|received|handle|handled|average|total)\\s+`;
+  for (const [word, val] of Object.entries(units)) {
+    if (val < 2) continue; // skip zero/one — too ambiguous
+    s = s.replace(
+      new RegExp(`(?:${contextPat})\\b${word}\\b`, "gi"),
+      (match) => match.replace(new RegExp(`\\b${word}\\b`, "i"), String(val))
+    );
+  }
+
+  return s;
+}
+
 // ── Stage-aware regex extraction: returns fields relevant to the current stage
 function regexExtract(utt: string, stage: Stage, industry?: string): Partial<Inputs> & { wants_numbers?: boolean } {
-  const s = utt.toLowerCase();
+  // Normalize word-form numbers to digits BEFORE any pattern matching
+  const s = normalizeSpokenNumbers(utt.toLowerCase());
   const out: Partial<Inputs> & { wants_numbers?: boolean } = {};
 
   // ── WOW / DEEP_DIVE / DEMO_VALUE_BRIDGE: detect agreement to run numbers OR skip
@@ -1094,153 +1193,34 @@ function regexExtract(utt: string, stage: Stage, industry?: string): Partial<Inp
   return out;
 }
 
-// ─── V8 STAGE ALIAS ──────────────────────────────────────────────────────────
-// Maps V8 Stage keys (Stage[].key from buildStageScripts) to the closest legacy
-// Stage bucket so regexExtract() fires the right pattern group.
-
-function v8StageAlias(v8Key: string): Stage {
-  const map: Record<string, Stage> = {
-    // Bella opening stages
-    wow:                   "wow",
-    demo_value_bridge:     "wow",
-    anchor_acv:            "anchor_acv",
-    anchor_volume:         "ch_ads",        // leads per week → ads_leads (reused field)
-
-    // Alex stages → ads channel
-    alex_intro:            "ch_ads",
-    alex_ads_volume:       "ch_ads",
-    alex_roi:              "roi_delivery",  // ROI stage — no extraction needed
-
-    // Agent 2 stages → website or phone channel
-    agent2_intro:          "ch_website",
-    agent2_discovery:      "ch_website",
-    agent2_roi:            "roi_delivery",
-
-    // Agent 3 stages → old_leads / reviews
-    agent3_descriptor:     "ch_old_leads",
-    agent3_crunch:         "ch_old_leads",
-
-    // Closing stages
-    transition_to_close:   "roi_delivery",
-    just_demo_pivot:       "roi_delivery",
-    trial_offer:           "close",
-  };
-  return map[v8Key] ?? "wow";
-}
-
-// ─── V8 CAPTURE → INPUTS MAPPER ──────────────────────────────────────────────
-// After regexExtract fires, also apply knowledge of the V8 Stage.capture field
-// to guide which Inputs bucket the extracted number should fill.
-// Called with the raw utterance + current V8 stage key + current inputs.
-
-function captureToInputs(utt: string, captureKey: string, inputs: Inputs): Partial<Inputs> {
-  const n = parseNumber(utt.replace(/[^0-9a-zA-Z\s.,kmKM]/g, " ").trim());
-  const pct = parsePercent(utt);
-  const out: Partial<Inputs> = {};
-  if (!n && !pct) return out;
-
-  switch (captureKey) {
-    // Anchors
-    case "average_customer_value":
-      if (n && n >= 100) out.acv = n;
-      break;
-    case "leads_per_week":
-      if (n && n > 0) { out.ads_leads = n; out.web_leads = n; }
-      break;
-
-    // Alex
-    case "follow_up_speed_hours": {
-      if (n == null) break;
-      if (n <= 0.5)  out.ads_followup = "<30m";
-      else if (n <= 3) out.ads_followup = "30m_to_3h";
-      else if (n <= 24) out.ads_followup = "3h_to_24h";
-      else out.ads_followup = ">24h";
-      // Also default conversions if not yet set
-      if (!inputs.ads_conversions && inputs.ads_leads) {
-        out.ads_conversions = Math.round(inputs.ads_leads * 0.1); // conservative 10%
-      }
-      break;
-    }
-    case "ads_leads_per_week":
-      if (n && n > 0) out.ads_leads = n;
-      break;
-
-    // Agent 2 — Chris
-    case "website_conversion_rate":
-      if (pct) { out.web_leads = inputs.ads_leads ?? 100; out.web_conversions = Math.round((inputs.ads_leads ?? 100) * pct); }
-      else if (n && n <= 100) { out.web_leads = inputs.ads_leads ?? 100; out.web_conversions = Math.round((inputs.ads_leads ?? 100) * n / 100); }
-      break;
-    case "monthly_ad_spend":
-      if (n && n > 0) out.ad_spend = n;
-      break;
-
-    // Agent 2 — Maddie
-    case "missed_call_percentage":
-      if (pct) out.missed_calls = Math.round((inputs.phone_volume ?? 20) * pct);
-      else if (n) out.missed_calls = n;
-      if (!inputs.phone_volume) out.phone_volume = inputs.ads_leads ?? 20;
-      if (!inputs.after_hours) out.after_hours = "voicemail/unanswered"; // implied by asking
-      break;
-    case "missed_calls_per_10":
-      if (n && n > 0 && n <= 10) {
-        out.missed_calls = Math.round((inputs.phone_volume ?? 20) * n / 10);
-        if (!inputs.after_hours) out.after_hours = "voicemail/unanswered";
-      }
-      break;
-
-    // Agent 3 — Maddie crunch
-    case "missed_calls_per_day":
-      if (n && n > 0) { out.missed_calls = n * 5; out.phone_volume = n * 5 * 2; out.after_hours = "voicemail/unanswered"; }
-      break;
-
-    // Agent 3 — Sarah crunch
-    case "old_lead_database_size":
-      if (n && n > 0) out.old_leads = n;
-      break;
-
-    // Agent 3 — James crunch
-    case "google_rating_confirmed":
-      if (n && n >= 1 && n <= 5) { out.star_rating = n; out.has_review_system = false; }
-      break;
-  }
-
-  return out;
-}
-
 // ─── APPLY EXTRACTION + KV WRITES (sync extraction, async KV only) ──────────
 
 async function extractAndApply(utterance: string, s: State, lid: string, env: Env, stageOverride?: Stage, industry?: string): Promise<State> {
   if (!utterance) return s;
 
   const stage = stageOverride ?? s.stage;
-  // Determine effective extraction stage — prefer V8 alias when we have a V8 key
-  const effectiveStage = s.v8StageKey ? v8StageAlias(s.v8StageKey) : stage;
-  const extracted = regexExtract(utterance, effectiveStage, industry);
-  const fields = Object.keys(extracted);
+  const extracted = regexExtract(utterance, stage, industry);
 
-  // V8 secondary pass — additional capture field guidance
-  let v8Captured: Partial<Inputs> = {};
-  if (s.v8CaptureKey) {
-    v8Captured = captureToInputs(utterance, s.v8CaptureKey, s.inputs);
-    if (Object.keys(v8Captured).length > 0) {
-      log("V8_CAPTURE", `captureKey=${s.v8CaptureKey} fields=${Object.keys(v8Captured).join(",")}`);
-    }
+  // ch_website: if we extracted web_leads but state already has web_leads, this is actually web_conversions
+  if (stage === "ch_website" && extracted.web_leads != null && s.inputs.web_leads != null && extracted.web_conversions == null) {
+    extracted.web_conversions = extracted.web_leads;
+    delete extracted.web_leads;
   }
 
-  if (fields.length === 0 && Object.keys(v8Captured).length === 0) {
-    log("EXTRACT", `lid=${lid} stage=${stage} extractions=0`);
+  const fields = Object.keys(extracted);
+
+  // Log normalized form if word-numbers were converted
+  const normalized = normalizeSpokenNumbers(utterance.toLowerCase());
+  if (normalized !== utterance.toLowerCase()) {
+    log("NORMALIZE", `"${utterance}" → "${normalized}"`);
+  }
+
+  if (fields.length === 0) {
+    log("EXTRACT", `lid=${lid} stage=${stage} extractions=0 utt="${utterance.slice(0, 80)}"`);
     return s;
   }
 
-  // Apply to state — V8 captured fields take lower priority than regex (regex is more specific)
-  for (const [field, value] of Object.entries(v8Captured)) {
-    if (value == null) continue;
-    if (field in BLANK && (s.inputs as any)[field] == null) {
-      (s.inputs as any)[field] = value;
-      log("V8_APPLIED", `${field}=${JSON.stringify(value)}`);
-    }
-  }
-  // Standard regex extraction (higher priority — overwrites V8 if both fire)
+  // Apply regex extraction to state
   for (const [field, value] of Object.entries(extracted)) {
     if (value == null) continue;
     if (field in BLANK) (s.inputs as any)[field] = value;
@@ -1377,10 +1357,14 @@ function buildFullSystemContext(intel: Record<string, any>, apifyDone: boolean):
     || flags.is_running_ads
     || flags.has_fb_pixel
     || flags.has_google_ads
-    || deep.ads?.fb?.running
-    || deep.ads?.google?.running
+    || deep.ads?.is_running_google_ads
+    || (deep.ads?.google_ads_count ?? 0) > 0
+    || (deep.ads?.fb_ads_count ?? 0) > 0
     || intel.google_ads_running
     || intel.facebook_ads_running
+    || (intel as any).is_running_google_ads || (intel as any).is_running_fb_ads
+    || ((intel as any).google_ads_transparency_count ?? 0) > 0
+    || ((intel as any).fb_ads_count ?? 0) > 0
   );
 
   // SCHEMA v3: Google reviews from deep.googleMaps (canonical) or big scraper root fields
@@ -1389,71 +1373,16 @@ function buildFullSystemContext(intel: Record<string, any>, apifyDone: boolean):
   const googleReviews = deep.googleMaps?.review_count
     ?? (typeof intel.review_count === 'number' ? intel.review_count : (typeof intel.review_count === 'string' ? parseInt(intel.review_count, 10) || 0 : 0));
 
-  // ── LEAN PERSONA (~500 chars — replaces 5K full persona to cut latency) ─────
-  // NOTE: No titles or self-promotion. Focus on the CLIENT.
+  // ── LEAN PERSONA — identity + critical rules only ──────────────────────────
+  // Everything else is handled by buildTurnPrompt (stage directives, output rules,
+  // ROI calcs, confirmed inputs) and buildStageDirective (agent recs, questions).
+  // This section is REFERENCE DATA — Gemini follows the MANDATORY SCRIPT above.
   const fullPersona = `You are Bella from Pillar and Post AI. Live voice call.
 Warm, sharp, Australian. Trusted advisor who has done deep homework on the prospect's business.
-IMPORTANT: NEVER introduce yourself with a title. NEVER say "I'm Bella, [title]". Just be Bella.
-RULES: Up to 3 statements and a question per turn (4 sentences max, fewer is fine). Then STOP. No markdown/symbols/lists.
-Say dollar amounts as words. Mirror their industry language naturally.
-Never hallucinate numbers. Never combine revenue channels. Keep each channel separate.
-React to what they JUST SAID first, then advance. Be curious, not scripted.
-
-QUESTION SELECTION RULE:
-The question order is a prioritization framework, not a requirement to ask every question.
-Bella must not run through all channels mechanically.
-Instead, she should:
-1. use scraped data to identify the most promising likely opportunities,
-2. confirm those opportunities briefly with the prospect where needed,
-3. ask only the minimum calculation questions required to estimate the ROI of the top 2-3 most relevant agents,
-4. stop asking further questions once she has enough data to make strong recommendations.
-Bella should prioritize questions that help her validate the highest-value likely agents first.
-
-CONVERSATION RHYTHM:
-Every response is maximum 2 sentences. Then you stop and let them respond.
-You're not a monologue — you're the best kind of two-way conversation.
-Acknowledge what they just said. Then advance.
-One question per turn. At the end. Then silence.
-
-WHAT YOU NEVER DO:
-- Sound like a script.
-- Dump a list of facts on someone.
-- Say "As an AI..."
-- Use dollar signs, asterisks, bullet points, or any text formatting in speech. Say "five thousand dollars", not "$5,000".
-- Ask two questions in a row.
-- Hallucinate numbers.
-- Combine revenue channels.
-- Over-explain what the demo is.
-
-NUMBERS AND CALCULATIONS:
-You only use real inputs — things the prospect tells you, or things scraped from their actual site.
-You never invent benchmarks. The approved ones are:
-  Alex: "Responding in under a minute can increase conversions by 391 percent versus slower response times."
-  Chris: "Websites with AI chat see around 23 percent higher conversion rates."
-  Maddie: "78 percent of customers go with the first business that responds."
-  Sarah: "Database reactivation typically sees around a 5 percent conversion from dormant leads."
-  James: "A one-star rating increase typically drives about a 9 percent revenue lift."
-
-Calculation rules (use exactly, never invent):
-  Alex: baseline = conversions/leads. Uplift tiers based on current follow-up speed: >24h=391%, 3-24h=200%, 30min-3h=100%, <30min=50%. Revenue = conversions x uplift_rate x ACV / 52 weekly.
-  Chris: incremental = web_conversions x 0.23. Revenue = incremental x ACV / 52 weekly.
-  Maddie: Revenue = missed_calls x conversion_rate x ACV / 52 weekly.
-  Sarah: reactivated = old_leads x 0.05. Revenue = reactivated x ACV / 52 weekly.
-  James: Requires 4 inputs: new_customers_per_period, star_rating, review_count, has_review_system. Revenue base = new_customers_per_period x periods_per_year x ACV. Revenue uplift = revenue_base x 0.09 / 52 weekly.
-If a required input is missing — ask for it. If they don't know — ballpark is fine. If no trustworthy number exists — don't calculate.
-
-WHICH AGENTS TO RECOMMEND:
-You recommend 2-3 max, always the highest calculated ROI.
-  Ads or social traffic -> Alex + Chris first, almost always
-  Email marketing tool detected -> Alex + Chris (they're mailing to landing pages, same problem)
-  Non-AI chatbot on site -> Chris is an easy win — they already believe in chat, just upgrade it
-  Strong phone volume + gaps in coverage -> Maddie + Chris
-  Slow lead follow-up -> Alex
-  Email list or ecommerce -> Sarah
-  Weak or no review process -> James
-
-CHANNELS — ALWAYS SEPARATE:
-Website leads, ad leads, phone volume, old leads, reviews — each is its own conversation. Never merge them.
+NEVER introduce yourself with a title. Just be Bella.
+React to what they JUST SAID first, then advance. Be curious in conversation, but DELIVER scripted lines exactly as written inside <DELIVER_THIS> tags.
+Keep each revenue channel separate — never merge them.
+NEVER APOLOGISE. If challenged, pivot to a specific data point from your research. You are a confident consultant.
 
 INDUSTRY MIRRORING:
 Mirror the prospect's industry, commercial model, language, and decision context throughout.
@@ -1470,30 +1399,31 @@ Examples by industry:
   Hospitality: bookings, reservations, covers, guests
 
 Mirror in ALL areas: greeting, website commentary, offer description, ICP summary, qualification questions, ROI explanations, agent recommendations, free-trial close.
-
 INDUSTRY KPIs: Use native terminology — average client value, patient value, case value, job value, booking value, policy value.
 INDUSTRY PAIN: Frame missed opportunities natively — missed consults, missed bookings, missed jobs, lost enquiries.
 INDUSTRY TONE: Adapt subtly — professional/formal for legal, finance, medical; practical/direct for trades; polished/strategic for agencies; warm/reassuring for care-oriented.
-
-TIMEFRAME:
-Let them choose weekly or monthly once, early. Mirror it every time after.
 
 FREE TRIAL CLOSE (use this phrasing):
 "We start it at 7 days — usually that's more than enough to see real movement. If you want more certainty we can push to 14. No card required. Honestly, set and forget."
 
 THE AGENTS:
-  Alex — speed-to-lead. Jumps on paid and inbound leads in under a minute.
-  Chris — website and inbound conversion. The voice on the landing page.
-  Maddie — missed calls, after-hours, first response.
-  Sarah — dormant database reactivation.
-  James — reviews and reputation.
+Alex — speed-to-lead. Jumps on leads in under a minute.
+Chris — website and landing page conversion. AI chat that engages visitors.
+Maddie — missed calls, after-hours, first response.
+Sarah — dormant database reactivation.
+James — reviews and reputation.
+
+NEVER DO:
+- Say "As an AI..." or sound like a script.
+- Dump a list of facts. One insight at a time.
+- Hallucinate numbers or combine revenue channels.
+- Over-explain what the demo or free trial is.
 
 GUARDRAILS:
 - Keep the stage flow strict — do not drift into random questions or premature recommendations.
-- Use the buyer's own numbers whenever possible; if missing, mark estimates as directional rather than exact.
+- Use the buyer's own numbers whenever possible; if missing, mark estimates as directional.
 - Separate channels rigorously: website, ads, phone, old leads, reviews.
-- If ads are present, prioritize Alex + Chris discovery before lower-value branches unless another signal is clearly stronger.
-- Mirror the prospect's industry language, conversion event, and commercial logic throughout the conversation.`;
+- If ads are present, prioritise Alex + Chris discovery first unless another signal is clearly stronger.`;
 
   // ── BUSINESS INTEL ──
   const intelLines: string[] = [
@@ -1599,13 +1529,28 @@ function buildTurnPrompt(s: State, intel: Record<string, any>, convMemory: strin
     ? rawOpener.replace(/\bHome\b/g, biz)
     : rawOpener;
 
+  const { inputs: i } = s;
   const calcs = runCalcs(s.inputs, s.maddie_skip);
   const top3 = calcs.slice(0, 3);
   const total = top3.reduce((sum, c) => sum + c.weekly, 0);
 
+  // ── CALC DIAGNOSTICS ──
+  if (top3.length) {
+    log("CALC", `agents=${top3.map(c => `${c.agent}=$${c.weekly}/wk`).join(",")} total=$${total}/wk acv=${i.acv}`);
+  } else {
+    const missing: string[] = [];
+    if (!i.acv) missing.push("acv");
+    if (i.ads_leads == null) missing.push("ads_leads");
+    if (i.ads_conversions == null) missing.push("ads_conversions");
+    if (i.web_leads == null) missing.push("web_leads");
+    if (i.web_conversions == null) missing.push("web_conversions");
+    if (i.phone_volume == null) missing.push("phone_volume");
+    if (!i.after_hours) missing.push("after_hours");
+    log("CALC", `no_calcs — missing: ${missing.join(",")}`);
+  }
+
   // ── CONFIRMED INPUTS ──
   const knownLines: string[] = [];
-  const { inputs: i } = s;
   if (i.acv) knownLines.push(`- ACV: ${i.acv.toLocaleString()} AUD`);
   if (i.timeframe) knownLines.push(`- Timeframe: ${i.timeframe}`);
   if (i.ads_leads) knownLines.push(`- Ad leads: ${i.ads_leads} ${tf}`);
@@ -1651,13 +1596,25 @@ function buildTurnPrompt(s: State, intel: Record<string, any>, convMemory: strin
 
   // ── OUTPUT RULES ──
   const outputRules = `OUTPUT RULES
-1. ONLY SPOKEN WORDS. No labels, no headers.
+1. ONLY SPOKEN WORDS. No labels, no headers, no XML tags in output.
 2. Up to 3 statements and a question per turn (4 sentences max, fewer is fine).
 3. No symbols, no markdown.
 4. Say numbers as words.
-5. Max one question at the end.`;
+5. Max one question at the end.
+6. NEVER APOLOGISE — THIS IS AN ABSOLUTE RULE. The words "sorry", "apologies", "my apologies", "I apologise" must NEVER appear in your response under ANY circumstance. If you are corrected, say "Good catch" or "Thanks for clarifying" then immediately pivot to the correct data. NEVER grovel. You are a confident consultant, not a customer service bot.
+7. SCRIPT COMPLIANCE: Text inside <DELIVER_THIS> tags is your EXACT script. Deliver it word-for-word. You may add a brief natural reaction to what the prospect just said BEFORE the scripted line (e.g. "Great question." or "Love it."), but the scripted line itself MUST be delivered verbatim. Do NOT paraphrase, restructure, summarise, or omit any part of it.`;
 
-  return `BUSINESS: ${biz} | STAGE: ${s.stage.toUpperCase()}\n\n${knownSection}${roiSection}${memSection}\n\nCURRENT STAGE: ${stageDirective}${vecSection}\n\n${outputRules}`;
+
+  return `====================================
+MANDATORY SCRIPT — FOLLOW EXACTLY
+====================================
+${stageDirective}
+====================================
+
+BUSINESS: ${biz} | STAGE: ${s.stage.toUpperCase()}
+${knownSection}${roiSection}${memSection}${vecSection}
+
+${outputRules}`;
 }
 
 // ─── STAGE DIRECTIVE — Voice RAG script language with resolved placeholders ───
@@ -1692,10 +1649,22 @@ function buildStageDirective(
   const googleReviews = deep.googleMaps?.review_count
     ?? (intel.review_count != null ? parseInt(String(intel.review_count), 10) || 0 : 0);
 
-  // Ads running flag
+  // Hiring data from deep-scrape + consultant
+  const hiringData = deep.hiring ?? {};
+  const hiringMatches: any[] = hiringData.hiring_agent_matches ?? intel.hiring_agent_matches ?? [];
+  const topHiringWedge = (intel.consultant as any)?.hiringAnalysis?.topHiringWedge ?? "";
+  const isHiring = !!(hiringData.is_hiring || hiringMatches.length > 0
+    || (intel as any).is_hiring || ((intel as any).job_count ?? 0) > 0);
+
+  // Ads running flag — use || not ?? (false is not null, ?? stops at false)
+  // Check normalized deep.ads path AND flat intel root (workflow data may not be normalized yet)
   const adsOn = !!(
-    ts.is_running_ads ?? flags.is_running_ads ?? flags.has_fb_pixel ?? flags.has_google_ads
-    ?? deep.ads?.fb?.running ?? deep.ads?.google?.running
+    ts.is_running_ads || flags.is_running_ads || flags.has_fb_pixel || flags.has_google_ads
+    || deep.ads?.is_running_google_ads || (deep.ads?.google_ads_count ?? 0) > 0
+    || (deep.ads?.fb_ads_count ?? 0) > 0
+    || (intel as any).is_running_google_ads || (intel as any).is_running_fb_ads
+    || ((intel as any).google_ads_transparency_count ?? 0) > 0
+    || ((intel as any).fb_ads_count ?? 0) > 0
   );
 
   // Script fills from consultant
@@ -1707,6 +1676,14 @@ function buildStageDirective(
   const icpSolutions = icpAnalysis.icpSolutions ?? [];
   const websitePositive = sf.website_positive_comment ?? "";
   const icpGuess = sf.icp_guess ?? "";
+
+  // Conversion event analysis from consultant — HOW THEY SELL
+  const conversionAnalysis = (intel.consultant as any)?.conversionEventAnalysis ?? {};
+  const agentTrainingLine: string = conversionAnalysis.agentTrainingLine ?? "";
+  const allConversionEvents: string[] = conversionAnalysis.allConversionEvents ?? [];
+  const primaryCTA: string = conversionAnalysis.primaryCTA ?? sf.top_2_website_ctas ?? "";
+  const ctaBreakdown: Array<{ cta: string; type: string; agent: string; reason: string }> = conversionAnalysis.ctaBreakdown ?? [];
+  const ctaAgentMapping: string = conversionAnalysis.ctaAgentMapping ?? "";
   const referenceOffer = sf.reference_offer ?? "";
   const recentReviewSnippet = sf.recent_review_snippet ?? "";
 
@@ -1742,191 +1719,281 @@ function buildStageDirective(
 
   switch (s.stage) {
     case "wow": {
-      // Multi-turn WOW using consultant intel — NOTE: Deepgram already said "Hi I'm Bella"
-      // so we skip self-intro and go straight to welcoming them to their demo
-      // IMPORTANT: stall is already incremented BEFORE this function runs, so stall=1 is first turn
+      // Multi-turn WOW: 12 stalls, gate at 13
+      // Order: 1=Research → 2=FreeTrial(skip if no reviews) → 3=ICP → 4=Problems →
+      //   5=PreTrain(+generic trial) → 6=Reputation(reviewer names) → 7=Conversion(soft close) →
+      //   8=ProcessCheck(follow-up speed) → 9=DataReview(campaigns+hiring) → 10=LateData →
+      //   11=AgentRec → 12=BridgeToNumbers
+      // IMPORTANT: stall is incremented BEFORE this function runs, so stall=1 is first turn
 
       if (s.stall === 1) {
-        // ── CONVERSATIONAL WOW OPENING ──
-        // 2 evidence statements + 1 confirmation question. Keep it tight, earn the next turn.
-        const shortBiz = biz.includes(" ") ? biz.split(/\s+/)[0] : biz;
-
-        // Pick best 2 insights — ordered by impact
-        const cleanIcp = icpGuess
-          ? icpGuess
-              .replace(/^it\s+(looks|seems)\s+like\s+/i, "")
-              .replace(/[,;—–-]+\s*(is that right|right|yeah)\??\s*$/i, "")
-              .replace(/\?+$/, "").trim()
-          : "";
-
-        // Statement 1: always the same confident opener
-        const s1 = `Hi ${fn}, welcome to your personalised demo. We've taken a proper look at ${biz}, and a few things stood out straight away.`;
-
-        // Statement 2: best evidence (ICP > reviews > offer > ads > hero)
-        let s2 = "";
-        if (cleanIcp) {
-          s2 = `It's clear ${cleanIcp}`;
-        } else if (googleRating) {
-          s2 = `${googleRating} stars from ${googleReviews} reviews shows your reputation is a real strength`;
-        } else if (referenceOffer) {
-          s2 = `Your core offering around ${referenceOffer} comes through strongly on the site`;
-        } else if (adsOn) {
-          s2 = `We can see you're investing in paid channels, which tells us you're serious about growth`;
-        } else if (websitePositiveFinal) {
-          s2 = websitePositiveFinal;
-        } else {
-          s2 = `The site does a strong job of positioning what ${shortBiz} does`;
-        }
-
-        // Confirmation question
-        const q = cleanIcp
-          ? `Is that a fair read of where ${shortBiz} sits?`
-          : `Does that match how you see ${shortBiz}?`;
-
-        // Chunk C: inject retrieved vector snippet if available
-        const vecSnippet1 = (intel as any)._retrievedSnippet ?? "";
-        const vecCite1 = vecSnippet1
-          ? `\nCite verbatim from this retrieved data: "${vecSnippet1}"`
-          : "";
-
-        return `WOW — OPENING
-IMPORTANT: Do NOT pull phrasing from the BUSINESS INTEL section. Use ONLY the script below.${vecCite1}
-SAY EXACTLY THIS:
-"${s1} ${s2}. ${q}"
-RULES:
-- Exactly 2 statements then 1 confirmation question. Nothing more.
-- NO "I like" or "I really like" — evidence language only.
-- Business name: "${biz}" first mention, then "${shortBiz}" after.
-- Then STOP and wait for their response.`;
-      }
-
-      if (s.stall === 2) {
-        // After they confirm → deliver next best insight they haven't heard yet
-        const shortBiz = biz.includes(" ") ? biz.split(/\s+/)[0] : biz;
-
-        // Pick the NEXT best evidence (skip whatever stall=1 already used)
-        const usedIcp = !!icpGuess; // stall=1 used ICP if available
-        let nextInsight = "";
-        if (usedIcp && googleRating) {
-          nextInsight = `${googleRating} stars from ${googleReviews} reviews — your reputation is clearly a strength for ${shortBiz}`;
-        } else if (usedIcp && referenceOffer) {
-          nextInsight = `Your core offering around ${referenceOffer} comes through really clearly on the site`;
-        } else if (!usedIcp && referenceOffer) {
-          nextInsight = `Your positioning around ${referenceOffer} comes through strongly`;
-        } else if (adsOn) {
-          nextInsight = `We can see you're investing in paid channels, which tells us you're serious about growth`;
-        } else if (heroQuoteFinal) {
-          nextInsight = `The messaging around "${heroQuoteFinal}" does a good job of tying your positioning together`;
-        }
-
-        // Chunk C: inject retrieved vector snippet if available
-        const vecSnippet2 = (intel as any)._retrievedSnippet ?? "";
-        const vecCite2 = vecSnippet2
-          ? `\nCite verbatim from this retrieved data: "${vecSnippet2}"`
-          : "";
-
-        if (nextInsight) {
-          return `WOW — SECOND INSIGHT${vecCite2}
-SAY APPROXIMATELY THIS:
-"${nextInsight}. Tell me ${fn}, how are you currently handling inbound enquiries at ${shortBiz}?"
-One statement, one question. Then STOP and wait.`;
-        }
-        // Fallback: ask about their situation
-        return `WOW — SITUATION PROBE
-SAY APPROXIMATELY THIS:
-"So ${fn}, how are you currently handling your inbound enquiries at ${shortBiz}? Referrals, online, ads, or a mix?"
-One question only. Then STOP and wait.`;
-      }
-
-      if (s.stall === 3) {
-        // ICP + PROBLEMS — Who they serve and what problems those people face
-        // GUARD: If consultant data hasn't arrived yet, ask a probing question instead of making vague claims
-        const hasIcpData = icpGuess || icpProblems.length >= 1;
-        if (!hasIcpData) {
-          return `WOW — ICP QUESTION (waiting for intel)
-SAY APPROXIMATELY THIS:
-"${fn}, tell me — what kind of clients does ${biz} really thrive with? Who are you best positioned to help?"
-ALWAYS end with a question. Then STOP and wait. (Scraper is still gathering intel — stall for more data.)`;
-        }
-        const icpLine = icpGuess
-          ? `It looks like you're mainly working with ${icpGuess}.`
-          : `Looking at your site, I can see who you're targeting.`;
-        const problemsLine = icpProblems.length >= 2
-          ? ` And from what I can see, the typical challenges your clients face are things like ${icpProblems.slice(0, 2).join(" and ")}.`
-          : "";
-        return `WOW — ICP + PROBLEMS
-SAY APPROXIMATELY THIS:
-"${icpLine}${problemsLine} Is that right?"
-ALWAYS end with a confirmation question. Then STOP and wait.`;
-      }
-
-      if (s.stall === 4) {
-        // SOLUTIONS — How they address those problems
-        // GUARD: If solutions data hasn't arrived yet, ask what sets them apart
-        const hasSolutionsData = icpSolutions.length >= 1 || referenceOffer;
-        if (!hasSolutionsData) {
-          return `WOW — SOLUTIONS QUESTION (waiting for intel)
-SAY APPROXIMATELY THIS:
-"And what would you say sets ${biz} apart from the competition? What do your best clients say about working with you?"
-ALWAYS end with a question. Then STOP and wait. (Scraper is still gathering intel — stall for more data.)`;
-        }
-        const solutionsLine = icpSolutions.length >= 2
-          ? `And I can see you address those challenges by offering ${icpSolutions.slice(0, 2).join(" and ")}.`
-          : referenceOffer
-            ? `And I can see you help them with ${referenceOffer}.`
-            : `And you've got some great solutions for them.`;
-        return `WOW — SOLUTIONS
-SAY APPROXIMATELY THIS:
-"${solutionsLine} That's a really strong positioning. Does that capture what ${biz} does?"
-ALWAYS end with a confirmation question. Then STOP and wait.`;
-      }
-
-      if (s.stall === 5) {
-        // SOLUTIONS CONFIRMATION — Keep momentum, don't drop the pre-training line yet
-        // Pre-training connect moves to bridge-to-numbers (after Apify deep intel has wowed them)
-        return `WOW — CONFIRMATION
-SAY APPROXIMATELY THIS:
-"That's a really strong foundation, ${fn}. And we've only scratched the surface of what we've found."
+        // ── 1. RESEARCH INTRO ──
+        return `WOW — RESEARCH INTRO
+<DELIVER_THIS>Now ${fn}, I think you'll be impressed. We've done a lot of research on ${biz} — we use that to pre-train your agents so they understand your ${ct}s, your industry, and how you win business. Can I just confirm a couple of our findings with you, make sure your agents are dialled in?</DELIVER_THIS>
 Then STOP and wait for their response.`;
       }
 
-      if (s.stall === 6) {
-        // ADS + REPUTATION (if Apify ready) or lead gen question (if not)
-        if (!s.apify_done && !googleRating) {
-          return `WOW — LEAD GEN QUESTION (Apify still loading)
-SAY APPROXIMATELY THIS:
-"Now ${fn}, I'm curious — what's your main source of new business at the moment? Is it mostly referrals, online ads, organic traffic, or something else?"
-ALWAYS end with a question. Then STOP and wait.`;
+      if (s.stall === 2) {
+        // ── 2. FREE TRIAL PITCH — ONLY if Google reviews >= 3 stars ──
+        const hasGoodRep = googleRating && googleRating >= 3;
+        if (hasGoodRep) {
+          s.trial_reviews_done = true;
+          const repAdj = googleRating >= 4.5 ? "an outstanding" : googleRating >= 4 ? "an excellent" : "a strong";
+          const repCompliment = googleRating >= 4.5 ? "That's really impressive" : googleRating >= 4 ? `That tells me you're clearly delivering for your ${ct}s` : "That's a solid signal in the market";
+          return `WOW — FREE TRIAL PITCH (reviews-linked)
+<DELIVER_THIS>Oh ${fn}, I noticed ${biz} has ${repAdj} reputation with ${googleRating} stars from ${googleReviews} reviews. ${repCompliment}. We offer a limited number of free trials each month and they're only available to businesses that are already delivering strong results in the market — and with a ${googleRating} star review rating that means you qualify for the free trial offer. One caveat, it's only available during this demo session, but it's no credit card, takes about ten minutes to set up, it's totally set and forget and just count the extra ${ct}s. Sound good?</DELIVER_THIS>
+Then STOP and wait for their response.`;
         }
-        const adsLine = adsOn
-          ? "I noticed you're running ads — how's that performing for you?"
-          : "I didn't see any big campaigns on Facebook or Google — are you running any ads we might have missed?";
-        const repLine = googleRating
-          ? ` And we've checked out your online rep — ${googleRating} stars from ${googleReviews} reviews.${recentReviewSnippet ? ` One recent review mentioned: "${recentReviewSnippet}"` : ""} Does that match your experience?`
+        // No reviews or < 3 stars — SKIP stall 2 entirely
+        s.stall = 3;
+      }
+
+      if (s.stall === 3) {
+        // ── 3. ICP OBSERVATION ──
+        const shortBiz = shortBizName(biz);
+        const cleanIcp = icpGuess
+          ? icpGuess.replace(/^it\s+(looks|seems)\s+like\s+/i, "")
+              .replace(/[,;—–-]+\s*(is that right|right|yeah)\??\s*$/i, "")
+              .replace(/\?+$/, "").trim()
           : "";
-        return `WOW — ADS + REPUTATION
-SAY APPROXIMATELY THIS:
-"${adsLine}${repLine}"
-ALWAYS end with a question or confirmation request. Then STOP and wait.`;
+        let insight = "";
+        if (cleanIcp) insight = `It looks like ${cleanIcp}`;
+        else if (referenceOffer) insight = `Your core offering around ${referenceOffer} comes through strongly on the site`;
+        else if (websitePositiveFinal) insight = websitePositiveFinal;
+        else insight = `The site does a strong job of positioning what ${shortBiz} does`;
+
+        return `WOW — ICP OBSERVATION
+<DELIVER_THIS>${insight}. Is that right?</DELIVER_THIS>
+One insight, one confirmation. Then STOP.`;
+      }
+
+      if (s.stall === 4) {
+        // ── 4. PROBLEMS + SOLUTIONS ──
+        const hasData = icpProblems.length >= 1 || icpSolutions.length >= 1 || referenceOffer;
+        if (!hasData) {
+          const shortBiz = shortBizName(biz);
+          const fallback = heroQuoteFinal
+            ? `The messaging around "${heroQuoteFinal}" does a great job of tying your positioning together`
+            : `The site does a strong job of communicating what sets ${shortBiz} apart`;
+          return `WOW — WEBSITE OBSERVATION (waiting for intel)
+SAY: "${fallback}. Does that sound right?"
+Declarative only. Then STOP.`;
+        }
+        const problemsLine = icpProblems.length >= 2
+          ? `And from what I can see, the typical challenges your ${ct}s face are things like ${icpProblems.slice(0, 2).join(" and ")}`
+          : icpProblems.length === 1
+            ? `And from what I can see, a key challenge your ${ct}s face is ${icpProblems[0]}`
+            : `And looking at your site I can see the kind of problems you solve for your ${ct}s`;
+        const solutionsLine = icpSolutions.length >= 2
+          ? `, and you address those by offering ${icpSolutions.slice(0, 2).join(" and ")}`
+          : icpSolutions.length === 1
+            ? `, and you help them with ${icpSolutions[0]}`
+            : referenceOffer ? `, and you help them with ${referenceOffer}` : "";
+        return `WOW — PROBLEMS + SOLUTIONS
+SAY: "${problemsLine}${solutionsLine}. Does that sound right?"
+Declarative observations. Then STOP.`;
+      }
+
+      if (s.stall === 5) {
+        // ── 5. PRE-TRAINING CONNECT (right after problems — "this is what we trained your team in") ──
+        const shortBiz = shortBizName(biz);
+
+        // If trial STILL not offered (no reviews ever arrived) — offer generic trial here
+        let trialFallback = "";
+        if (!s.trial_reviews_done) {
+          s.trial_reviews_done = true;
+          trialFallback = ` And because of that, I'd like to offer you a free trial — limited spots each month, no credit card, takes about ten minutes to set up, and the offer is only valid during this demo. Sound good?`;
+        }
+
+        return `WOW — PRE-TRAINING CONNECT
+<DELIVER_THIS>This is exactly the kind of business intelligence we've used to pre-train your AI team — so they feel like they've been inside ${shortBiz} for years. Not generic bots, they know your positioning, your ${ct}s, your reputation.${trialFallback}</DELIVER_THIS>
+Keep it to TWO sentences max (three if trial is included). Do NOT repeat any data points already covered. Then STOP.`;
+      }
+
+      if (s.stall === 6) {
+        // ── 6. REPUTATION — cite specific reviewer first+last names ──
+        if (googleRating) {
+          const reviewsSample: any[] = deep.googleMaps?.reviews_sample ?? [];
+          const namedReviews = reviewsSample.filter((r: any) => r.name && r.name.trim().includes(" "));
+          const topReview = namedReviews.find((r: any) => r.stars >= 4 && r.text) ?? namedReviews[0];
+
+          let reviewAttribution = "";
+          if (topReview) {
+            reviewAttribution = topReview.text
+              ? ` One of your recent reviews from ${topReview.name} says "${topReview.text.slice(0, 120)}"`
+              : ` ${topReview.name} gave you ${topReview.stars} stars`;
+          }
+
+          // If trial not done yet and reviews >= 3 — combine reputation + trial
+          let trialLine = "";
+          if (!s.trial_reviews_done && googleRating >= 3) {
+            s.trial_reviews_done = true;
+            trialLine = ` We offer a limited number of free trials each month and they're only available to businesses delivering strong results — and with a ${googleRating} star rating you qualify. One caveat, it's only available during this demo session, but it's no credit card, takes about ten minutes to set up, it's totally set and forget and just count the extra ${ct}s. Sound good?`;
+          }
+
+          const repAdj = googleRating >= 4.5 ? "an outstanding" : googleRating >= 4 ? "an excellent" : "a strong";
+          const repCompliment = googleRating >= 4.5 ? "That's really impressive" : googleRating >= 4 ? `That tells me you're clearly delivering for your ${ct}s` : "That's a solid signal in the market";
+          return `WOW — REPUTATION
+<DELIVER_THIS>Oh ${fn}, I noticed ${biz} has ${repAdj} reputation with ${googleRating} stars from ${googleReviews} reviews.${reviewAttribution}. ${repCompliment}.${trialLine}</DELIVER_THIS>
+${topReview ? `MUST cite the reviewer by their full name "${topReview.name}". ` : ""}Then STOP.`;
+        }
+        // No reputation data — skip silently (NEVER say "still pulling in data")
+        s.stall = 7;
       }
 
       if (s.stall === 7) {
-        // If Apify just arrived (wasn't ready at stall=6), deliver the reputation intel now
-        if (s.apify_done && googleRating) {
-          return `WOW — REPUTATION (Apify just landed)
-SAY APPROXIMATELY THIS:
-"We've also checked out your online rep — ${googleRating} stars from ${googleReviews} reviews.${recentReviewSnippet ? ` One recent review mentioned: "${recentReviewSnippet}"` : ""} Does that match your experience?"
-ALWAYS end with a confirmation question. Then STOP and wait.`;
+        // ── 7. CONVERSION EVENTS (soft close: "would that be helpful?") ──
+        const convNarrative: string = (intel.consultant as any)?.conversionEventAnalysis?.conversionNarrative ?? "";
+        const hasPhone = !!(primaryCTA?.toLowerCase().includes("call") || primaryCTA?.toLowerCase().includes("phone")
+          || ctaBreakdown.some((c: any) => c.type === "call"));
+        const hasForms = !!(primaryCTA?.toLowerCase().includes("form") || primaryCTA?.toLowerCase().includes("contact")
+          || ctaBreakdown.some((c: any) => c.type === "form"));
+
+        // Build list of ALL conversion events including phone, downloads
+        let conversionLine = "";
+        if (convNarrative) {
+          conversionLine = convNarrative;
+        } else if (agentTrainingLine) {
+          conversionLine = agentTrainingLine;
+        } else {
+          // Build multi-CTA line: primary + phone + others
+          const events: string[] = [];
+          if (primaryCTA) events.push(primaryCTA);
+          if (hasPhone && !primaryCTA?.toLowerCase().includes("call")) events.push("a phone number");
+          if (allConversionEvents.length > 0) {
+            for (const e of allConversionEvents) {
+              if (!events.some(ex => ex.toLowerCase().includes(e.toLowerCase().slice(0, 10)))) events.push(e);
+            }
+          }
+          if (events.length >= 2) {
+            conversionLine = `I can see your main conversion events are ${events.slice(0, 3).join(", ")} — those are exactly the kind of ${ct} acquisition actions we've trained your AI agents to drive more of, on autopilot`;
+          } else if (events.length === 1) {
+            conversionLine = `I can see your main conversion event is ${events[0]} — that's how you win new ${ct}s, and it's exactly the kind of action we've trained your AI agents to drive more of, on autopilot`;
+          } else {
+            conversionLine = `And looking at how your site is set up to convert visitors into ${ct}s, that's exactly the kind of action we train our AI agents to drive more of, on autopilot`;
+          }
         }
+        return `WOW — CONVERSION EVENTS
+<DELIVER_THIS>${conversionLine}. Would that be helpful?</DELIVER_THIS>
+End with "Would that be helpful?" — this is a SOFT CLOSE, not a confirmation. Then STOP.`;
       }
 
-      // stall >= 8 (or earlier if skipping): BRIDGE TO NUMBERS — pre-training connect goes HERE
+      if (s.stall === 8) {
+        // ── 8. PROCESS CHECK (follow-up speed focus — NO chatbot question, that's redundant) ──
+        const hasPhone = !!(primaryCTA?.toLowerCase().includes("call") || primaryCTA?.toLowerCase().includes("phone")
+          || ctaBreakdown.some((c: any) => c.type === "call"));
+        const hasForms = !!(primaryCTA?.toLowerCase().includes("form") || primaryCTA?.toLowerCase().includes("contact")
+          || ctaBreakdown.some((c: any) => c.type === "form"));
+
+        let processQ = "";
+        if (adsOn && hasForms) {
+          processQ = `Now I can see you're running ads and driving ${ct}s to ${primaryCTA || "contact forms"} — how quickly is your team following up with those leads when they come in?`;
+        } else if (adsOn) {
+          processQ = `I can see you're investing in ads — how quickly is your team following up with those leads when they come through?`;
+        } else if (hasForms && hasPhone) {
+          processQ = `So with your CTAs being a mix of forms and phone calls — how is your team currently handling the follow-up when new ${ct} enquiries come in?`;
+        } else if (hasForms) {
+          processQ = `I can see your site is driving ${ct}s to ${primaryCTA || "contact forms"} — how quickly is your team getting back to those enquiries?`;
+        } else if (hasPhone) {
+          processQ = `I can see your main CTA is a phone number — what happens to calls when your team is busy or after hours?`;
+        } else {
+          processQ = `When a new ${ct} enquiry comes in — whether from the website, a call, or an ad — how quickly is your team typically getting back to them?`;
+        }
+        return `WOW — PROCESS CHECK
+SAY: "${processQ}"
+ONE question about follow-up speed. Then STOP.`;
+      }
+
+      if (s.stall === 9) {
+        // ── 9. DATA REVIEW (framed + campaigns + hiring) ──
+        if (adsOn) {
+          return `WOW — DATA REVIEW
+SAY: "Now ${fn}, I have an idea of which agents will deliver you the highest ROI — but can I just check a couple more things? I can see you're running paid ads. Are you also doing any social media campaigns or email campaigns that direct ${ct}s to a landing page or form? And are you doing any hiring at the moment?"
+Then STOP.`;
+        }
+        return `WOW — DATA REVIEW
+SAY: "Now ${fn}, I have an idea of which agents will deliver you the highest ROI — but can I just check. Are you running any online ads, social media campaigns, or email campaigns that direct ${ct}s to a landing page or form? And whether you're doing any hiring at the moment?"
+Then STOP.`;
+      }
+
+      if (s.stall === 10) {
+        // ── 10. LATE DATA — hiring intel delivery or lead source question ──
+        if (!s.apify_done && !adsOn) {
+          return `WOW — LEAD SOURCE
+SAY: "Now ${fn}, what's your main source of new ${ct}s at the moment — referrals, online, organic, or something else?"
+ONE question. Then STOP.`;
+        }
+        const hiringLine = isHiring
+          ? (topHiringWedge
+            || (hiringMatches[0]?.title
+              ? `I also noticed you're hiring for a ${hiringMatches[0].role || hiringMatches[0].title} — that's a role ${hiringMatches[0].agents?.[0] || "our AI team"} ${hiringMatches[0].wedge || "handles"}.`
+              : `I noticed you're actively hiring — some of those roles are exactly what our AI agents handle.`))
+          : "";
+        if (hiringLine) {
+          return `WOW — HIRING INTEL
+SAY: "${hiringLine}"
+Then STOP.`;
+        }
+        // Nothing to deliver — acknowledge their answer and move on naturally
+        return `SAY: "Great, thanks for sharing that."
+Then STOP.`;
+      }
+
+      if (s.stall === 11) {
+        // ── 11. AGENT RECOMMENDATION ──
+        const shortBiz = shortBizName(biz);
+        const routing = intel.consultant?.routing ?? {};
+        const priorityAgents: string[] = (routing.priority_agents ?? []).map((a: string) =>
+          a.charAt(0).toUpperCase() + a.slice(1).toLowerCase());
+
+        const ctaTypes = new Set(ctaBreakdown.map((c: any) => c.type?.toLowerCase()));
+        const hasFormCTA = ctaTypes.has("form");
+        const hasCallCTA = ctaTypes.has("call");
+        const hasBookingCTA = ctaTypes.has("booking");
+        const mixedCTAs = (hasFormCTA || hasBookingCTA) && hasCallCTA;
+
+        const chrisSurface = adsOn ? "landing page" : "website";
+        const chrisContext = adsOn
+          ? `Chris sits on your ${chrisSurface} so every click from your ads gets engaged instantly — no wasted ad spend`
+          : `Chris engages visitors on your ${chrisSurface} in real time before they bounce`;
+
+        let recLine = "";
+        if (ctaAgentMapping) {
+          recLine = `Based on everything I've found, ${ctaAgentMapping}`;
+        } else if (mixedCTAs && ctaBreakdown.length >= 2) {
+          recLine = `Based on everything I've found, I'd say Chris to maximise ${ct} conversions on your ${chrisSurface}, Alex to follow up the form submissions in under 60 seconds, and Maddie to take care of the inbound calls`;
+        } else if (isHiring && hiringMatches.length > 0) {
+          const topMatch = hiringMatches[0];
+          const hiringAgent = topMatch.agents?.[0] ?? priorityAgents[0] ?? "Chris";
+          const agent2 = priorityAgents.find((a: string) => a !== hiringAgent) ?? "Alex";
+          recLine = `Based on everything I've found, I'd recommend ${hiringAgent} and ${agent2}. You're hiring for a ${topMatch.role || topMatch.title} — ${hiringAgent} ${topMatch.wedge || "handles that role"}, and ${agent2} makes sure every ${ct} lead gets followed up`;
+        } else if (adsOn) {
+          const a1 = priorityAgents[0] ?? "Chris";
+          const a2 = priorityAgents[1] ?? "Alex";
+          recLine = `Based on everything I've found, I'd recommend ${a1} and ${a2}. You're investing in ads — ${chrisContext}, and ${a2} follows up every ${ct} enquiry that doesn't convert on the first visit`;
+        } else if (hasCallCTA && !hasFormCTA) {
+          recLine = `Based on everything I've found, I'd recommend Chris and Maddie for ${shortBiz}. Your main CTA is a phone number — Maddie handles those inbound calls 24/7, and ${chrisContext}`;
+        } else if (primaryCTA) {
+          const a1 = priorityAgents[0] ?? "Chris";
+          const a2 = priorityAgents[1] ?? "Alex";
+          recLine = `Based on everything I've found, I'd recommend ${a1} and ${a2}. Your main conversion event is ${primaryCTA} — ${chrisContext}, and ${a2} follows up any ${ct} who shows interest but doesn't convert`;
+        } else {
+          const a1 = priorityAgents[0] ?? "Chris";
+          const a2 = priorityAgents[1] ?? "Alex";
+          recLine = `Based on everything I've found, I'd recommend ${a1} and ${a2} for ${shortBiz}. ${chrisContext}, and ${a2} makes sure no ${ct} opportunity slips through the cracks`;
+        }
+
+        return `WOW — AGENT RECOMMENDATION
+SAY: "${recLine}."
+Then STOP.`;
+      }
+
+      // stall 12: BRIDGE TO NUMBERS — transition to calculations
       {
-        const shortBiz = biz.includes(" ") ? biz.split(/\s+/)[0] : biz;
+        const shortBiz = shortBizName(biz);
         return `WOW — BRIDGE TO NUMBERS
-SAY APPROXIMATELY THIS:
-"This is exactly the kind of business intelligence we've used to pre-train your AI team — so they feel like they've been inside ${shortBiz} for years. Not generic bots, they know your positioning, your clients, your reputation. Now ${fn}, based on all this research I can already see some high-value gaps. Would you like me to work out where the biggest opportunities are and what they could be worth?"
-Then STOP and wait for their response. Do NOT ask for ACV yet — that comes next if they want the numbers.`;
+<DELIVER_THIS>Now ${fn}, to save you some time we can take a minute to do some back of the napkin math and work out exactly how much extra revenue these agents could generate for ${shortBiz} in new ${ct}s — so you can demo only the highest earners. Would that be helpful?</DELIVER_THIS>
+Then STOP and wait for approval. Do NOT ask for ACV yet — that comes next stage.`;
       }
     }
 
@@ -1940,8 +2007,7 @@ SAY: "Got it, thanks. Do you tend to think about lead flow weekly or monthly?"
 ONE question. STOP.`;
       // stage_before_you_go_acv_setup
       return `ACV SETUP
-SAY APPROXIMATELY THIS:
-"OK great. The key number for this process is Annual Client Value or ACV — we've got the average ACV for ${ind} as ${acvBenchmark}, but to be spot on with calculating the likely revenue for ${biz}, what's the annual value of a new ${ct}? A ballpark is totally fine."
+<DELIVER_THIS>OK great. The key number for this process is Annual Client Value or ACV — we've got the average ACV for ${ind} as ${acvBenchmark}, but to be spot on with calculating the likely revenue for ${biz}, what's the annual value of a new ${ct}? A ballpark is totally fine.</DELIVER_THIS>
 ONE question. STOP.`;
 
     case "anchor_timeframe":
@@ -1977,8 +2043,8 @@ ONE question. STOP.`;
           const speedDesc = tiers[i.ads_followup ?? ">24h"] ?? "same day";
           const upliftPct = { ">24h": "up to 391%", "3h_to_24h": "up to 200%", "30m_to_3h": "around 100%", "<30m": "around 50%" }[i.ads_followup ?? ">24h"];
           return `ADS — Alex — DELIVER ROI NOW
-SAY THIS (start with acknowledgment, then spell out the math):
-"Perfect, let me just crunch those numbers for you quickly. So your average ${ct} is worth ${i.acv!.toLocaleString()} dollars, and you're currently converting ${i.ads_conversions} from ${i.ads_leads} leads ${tf}. Now, you said you're following up ${speedDesc} — the statistics show that responding in under 30 seconds while the prospect is actively looking raises conversion by ${upliftPct}. So conservatively, Alex could add around ${alexCalc.weekly.toLocaleString()} dollars per week just from speed to lead. Does that make sense?"
+Start with a brief acknowledgment, then deliver the math:
+<DELIVER_THIS>Perfect, let me just crunch those numbers for you quickly. So your average ${ct} is worth ${i.acv!.toLocaleString()} dollars, and you're currently converting ${i.ads_conversions} from ${i.ads_leads} leads ${tf}. Now, you said you're following up ${speedDesc} — the statistics show that responding in under 30 seconds while the prospect is actively looking raises conversion by ${upliftPct}. So conservatively, Alex could add around ${alexCalc.weekly.toLocaleString()} dollars per week just from speed to lead. Does that make sense?</DELIVER_THIS>
 ALWAYS end with a confirmation question. Then STOP and wait.`;
         }
         return `ADS — Alex — inputs captured but missing ACV for calc. Acknowledge and advance.`;
@@ -2004,8 +2070,8 @@ ONE question. STOP.`;
         const chrisCalc = calcAgentROI("Chris", i);
         if (chrisCalc) {
           return `WEBSITE — Chris — DELIVER ROI NOW
-SAY THIS (start with acknowledgment, then spell out the math):
-"Great, let me crunch those website numbers. You're getting ${i.web_leads} leads ${tf} and converting ${i.web_conversions} into ${ct}s. Chris our Website Concierge typically lifts conversion by around 23% by engaging visitors in real-time before they bounce. At your ACV of ${i.acv!.toLocaleString()} dollars, Chris could add roughly ${chrisCalc.weekly.toLocaleString()} dollars per week from better website engagement. Sound reasonable?"
+Start with a brief acknowledgment, then deliver the math:
+<DELIVER_THIS>Great, let me crunch those website numbers. You're getting ${i.web_leads} leads ${tf} and converting ${i.web_conversions} into ${ct}s. Chris our Website Concierge typically lifts conversion by around 23% by engaging visitors in real-time before they bounce. At your ACV of ${i.acv!.toLocaleString()} dollars, Chris could add roughly ${chrisCalc.weekly.toLocaleString()} dollars per week from better website engagement. Sound reasonable?</DELIVER_THIS>
 ALWAYS end with a confirmation question. Then STOP and wait.`;
         }
         return `WEBSITE — Chris — inputs captured but missing ACV for calc. Acknowledge and advance.`;
@@ -2040,8 +2106,8 @@ ONE question. STOP.`;
         if (maddieCalc) {
           const missedEst = i.missed_calls ?? Math.round(i.phone_volume! * 0.3);
           return `PHONE — Maddie — DELIVER ROI NOW
-SAY THIS (start with acknowledgment, then spell out the math):
-"OK let me work out the phone opportunity. You're getting around ${i.phone_volume} calls ${tf}, and after hours ${i.after_hours}. Typically, businesses miss around 30% of calls — so roughly ${missedEst} missed calls ${tf}. At a 30% conversion rate and your ACV of ${i.acv!.toLocaleString()} dollars, Maddie answering those missed calls could add around ${maddieCalc.weekly.toLocaleString()} dollars per week. Does that track with what you'd expect?"
+Start with a brief acknowledgment, then deliver the math:
+<DELIVER_THIS>OK let me work out the phone opportunity. You're getting around ${i.phone_volume} calls ${tf}, and after hours ${i.after_hours}. Typically, businesses miss around 30% of calls — so roughly ${missedEst} missed calls ${tf}. At a 30% conversion rate and your ACV of ${i.acv!.toLocaleString()} dollars, Maddie answering those missed calls could add around ${maddieCalc.weekly.toLocaleString()} dollars per week. Does that track with what you'd expect?</DELIVER_THIS>
 ALWAYS end with a confirmation question. Then STOP and wait.`;
         }
         return `PHONE — Maddie — inputs captured but missing ACV for calc. Acknowledge and advance.`;
@@ -2059,8 +2125,8 @@ ONE question. STOP.`;
         const sarahCalc = calcAgentROI("Sarah", i);
         if (sarahCalc) {
           return `OLD LEADS — Sarah — DELIVER ROI NOW
-SAY THIS (start with acknowledgment, then spell out the math):
-"OK let me calculate the database opportunity. So ${i.old_leads} old leads — typically about 5% of dormant leads can be reactivated with the right follow-up sequence. At your ACV of ${i.acv!.toLocaleString()} dollars, that's roughly ${Math.round(i.old_leads * 0.05)} potential ${ct}s. Sarah running a database reactivation campaign could add around ${sarahCalc.weekly.toLocaleString()} dollars per week. Sound about right?"
+Start with a brief acknowledgment, then deliver the math:
+<DELIVER_THIS>OK let me calculate the database opportunity. So ${i.old_leads} old leads — typically about 5% of dormant leads can be reactivated with the right follow-up sequence. At your ACV of ${i.acv!.toLocaleString()} dollars, that's roughly ${Math.round(i.old_leads * 0.05)} potential ${ct}s. Sarah running a database reactivation campaign could add around ${sarahCalc.weekly.toLocaleString()} dollars per week. Sound about right?</DELIVER_THIS>
 ALWAYS end with a confirmation question. Then STOP and wait.`;
         }
         return `OLD LEADS — Sarah — CONFIRMED: ${i.old_leads} leads but missing ACV. Acknowledge and advance.`;
@@ -2095,8 +2161,8 @@ ONE question. STOP.`;
         if (jamesCalc && jamesCalc.weekly > 0) {
           const annualCust = i.new_cust_per_period! * (i.timeframe === "monthly" ? 12 : 52);
           return `REVIEWS — James — DELIVER ROI NOW
-SAY THIS (start with acknowledgment, then spell out the math):
-"OK let me work out the reputation opportunity. You're bringing in ${i.new_cust_per_period} new ${ct}s ${tf}, and you don't have an automated review system. Research shows that a one-star improvement in rating can lift revenue by up to 9%. With ${annualCust} ${ct}s a year at ${i.acv!.toLocaleString()} dollars each, James running automated review requests could add around ${jamesCalc.weekly.toLocaleString()} dollars per week from better reputation. Does that resonate?"
+Start with a brief acknowledgment, then deliver the math:
+<DELIVER_THIS>OK let me work out the reputation opportunity. You're bringing in ${i.new_cust_per_period} new ${ct}s ${tf}, and you don't have an automated review system. Research shows that a one-star improvement in rating can lift revenue by up to 9%. With ${annualCust} ${ct}s a year at ${i.acv!.toLocaleString()} dollars each, James running automated review requests could add around ${jamesCalc.weekly.toLocaleString()} dollars per week from better reputation. Does that resonate?</DELIVER_THIS>
 ALWAYS end with a confirmation question. Then STOP and wait.`;
         }
         if (i.has_review_system === true) {
@@ -2112,27 +2178,25 @@ ${need[0]}
 ONE question. STOP.`;
     }
 
-    case "roi_delivery":
-      // SUMMARY — individual calculations were already delivered per-channel
+    case "roi_delivery": {
+      // TOTAL SUMMARY — individual agent ROIs were delivered during their channel stages
+      // This stage adds them all up for the combined total
       if (top3.length) {
-        const agentList = top3.map(a => `${a.agent} at ${a.weekly.toLocaleString()} dollars`).join(", ");
-        return `ROI SUMMARY
-SAY APPROXIMATELY THIS:
-"So just to recap ${fn} — I've calculated each agent's value as we went. ${agentList}. That's a combined total of around ${total.toLocaleString()} dollars per week across your ${top3.length} recommended agents. Does that all make sense?"
-Then STOP and wait for their response. Keep it brief — the detailed math was already delivered.`;
+        const agentRecap = top3.map(c => `${c.agent} at ${c.weekly.toLocaleString()} dollars per week`).join(", ");
+        return `ROI TOTAL — ADD THEM ALL UP
+<DELIVER_THIS>So ${fn}, let me add all of that up for you. We've got ${agentRecap}. That's a combined total of approximately ${total.toLocaleString()} dollars per week in additional revenue across your ${top3.length} agents. And those are conservative numbers. Does that all make sense?</DELIVER_THIS>
+Then STOP and wait for their response. Let the total land.`;
       }
       return `ROI DELIVERY
 Not enough inputs for precise ROI.
-SAY: "I can see the opportunity clearly, but I'd keep those estimates directional until we confirm one or two more numbers."
-Then ask the single most important missing input.`;
+SAY: "I can see the opportunity clearly ${fn}, but I want to give you real numbers not guesses. Can I just confirm — what would you say is the average value of a new ${ct} to your business?"
+Then STOP and wait.`;
+    }
 
     case "close":
       // stage_trial_close_and_exit
       return `CLOSE
-SAY APPROXIMATELY THIS:
-"I'll leave you to enjoy your demo. And just to make sure you see that these numbers are real, we're currently offering a free trial of the entire team for 7 days — I'd suggest you take advantage of that. I'll get you onboarded myself, no card required. Based on these numbers you're looking at a bump of at least ${total > 0 ? total.toLocaleString() + " dollars" : "solid revenue"} just during your first free week.
-
-Anyway, I'll leave you to explore. If you have any questions or need any more help just click my button and I'll be here to help. Enjoy!"`;
+<DELIVER_THIS>I'll leave you to enjoy your demo. And just to make sure you see that these numbers are real, we're currently offering a free trial of the entire team for 7 days — I'd suggest you take advantage of that. I'll get you onboarded myself, no card required. Based on these numbers you're looking at a bump of at least ${total > 0 ? total.toLocaleString() + " dollars" : "solid revenue"} just during your first free week. Anyway, I'll leave you to explore. If you have any questions or need any more help just click my button and I'll be here to help. Enjoy!</DELIVER_THIS>`;
 
     default:
       return `${(s.stage as string).toUpperCase()} — continue naturally.`;
@@ -2182,7 +2246,7 @@ async function streamToDeepgram(messages: Msg[], env: Env): Promise<Response> {
       "x-goog-api-key": env.GEMINI_API_KEY
     },
     body: JSON.stringify({
-      model: MODEL, messages, stream: true, temperature: 0.95,
+      model: MODEL, messages, stream: true, temperature: 0.5,
       max_tokens: 500,
       stream_options: { include_usage: true },
     }),
@@ -2221,30 +2285,50 @@ async function streamToDeepgram(messages: Msg[], env: Env): Promise<Response> {
           firstContentAt = Date.now() - t0;
           log("GEMINI_FIRST_CHUNK", `${firstContentAt}ms`);
         }
-        await writer.write(value);
 
-        // Parse SSE chunks to extract usage + response content
+        // Parse SSE chunks, filter apology phrases from content, then write
         sseBuffer += dec.decode(value, { stream: true });
         const lines = sseBuffer.split("\n");
         sseBuffer = lines.pop() ?? "";  // keep incomplete line in buffer
+        let modified = false;
+        const outputLines: string[] = [];
         for (const line of lines) {
-          if (!line.startsWith("data: ") || line === "data: [DONE]") continue;
+          if (!line.startsWith("data: ") || line === "data: [DONE]") {
+            outputLines.push(line);
+            continue;
+          }
           try {
             const chunk = JSON.parse(line.slice(6));
-            // Accumulate response text
             const delta = chunk.choices?.[0]?.delta?.content;
-            if (delta) responseText += delta;
+            if (delta) {
+              // P1-T2: Strip apology phrases before TTS
+              const cleaned = stripApologies(delta);
+              if (cleaned !== delta) {
+                modified = true;
+                chunk.choices[0].delta.content = cleaned;
+                outputLines.push("data: " + JSON.stringify(chunk));
+              } else {
+                outputLines.push(line);
+              }
+              responseText += cleaned;
+            } else {
+              outputLines.push(line);
+            }
             // Usage info appears in the final chunk
             if (chunk.usage) {
               const u = chunk.usage;
               const cached = u.prompt_tokens_details?.cached_tokens ?? u.cached_tokens ?? 0;
               log("GEMINI_USAGE", `prompt=${u.prompt_tokens ?? "?"} cached=${cached} completion=${u.completion_tokens ?? "?"} total=${u.total_tokens ?? "?"}`);
             }
-          } catch { }
+          } catch {
+            outputLines.push(line);
+          }
         }
+        await writer.write(enc.encode(outputLines.join("\n") + "\n"));
+        if (modified) log("APOLOGY_FILTER", "Stripped apology phrase from response chunk");
       }
       const totalMs = Date.now() - t0;
-      log("BELLA_SAID", responseText.slice(0, 300));
+      log("BELLA_SAID", responseText.slice(0, 2000));
       log("GEMINI_DONE", `total=${totalMs}ms chunks=${chunkCount} first_chunk=${firstContentAt}ms`);
       await writer.write(enc.encode("data: [DONE]\n\n"));
     } catch (e) {
@@ -2429,63 +2513,36 @@ export default {
         s = {
           stage: "wow", queue: ["ch_website"], done: [], inputs: { ...BLANK },
           maddie_skip: false, wants_numbers: false, just_demo: false, apify_done: false, calc_ready: false,
-          stall: 0, init: new Date().toISOString(), _lastTurn: 0, _lastUttHash: ""
+          trial_reviews_done: false, stall: 0, init: new Date().toISOString(), _lastTurn: 0, _lastUttHash: ""
         };
       }
     } else {
       s = {
         stage: "wow", queue: ["ch_website"], done: [], inputs: { ...BLANK },
               maddie_skip: false, wants_numbers: false, just_demo: false, apify_done: false, calc_ready: false,
-        stall: 0, init: new Date().toISOString(), _lastTurn: 0, _lastUttHash: ""
+        trial_reviews_done: false, stall: 0, init: new Date().toISOString(), _lastTurn: 0, _lastUttHash: ""
       };
     }
-    // ── V8 LATE-LOAD: Pick up script_stages that arrived after turn 1 init ────
-    // Workflow writes lead:{lid}:script_stages AFTER Apify completes (~30-60s).
-    // If initState ran before that, s.scriptStages is undefined → legacy mode.
-    // This re-checks KV each turn (while still in wow) until stages arrive.
-    if (lid && !s.scriptStages) {
-      try {
-        const lateRaw = await env.LEADS_KV.get(`lead:${lid}:script_stages`);
-        if (lateRaw) {
-          const lateStages = JSON.parse(lateRaw);
-          if (lateStages?.stages) {
-            s.scriptStages = lateStages;
-            s = seedV8State(s);
-            log("LATE_LOAD", `script_stages arrived after init for lid=${lid} — V8 mode activated`);
-          }
-        }
-      } catch (e) {
-        log("WARN", `Failed to late-load script_stages: ${e}`);
-      }
-    }
-
-    // ── V8 HOT-SWAP: Refresh script stages mid-conversation ───────────────────
-    if (lid && s.stage === "wow") {
-      const arrivedStages = intel.stages;
-      const currentSource = (s.scriptStages as any)?.source || 'heuristic';
-      const arrivedSource = (arrivedStages as any)?.source || 'heuristic';
-
-      // Only swap "up" (from heuristic to consultant)
-      if (arrivedStages && currentSource === 'heuristic' && arrivedSource === 'consultant') {
-        log("HOT_SWAP", `high-fidelity script arrived for lid=${lid} — swapping now`);
-        s.scriptStages = arrivedStages;
-        (s.scriptStages as any).source = 'consultant';
-        if (s.scriptStages.stages?.[s.v8StageIndex || 0]) {
-           s.v8StageKey = s.scriptStages.stages[s.v8StageIndex || 0].key;
-           s.v8CaptureKey = s.scriptStages.stages[s.v8StageIndex || 0].capture;
-           log("HOT_SWAP", `re-indexed to key=${s.v8StageKey} idx=${s.v8StageIndex}`);
-        }
-      }
-    }
-
     // ── Check if Apify data has landed this turn ────────────────────────────
     // intel.deep is written by deep-scrape-workflow once all 5 actors complete (~30-45s).
     // We set apify_done=true on state so the deep_dive gate can open.
     // SCHEMA FIX: Check both intel.intel.deep (big scraper) and intel.deep (deep-scrape)
     const deepStatus = (intel as any).intel?.deep?.status ?? intel.deep?.status;
-    if (!s.apify_done && deepStatus === "done") {
+    const deepJustArrived = !s.apify_done && deepStatus === "done";
+    if (deepJustArrived) {
       s.apify_done = true;
       log("APIFY", `deep intel landed for lid=${lid} — gate will open next advance`);
+    }
+
+    // ── Rebuild future queue when deep data arrives (one-shot) ──────────
+    if (lid && deepJustArrived) {
+      try {
+        const flags = intel.flags ?? intel.fast_context?.flags ?? {};
+        s = rebuildFutureQueueOnLateLoad(s, flags, intel);
+        log("LATE_REBUILD", `deep data arrived for lid=${lid} — future queue rebuilt`);
+      } catch (e) {
+        log("WARN", `Failed to rebuild queue on late data: ${e}`);
+      }
     }
 
     // ── DATA LAYER STATUS LOG — visible every turn so we can see what Gemini has ──
@@ -2497,49 +2554,70 @@ export default {
     const _sfKeys = Object.keys(_sf).filter(k => _sf[k]);
     log("SCRIPTFILLS", `lid=${lid} present=${_sfKeys.length > 0} keys=[${_sfKeys.join(',')}] bella_opener=${!!(intel.bella_opener)} hero_h2=${!!(intel.hero?.h2 || (intel as any).fast_intel?.hero?.h2)}`);
 
-    // ── EXTRACTION: inline regex — instant, no LLM call ────────────────────────
+    // ── DEDUP CHECK (BEFORE extraction to prevent stale utterance leaking into new stages) ──
     const utt = lastUser(messages);
     const stageAtUtterance = s.stage;
     const extractIndustry = intel.core_identity?.industry ?? intel.core_identity?.industry_key ?? "";
     log("UTT", `lid=${lid} stage=${stageAtUtterance} utt_chars=${utt.length} utt_preview="${utt.slice(0, 80)}"`);
-    if (utt && lid) {
-      s = await extractAndApply(utt, s, lid, env, stageAtUtterance, extractIndustry);
-    }
 
-    // ── Advance stage if gate opens ─────────────────────────────────────────
-    // Defense-in-depth: DG can send multiple requests for one utterance (micro-pauses,
-    // interim transcripts, or prefix → full transcript). We use BOTH message count AND
-    // content hashing to ensure stall only increments on genuinely new user exchanges.
     const turnNum = messages.length;
     const uttHash = utt.trim().toLowerCase().slice(0, 200);
     const prevHash = s._lastUttHash ?? "";
     const isNewTurn = turnNum > (s._lastTurn ?? 0);
-    const isNewContent = uttHash.length > 0
-      && (prevHash.length === 0 || (
-        !uttHash.startsWith(prevHash) && !prevHash.startsWith(uttHash)
-      ));
 
+    // Cross-turn: only exact match = duplicate (user may say "yeah" in multiple turns — that's legit)
+    // Same-turn: prefix check catches Deepgram incremental transcripts ("yeah" → "yeah sounds good")
+    const isNewContent = uttHash.length > 0 && (
+      prevHash.length === 0
+      || (isNewTurn
+        ? uttHash !== prevHash                                                    // new turn: only block exact same utterance
+        : (!uttHash.startsWith(prevHash) && !prevHash.startsWith(uttHash)))       // same turn: block prefix expansions
+    );
+
+    // ── EXTRACTION: only on genuinely new content — prevents stale utterance
+    // from previous stage leaking numbers into newly-advanced stage ────────────
+    if (utt && lid && (isNewTurn || isNewContent)) {
+      s = await extractAndApply(utt, s, lid, env, stageAtUtterance, extractIndustry);
+    } else if (utt && lid && !isNewTurn) {
+      log("EXTRACT_SKIP", `lid=${lid} same-turn duplicate — skipping extraction to prevent cross-stage pollution`);
+    }
+
+    // ── Advance stage if gate opens ─────────────────────────────────────────
     if (isNewTurn && isNewContent) {
       s.stall++;
       s._lastTurn = turnNum;
       s._lastUttHash = uttHash;
-    } else {
+    } else if (!isNewTurn) {
+      // Same turn, duplicate or prefix expansion — DO NOT return early.
+      // Deepgram sends interim transcript updates as separate HTTP requests.
+      // If we return 204 or empty SSE, Deepgram cancels the active Gemini stream.
+      // Instead: log it, don't increment stall, and let it fall through to Gemini.
+      // Costs an extra Gemini call but keeps the conversation alive.
       s._lastTurn = Math.max(s._lastTurn ?? 0, turnNum);
-      log("DEDUP", `lid=${lid} turn=${turnNum} duplicate content — stall=${s.stall}`);
+      log("DEDUP", `lid=${lid} turn=${turnNum} same-turn duplicate — stall=${s.stall} — PASSTHROUGH`);
+    } else {
+      // New turn but exact same content — still process (user confirming)
+      s.stall++;
+      s._lastTurn = turnNum;
+      s._lastUttHash = uttHash;
+      log("DEDUP", `lid=${lid} turn=${turnNum} new turn, same content — treating as new (stall=${s.stall})`);
     }
     if (gateOpen(s)) {
       s.calc_ready = isCalcReady(s.inputs, s.maddie_skip);
-      // V8: use V8 stage advance if we have Stage[] from call_brief
-      s = s.scriptStages?.stages ? advanceV8Stage(s) : advance(s);
+      s = advance(s);
     }
-    // Safety: removed stall force-advance to ensure Bella waits for scraper data
-    if (s.stall > 5 && s.stage !== "roi_delivery" && s.stage !== "close") {
-      log("STALL", `waiting for data at ${s.stage} (${s.stall} turns)`);
+    // Escape hatch: if stuck on a channel stage for 4+ turns with no new data,
+    // force-advance to avoid frustrating re-ask loops ("You just asked me that")
+    if (s.stall >= 4 && s.stage.startsWith("ch_")) {
+      log("ESCAPE", `force-advancing from ${s.stage} after ${s.stall} stalls — extraction likely failing`);
+      s.calc_ready = isCalcReady(s.inputs, s.maddie_skip);
+      s = advance(s);
+    } else if (s.stall > 5 && s.stage !== "roi_delivery" && s.stage !== "close" && s.stage !== "wow") {
+      // Non-channel stages: force-advance at 6 stalls
+      log("ESCAPE", `force-advancing from ${s.stage} after ${s.stall} stalls`);
+      s.calc_ready = isCalcReady(s.inputs, s.maddie_skip);
+      s = advance(s);
     }
-
-    // Fire-and-forget: state is needed for NEXT turn, not this one.
-    // ctx.waitUntil ensures it completes before Worker terminates.
-    if (lid) ctx.waitUntil(saveState(lid, s, env));
 
     // ── Trim history ──────────────────────────────────────────────────────
     const trimmed = trimHistory(messages);
@@ -2570,13 +2648,19 @@ export default {
     const bridgeSystem = buildFullSystemContext(intel, s.apify_done);
 
     // ── Build lean per-turn prompt (~800 chars) ──────────────────────────────
+    // NOTE: buildTurnPrompt → buildStageDirective may mutate s (stall skip, trial_reviews_done)
+    // so saveState MUST come AFTER this call to capture those mutations.
     log("WOW_STALL", `lid=${lid} stage=${s.stage} stall=${s.stall}`);
     const turnPrompt = buildTurnPrompt(s, intel, convMemory);
 
-    // ── System message: lean persona + intel + turn context (all in one) ─────
+    // Fire-and-forget: state save AFTER buildTurnPrompt so mutations (stall skip, trial flag) are captured.
+    if (lid) ctx.waitUntil(saveState(lid, s, env));
+
+    // ── System message: DIRECTIVE FIRST, then reference data ─────
+    // Gemini reads top-down — stage directive must be first so it follows the script
     const systemContent = lid
-      ? `lead_id: ${lid}\n\n${bridgeSystem}\n\n${turnPrompt}`
-      : `${bridgeSystem}\n\n${turnPrompt}`;
+      ? `lead_id: ${lid}\n\n${turnPrompt}\n\n--- REFERENCE DATA (use to inform your response, do not read aloud) ---\n${bridgeSystem}`
+      : `${turnPrompt}\n\n--- REFERENCE DATA (use to inform your response, do not read aloud) ---\n${bridgeSystem}`;
     log("PROMPT", `stage=${s.stage} stall=${s.stall} system_chars=${systemContent.length}`);
 
     // ── Assemble final messages ──────────────────────────────────────────────

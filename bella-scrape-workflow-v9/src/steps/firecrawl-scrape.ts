@@ -1,4 +1,5 @@
 // Step 2: Firecrawl scrape — HTTP POST to firecrawl.dev
+// P2-T6: Skip if fast-intel already scraped this page (avoids double Firecrawl cost)
 import type { Env, WorkflowResults, WorkflowState, StepFn, WorkflowPayload } from '../lib/types';
 
 export async function firecrawlScrape(
@@ -13,6 +14,33 @@ export async function firecrawlScrape(
     console.log("type:WF_NODE_START:nodeId:node-firecrawl:nodeName:http-request:nodeType:http-request:timestamp:" + Date.now() + ":instanceId:" + instanceId);
     results.step_http_request_2 = await step.do("step_http_request_2", async () => {
       const inputData = state["node-kv-stub"]?.output || payload;
+
+      // P2-T6: Check if fast-intel already scraped — skip Firecrawl to avoid double cost
+      const lid = payload.lid;
+      if (lid) {
+        const existing = await env.WORKFLOWS_KV.get(`lead:${lid}:fast-intel`);
+        if (existing) {
+          console.log("[FIRECRAWL] SKIP — fast-intel already scraped lid=" + lid + " (" + existing.length + " bytes in KV)");
+          // Return a synthetic result so downstream steps (truncate-content) still work
+          const parsed = JSON.parse(existing);
+          const syntheticBody = {
+            success: true,
+            data: {
+              markdown: parsed.fast_intel?.page_content?.markdown ?? parsed.site_content_blob ?? "",
+              metadata: { title: parsed.business_name ?? "", sourceURL: payload.url },
+            },
+          };
+          const result = {
+            status: 200,
+            headers: {} as Record<string, string>,
+            body: syntheticBody,
+            message: "Skipped — using fast-intel cached scrape",
+          };
+          state["node-firecrawl"] = { input: inputData, output: result };
+          return result;
+        }
+      }
+
       const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
         method: "POST",
         headers: {

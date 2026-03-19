@@ -6,7 +6,7 @@
 
 import { Agent, routeAgentRequest } from "agents";
 
-const VERSION = "4.0.0-SUPERGOD";
+const VERSION = "4.0.3-SUPERGOD"; // Fix: capture URL params in fetch() before WebSocket upgrade
 const log = (tag: string, msg: string, t0?: number) => {
   const elapsed = t0 !== undefined ? ` [+${Date.now() - t0}ms]` : "";
   console.log(`[BellaV4 ${VERSION}] [${tag}]${elapsed} ${msg}`);
@@ -210,11 +210,31 @@ export class BellaAgent extends Agent<Env, BellaState> {
   private systemPrompt: string = "";
   private keepAliveTimer: any = null;
   private urlHints: { biz: string; ind: string; serv: string; loc: string; fn: string } = { biz: "", ind: "", serv: "", loc: "", fn: "" };
+  private _pendingUrlHints: { biz: string; ind: string; serv: string; loc: string; fn: string } | null = null;
   private prospectFirstName: string = "";
   private prospectBusiness: string = "";
   private currentStage: Stage = "wow";  // SUPERGOD: Track for Flux Configure
 
   shouldSendProtocolMessages(): boolean { return false; }
+
+  // Intercept the incoming HTTP request BEFORE the Agents SDK upgrades to WebSocket.
+  // connection.request.url is unreliable in onConnect — the SDK strips query params
+  // during the WebSocket upgrade. Capture them here where the full URL is guaranteed.
+  async fetch(request: Request): Promise<Response> {
+    try {
+      const url = new URL(request.url);
+      this._pendingUrlHints = {
+        biz:  url.searchParams.get('biz') ?? "",
+        ind:  url.searchParams.get('ind') ?? "",
+        serv: url.searchParams.get('serv') ?? "",
+        loc:  url.searchParams.get('loc') ?? "",
+        fn:   url.searchParams.get('fn') ?? "",
+      };
+    } catch {
+      this._pendingUrlHints = null;
+    }
+    return super.fetch(request);
+  }
 
   async onStart() {
     if (!this.state?.history) {
@@ -237,17 +257,27 @@ export class BellaAgent extends Agent<Env, BellaState> {
     this.lid = this.name; // DO name = lid from URL /agents/bella-agent/{lid}
     log("CONNECT", `lid="${this.lid}"`, t0);
 
-    // Read scraped data hints from URL params — set by loading-v95.html redirect
-    // These are the immediate source of truth before KV pipeline completes
-    const reqUrl = (connection.request?.url) ? new URL(connection.request.url) : null;
-    this.urlHints = {
-      biz: reqUrl?.searchParams.get('biz') ?? "",
-      ind: reqUrl?.searchParams.get('ind') ?? "",
-      serv: reqUrl?.searchParams.get('serv') ?? "",
-      loc: reqUrl?.searchParams.get('loc') ?? "",
-      fn: reqUrl?.searchParams.get('fn') ?? "",
-    };
-    if (this.urlHints.biz) log("CONNECT", `url hints: biz="${this.urlHints.biz}" fn="${this.urlHints.fn}"`, t0);
+    // Read scraped data hints from URL params — set by loading page redirect.
+    // _pendingUrlHints is captured in fetch() before WebSocket upgrade (reliable).
+    // connection.request.url is a fallback (unreliable — SDK strips params).
+    if (this._pendingUrlHints && (this._pendingUrlHints.biz || this._pendingUrlHints.fn)) {
+      this.urlHints = this._pendingUrlHints;
+    } else {
+      const reqUrl = (connection.request?.url) ? new URL(connection.request.url) : null;
+      this.urlHints = {
+        biz:  reqUrl?.searchParams.get('biz') ?? "",
+        ind:  reqUrl?.searchParams.get('ind') ?? "",
+        serv: reqUrl?.searchParams.get('serv') ?? "",
+        loc:  reqUrl?.searchParams.get('loc') ?? "",
+        fn:   reqUrl?.searchParams.get('fn') ?? "",
+      };
+    }
+    this._pendingUrlHints = null; // consumed — clear for next connection
+
+    if (this.urlHints.biz || this.urlHints.fn)
+      log("CONNECT", `url hints: biz="${this.urlHints.biz}" fn="${this.urlHints.fn}"`, t0);
+    else
+      log("CONNECT", `NO url hints — biz="${this.urlHints.biz}" fn="${this.urlHints.fn}"`, t0);
 
     // Always reset state on new connection — ensures greeting fires and state is clean
     this.setState({ openingFired: false, history: [], intelLoaded: false });
@@ -510,23 +540,15 @@ The opening greeting has just been spoken. Begin Stage 1: ask their role, then w
       log("INTEL", `raw_only detected — proceeding with available data (no blocking retry)`, t0);
     }
 
-    const firstName = intel.first_name ?? kvIntel?.firstName ?? kvIntel?.first_name ?? "";
+    const firstName = intel.first_name || kvIntel?.firstName || kvIntel?.first_name || this.urlHints.fn || "";
     const businessName = kvIntel?.business_name || intel.business_name || kvIntel?.businessName || "your business";
 
-    // ── Opening: use consultant-generated bella_opener if available ───────────
-    let openingText: string;
-    if (kvIntel?.bella_opener) {
-      const greeting = firstName ? `Hey ${firstName}! ` : `Hey there! `;
-      openingText = greeting + kvIntel.bella_opener.replace(/^Hi[^!]*!\s*/i, "");
-      log("INTEL", `Consultant opener: "${openingText.slice(0, 80)}..."`, t0);
-    } else if (intel.bella_opener) {
-      const greeting = firstName ? `Hey ${firstName}! ` : `Hey there! `;
-      openingText = greeting + intel.bella_opener.replace(/^Hi[^!]*!\s*/i, "");
-      log("INTEL", `MCP opener: "${openingText.slice(0, 80)}..."`, t0);
-    } else {
-      openingText = firstName ? `Hi ${firstName}! I'm Bella.` : `Hi there! I'm Bella.`;
-      log("INTEL", `fallback greeting`, t0);
-    }
+    // ── Opening: greeting + pause — let them say hello, then continue via bridge stall 1 ───────
+    const auditGreeting = `I'm Bella, welcome to your personalised AI opportunity audit.`;
+    const openingText = firstName
+      ? `Hey ${firstName}, ${auditGreeting}`
+      : `Hey there, ${auditGreeting}`;
+    log("INTEL", `audit welcome (firstName=${firstName || 'none'} biz=${businessName})`, t0);
 
     // Store for DG prompt
     this.prospectFirstName = firstName;

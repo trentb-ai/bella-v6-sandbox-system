@@ -14,7 +14,16 @@ export async function writeDeepFlags(
     results.step_kv_put_14 = await step.do("step_kv_put_14", async () => {
       const inputData = state["node-extract-deep"]?.output || payload;
       const key = `lead:${results.step_entry_0.lid}:deep_flags`;
-      const value = `${results.step_transform_13.raw_json}`;
+      // Merge raw_json contents (google_maps, linkedin at top level for bridge)
+      // with ALL rich extracted fields (fb_ads_sample, reviews_sample, jobs_sample, etc.)
+      const extracted = results.step_transform_13;
+      let rawParsed: Record<string, any> = {};
+      try { rawParsed = JSON.parse(extracted.raw_json || "{}"); } catch (_) {}
+      const { raw_json: _discard, ...richFields } = extracted;
+      // Include ad landing pages from step 13b (if available)
+      const adPages = state["node-scrape-ad-pages"]?.output?.ad_landing_pages ?? [];
+      const merged = { ...rawParsed, ...richFields, ...(adPages.length > 0 ? { ad_landing_pages: adPages } : {}) };
+      const value = JSON.stringify(merged);
       await env.WORKFLOWS_KV.put(key, value, {
         expirationTtl: 86400
       });

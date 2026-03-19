@@ -8,6 +8,7 @@ export interface Env {
   FIRECRAWL_API_KEY: string;
   SCRAPINGANT_KEY:   string;            // fallback scraper if Firecrawl times out
   GEMINI_API_KEY:    string;             // fallback if CONSULTANT unavailable
+  GOOGLE_PLACES_API_KEY?: string;       // Google Places Text Search cross-ref (P2-T1)
 }
 
 export interface FastIntelResult {

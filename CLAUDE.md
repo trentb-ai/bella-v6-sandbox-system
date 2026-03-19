@@ -1,8 +1,24 @@
-# BELLA V6 — CLAUDE CODE MASTER BRIEF
-### Last updated: 2026-03-12 AEST | Authority: Trent Belasco
-### Current bridge version: 8.0.0
-### Current fast-intel version: v8
-### ALL workers: V8 — see WORKER INVENTORY below
+# BELLA V9 — CLAUDE CODE MASTER BRIEF
+### Last updated: 2026-03-20 AEST | Authority: Trent Belasco
+### Current bridge version: v9.13.2
+### Current fast-intel version: v1.9.0
+### Current voice-agent version: v4.0.3-SUPERGOD
+### Current consultant version: synced (v8 = v9)
+
+---
+
+> **NOTE: NAMING CONVENTION**
+> Local folders are named `-v9` but deploy to `-v8` worker names for backwards compatibility.
+> The deployed worker names are the source of truth. See `wrangler.toml` in each folder.
+>
+> | Folder | Deploys As |
+> |--------|-----------|
+> | `consultant-v9/` | `consultant-v9` AND `consultant-v8` (fast-intel binds to v8) |
+> | `fast-intel-sandbox-v9/` | `fast-intel-v8` |
+> | `deepgram-bridge-v9/` | `deepgram-bridge-sandbox-v8` |
+> | `voice-agent-v9/` | `bella-voice-agent-sandbox-v8` |
+> | `bella-scrape-workflow-v9/` | `bella-scrape-workflow-v9-test` |
+> | `bella-tools-worker-v9/` | `bella-tools-worker-v8` |
 
 ---
 

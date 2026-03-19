@@ -1,5 +1,8 @@
-// Step 4: Fire Apify actors (check pre-fired first, fallback: fire now)
+// Step 4: Fire Wave 1 Apify actors (check pre-fired first, fallback: fire now)
+// Uses Smart Wave Scheduler — remaining waves are fired by poll-apify-deep.ts
 import type { Env, WorkflowResults, WorkflowState, StepFn, WorkflowPayload } from '../lib/types';
+import { fireActor } from '../lib/apify-client';
+import { APIFY_ACTORS, buildWaves, buildActorContext } from '../lib/apify-actors';
 
 export async function fireApify(
   step: StepFn,
@@ -25,7 +28,16 @@ export async function fireApify(
               const prefired = JSON.parse(prefiredRaw);
               const hasRuns = Object.values(prefired).some((r: any) => r && r.runId);
               if (hasRuns) {
-                console.log("[fire-apify] REUSING pre-fired runs for lid=" + lid);
+                console.log("[fire-apify] REUSING pre-fired Wave 1 runs for lid=" + lid);
+                // Read remaining wave definitions from KV
+                try {
+                  const wavesRaw = await env.WORKFLOWS_KV.get("lead:" + lid + ":apify_remaining_waves");
+                  if (wavesRaw) {
+                    const remainingWaves = JSON.parse(wavesRaw);
+                    state["node-fire-apify-waves"] = { output: remainingWaves };
+                    console.log("[fire-apify] Remaining waves loaded from KV: " + remainingWaves.length + " waves");
+                  }
+                } catch (e) { /* remaining waves not in KV */ }
                 return prefired;
               }
             }
@@ -34,22 +46,21 @@ export async function fireApify(
           }
         }
 
-        // FALLBACK: fire actors now (no pre-fired runs found)
-        // Workflow runs AFTER fast-intel, so Consultant name should be in KV already
+        // FALLBACK: fire Wave 1 now (no pre-fired runs found)
         const siteUrl = entry.url || "";
         const fallbackName = entry.name || "";
         let bizName = "";
         let bizLocation = "";
-        // PRIMARY: Consultant's corrected name + location from KV (should already exist)
+        let intel: any = null;
         try {
           const fiRaw: any = await env.WORKFLOWS_KV.get("lead:" + lid + ":fast-intel", { type: "json" });
           if (fiRaw) {
+            intel = fiRaw;
             bizName = fiRaw.business_name || (fiRaw.core_identity && fiRaw.core_identity.business_name) || "";
             bizLocation = (fiRaw.core_identity && fiRaw.core_identity.location) || "";
             if (bizName) console.log("[fire-apify-fallback] Got bizName from Consultant KV: " + bizName + " location: " + bizLocation);
           }
         } catch (e) { /* ignore */ }
-        // FALLBACK: HTML title extraction if Consultant name missing
         if (!bizName && siteUrl) {
           try {
             const pageResp = await fetch(siteUrl, { headers: { "User-Agent": "Mozilla/5.0" }, redirect: "follow", signal: AbortSignal.timeout(3000) });
@@ -71,32 +82,31 @@ export async function fireApify(
           bizName = fallbackName || (siteUrl ? new URL(siteUrl).hostname.replace("www.", "") : "");
           console.log("[fire-apify-fallback] WARN: falling back to: " + bizName);
         }
-        const linkedinSlug = bizName.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, "-").replace(/^-|-$/g, "");
-        const mapsSearch = bizLocation ? bizName + " " + bizLocation : bizName;
+
+        // Build waves using Smart Wave Scheduler
+        const ctx = buildActorContext({ bizName, bizLocation, siteUrl, intel });
+        const waves = buildWaves(APIFY_ACTORS, ctx);
         const apifyTk = env.APIFY_TOKEN || env.APIFY_API_KEY;
-        const actors = [
-          { key: "facebook_ads", actor: "apify~facebook-ads-scraper", payload: { startUrls: [{ url: "https://www.facebook.com/ads/library/?search_term=" + encodeURIComponent(bizName) }], maxAds: 5 } },
-          { key: "google_ads", actor: "apify~google-search-scraper", payload: { queries: bizName + " ads", maxPagesPerQuery: 1 } },
-          { key: "indeed", actor: "misceres~indeed-scraper", payload: { position: "", company: bizName, country: "AU", maxItems: 5 } },
-          { key: "google_maps", actor: "compass~google-maps-reviews-scraper", payload: { searchStringsArray: [mapsSearch], maxCrawledPlacesPerSearch: 1, language: "en", maxReviews: 5 } },
-          { key: "linkedin", actor: "curious_coder~linkedin-company-scraper", payload: { urls: ["https://www.linkedin.com/company/" + linkedinSlug], proxy: { useApifyProxy: true } } }
-        ];
+
+        if (waves.length === 0) {
+          console.log("[fire-apify-fallback] No eligible actors");
+          return {};
+        }
+
+        // Store remaining waves in state for poll-apify-deep
+        const remainingWaves = waves.slice(1);
+        state["node-fire-apify-waves"] = { output: remainingWaves };
+
+        // Fire Wave 1 only
+        const wave1 = waves[0];
         const startResults = await Promise.all(
-          actors.map(
-            (a) => fetch("https://api.apify.com/v2/acts/" + a.actor + "/runs?token=" + apifyTk, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(a.payload)
-            }).then((r) => r.json()).then((j: any) => {
-              const dObj: any = Object.values(j || {}).find((v: any) => v && typeof v === "object") || {};
-              return { key: a.key, runId: dObj.id || null, status: "started" };
-            }).catch((e: any) => ({ key: a.key, runId: null, status: "failed", error: e.message }))
-          )
+          wave1.map(a => fireActor(a.key, a.actor, a.payload, apifyTk!))
         );
         const runs: Record<string, any> = {};
-        startResults.forEach((r) => {
-          runs[r.key] = r;
-        });
+        startResults.forEach(r => { runs[r.key] = r; });
+
+        console.log("[fire-apify] FALLBACK Wave 1 fired: " + Object.keys(runs).map(k => k + ":" + (runs[k].runId ? "ok" : "fail")).join(",") +
+          " remaining_waves=" + remainingWaves.length);
         return runs;
       })();
       state["node-fire-apify"] = {

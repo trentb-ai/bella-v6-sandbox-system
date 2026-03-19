@@ -9,17 +9,13 @@ import { writeStub } from './steps/write-stub';
 import { firecrawlScrape } from './steps/firecrawl-scrape';
 import { truncateContent } from './steps/truncate-content';
 import { fireApify } from './steps/fire-apify';
-import { consultantAi } from './steps/consultant-ai';
-import { writePhaseA } from './steps/write-phase-a';
-import { writeEarlyStages } from './steps/write-early-stages';
-import { parallelWowApify } from './steps/parallel-wow-apify';
+import { pollApifyDeep } from './steps/poll-apify-deep';
 import { extractDeep } from './steps/extract-deep';
+import { scrapeAdPages } from './steps/scrape-ad-pages';
 import { writeDeepFlags } from './steps/write-deep-flags';
 import { readDeepFlags } from './steps/read-deep-flags';
-import { consultantAiV2 } from './steps/consultant-ai-v2';
 import { buildIntel } from './steps/build-intel';
 import { writeIntel } from './steps/write-intel';
-import { writeStagesLate } from './steps/write-stages-late';
 import { signalReturn } from './steps/signal-return';
 
 // HTTP handler import
@@ -63,20 +59,14 @@ export class BellaV9Orchestrator extends WorkflowEntrypoint<Env, WorkflowPayload
     // ── Step 4: Fire Apify actors ──
     await fireApify(step, env, _workflowResults, _workflowState, instanceId, payload);
 
-    // ── Step 5: Consultant AI ──
-    await consultantAi(step, env, _workflowResults, _workflowState, instanceId, payload);
-
-    // ── Step 6: Write phase_a ──
-    await writePhaseA(step, env, _workflowResults, _workflowState, instanceId, payload);
-
-    // ── Step E: Write early stages ──
-    await writeEarlyStages(step, env, _workflowResults, _workflowState, instanceId, payload);
-
-    // ── Step P: Parallel WOW chain + Apify poll ──
-    await parallelWowApify(step, env, _workflowResults, _workflowState, instanceId, payload);
+    // ── Step P: Poll Apify deep data ──
+    await pollApifyDeep(step, env, _workflowResults, _workflowState, instanceId, payload);
 
     // ── Step 13: Extract deep data ──
     await extractDeep(step, env, _workflowResults, _workflowState, instanceId, payload);
+
+    // ── Step 13b: Scrape ad landing pages (non-fatal) ──
+    await scrapeAdPages(step, env, _workflowResults, _workflowState, instanceId, payload);
 
     // ── Step 14: Write deep_flags ──
     await writeDeepFlags(step, env, _workflowResults, _workflowState, instanceId, payload);
@@ -84,17 +74,11 @@ export class BellaV9Orchestrator extends WorkflowEntrypoint<Env, WorkflowPayload
     // ── Step 15: Read deep_flags ──
     await readDeepFlags(step, env, _workflowResults, _workflowState, instanceId, payload);
 
-    // ── Step 16: Consultant AI v2 ──
-    await consultantAiV2(step, env, _workflowResults, _workflowState, instanceId, payload);
-
     // ── Step 17: Build intel JSON ──
     await buildIntel(step, env, _workflowResults, _workflowState, instanceId, payload);
 
     // ── Step 18: Write intel ──
     await writeIntel(step, env, _workflowResults, _workflowState, instanceId, payload);
-
-    // ── Step 19s: Write stages (late) ──
-    await writeStagesLate(step, env, _workflowResults, _workflowState, instanceId, payload);
 
     // ── Steps 19-20: Signal + Return ──
     await signalReturn(step, env, _workflowResults, _workflowState, instanceId, payload);

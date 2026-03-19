@@ -12,7 +12,7 @@ export async function buildIntel(
   try {
     console.log("type:WF_NODE_START:nodeId:node-build-intel-json:nodeName:transform:nodeType:transform:timestamp:" + Date.now() + ":instanceId:" + instanceId);
     results.step_transform_17 = await step.do("step_transform_17", async () => {
-      const inputData = state["node-consultant-ai-v2"]?.output || payload;
+      const inputData = state["node-kv-get-deep"]?.output || payload;
       const result = await (async () => {
         const summary = inputData.text || "";
         const deepVal = results.step_kv_get_15!.value || {};

@@ -2,5 +2,12 @@
   "dependencies": {
     "@types/dagre": "^0.7.53",
     "dagre": "^0.8.5"
+  },
+  "devDependencies": {
+    "wrangler": "^4.75.0"
+  },
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "preview": "wrangler dev"
   }
 }

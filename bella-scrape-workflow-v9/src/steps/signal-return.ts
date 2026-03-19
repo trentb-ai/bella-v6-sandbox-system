@@ -35,7 +35,7 @@ export async function signalReturn(
   try {
     console.log("type:WF_NODE_START:nodeId:node-return:nodeName:return:nodeType:return:timestamp:" + Date.now() + ":instanceId:" + instanceId);
     results.step_return_20 = await step.do("step_return_20", async () => {
-      const result = { status: "complete", lid: results.step_entry_0.lid, intel: results.step_workers_ai_16!.text };
+      const result = { status: "complete", lid: results.step_entry_0.lid, intel: results.step_transform_17?.json || "" };
       state["node-return"] = {
         input: state["node-signal-update-kv"]?.output || payload,
         output: result
