@@ -181,6 +181,7 @@ export function extractFromTranscript(
   targets: string[],
   stage: Stage,
   industry?: string,
+  currentExtracted?: Partial<ExtractedFields>,
 ): ExtractionResult {
   const s = normalizeSpokenNumbers(transcript.toLowerCase());
   const fields: Record<string, number | string | boolean | null> = {};
@@ -325,8 +326,20 @@ export function extractFromTranscript(
       const val = parseFloat(standaloneNum[1]);
       if (val > 0) {
         if (stage === 'anchor_acv' && val >= 100) fields.acv = val;
-        else if (stage === 'ch_ads' && targets.includes('ads_leads')) fields.ads_leads = val;
-        else if (stage === 'ch_website' && targets.includes('web_leads')) fields.web_leads = val;
+        else if (stage === 'ch_ads') {
+          if (targets.includes('ads_conversions') && currentExtracted?.ads_leads != null && currentExtracted?.ads_conversions == null) {
+            fields.ads_conversions = val;
+          } else if (targets.includes('ads_leads')) {
+            fields.ads_leads = val;
+          }
+        }
+        else if (stage === 'ch_website') {
+          if (targets.includes('web_conversions') && currentExtracted?.web_leads != null && currentExtracted?.web_conversions == null) {
+            fields.web_conversions = val;
+          } else if (targets.includes('web_leads')) {
+            fields.web_leads = val;
+          }
+        }
         else if (stage === 'ch_phone' && targets.includes('phone_volume')) fields.phone_volume = val;
         else if (stage === 'ch_old_leads') fields.old_leads = val;
       }

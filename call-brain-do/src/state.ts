@@ -65,6 +65,8 @@ export function initState(callId: string, leadId: string): CallBrainState {
       totalValue: null,
     },
 
+    intelVersions: {},
+
     retry: {
       extractionMisses: {},
       stageLoops: 0,

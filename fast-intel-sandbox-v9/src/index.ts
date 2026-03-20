@@ -1325,19 +1325,9 @@ async function deliverDOEvents(
     );
 
   try {
-    // 1. session_init — seed with full fast-intel envelope
-    const initRes = await doFetch('/event', {
-      type: 'session_init',
-      leadId: lid,
-      starterIntel: envelope,
-    });
-    if (!initRes.ok) {
-      log('DO_INIT_ERR', `lid=${lid} status=${initRes.status}`);
-      return;
-    }
-    log('DO_INIT', `lid=${lid} session initialized`);
-
-    // 2. fast_intel_ready — full fast-intel payload
+    // 1. fast_intel_ready — full fast-intel payload
+    // NOTE: session_init REMOVED (v2.1.0). DO self-heals via ensureSession on /turn.
+    // Sending session_init from here would wipe state if bridge already initialized.
     const fastRes = await doFetch('/event', {
       type: 'fast_intel_ready',
       payload: envelope,

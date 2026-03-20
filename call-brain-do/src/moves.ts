@@ -183,9 +183,21 @@ function buildWowPacket(state: CallBrainState): NextTurnPacket {
         style,
       };
     }
-    // No reviews → skip to stall 3 (DO will increment wowStall)
-    state.wowStall = 3;
-    return buildWowPacket(state);
+    // No reviews → still mention trial without reputation reference
+    state.flags.trialMentioned = true;
+    return {
+      stage: 'wow', wowStall: 2,
+      objective: 'Mention free trial',
+      chosenMove: {
+        id: 'wow_s2_trial',
+        kind: 'insight',
+        text: `Just so you know ${fn}, because of the work we've done with similar businesses in your space, you qualify for a free trial of the AI team. If you'd like, I can set that up at any point during this demo.`,
+      },
+      criticalFacts: buildCriticalFacts(state, 3),
+      extractTargets: [],
+      validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
+      style,
+    };
   }
 
   // Stall 3: ICP + problems + solutions (combined per Perplexity spec)

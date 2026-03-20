@@ -1,6 +1,11 @@
 /**
- * call-brain-do/src/index.ts — v2.0.0-do-alpha.1
+ * call-brain-do/src/index.ts — v2.1.0-hardened
  * CallBrainDO: Durable Object HTTP handler.
+ *
+ * V2.1.0 fixes:
+ *   - ensureSession: idempotent session init (FIX 1)
+ *   - Turn dedup: cache by turnId + transcriptHash (FIX 2)
+ *   - Version-guarded intel merge (FIX 3)
  *
  * Routes:
  *   POST /turn   — hot path: user_turn → extract → gate → NextTurnPacket
@@ -11,10 +16,23 @@
 import type { Env, BrainEvent, NextTurnPacket, CallBrainState } from './types';
 import { initState, loadState, persistState } from './state';
 import { extractFromTranscript, applyExtraction } from './extract';
-import { advanceIfGateOpen } from './gate';
+import { advanceIfGateOpen, advance } from './gate';
 import { buildNextTurnPacket } from './moves';
 import { mergeIntel, initQueueFromIntel } from './intel';
 import { computeROI } from './roi';
+
+// ─── SHA-256 helper for turn dedup ──────────────────────────────────────────
+
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ─── Version guard for intel events ─────────────────────────────────────────
+
+function shouldApplyVersion(next: number, current?: number): boolean {
+  return current == null || next > current;
+}
 
 // ─── Durable Object ─────────────────────────────────────────────────────────
 
@@ -23,7 +41,6 @@ export class CallBrainDO {
   private env: Env;
 
   constructor(state: DurableObjectState, env: Env) {
-    // Cheap constructor — hibernation-safe
     this.state = state;
     this.env = env;
   }
@@ -50,31 +67,73 @@ export class CallBrainDO {
     }
   }
 
-  // ── POST /turn — hot path ──────────────────────────────────────────────────
+  // ── FIX 1: Idempotent session creation ──────────────────────────────────────
+
+  private async ensureSession(
+    leadId: string,
+    starterIntel?: Record<string, unknown>,
+  ): Promise<{ brain: CallBrainState; created: boolean }> {
+    let brain = await loadState(this.state.storage);
+
+    if (!brain) {
+      // Fresh session
+      brain = initState(this.state.id.toString(), leadId);
+      if (starterIntel) {
+        brain.intel.fast = starterIntel;
+        brain.intel.mergedVersion = 1;
+        initQueueFromIntel(brain);
+      }
+      await persistState(this.state.storage, brain);
+      console.log(`[INIT] callId=${this.state.id.toString()} leadId=${leadId} queue=[${brain.currentQueue.join(',')}]`);
+      return { brain, created: true };
+    }
+
+    // State exists — merge intel ONLY if missing, never reset
+    if (!brain.leadId) brain.leadId = leadId;
+    if (starterIntel && !brain.intel.fast) {
+      brain.intel.fast = starterIntel;
+      brain.intel.mergedVersion = Math.max(brain.intel.mergedVersion, 1);
+    }
+    await persistState(this.state.storage, brain);
+    console.log(`[ENSURE] existing session — stage=${brain.stage} stall=${brain.wowStall} (not reset)`);
+    return { brain, created: false };
+  }
+
+  // ── POST /turn — hot path with dedup (FIX 2) ───────────────────────────────
 
   private async handleTurn(request: Request): Promise<Response> {
     const body = await request.json<{
+      leadId?: string;
       transcript: string;
       turnId: string;
       ts?: string;
     }>();
 
-    const brain = await loadState(this.state.storage);
-    if (!brain) {
-      return json({ error: 'no_session', message: 'Call session_init first' }, 400);
-    }
+    const { transcript, turnId, leadId } = body;
 
-    const { transcript, turnId } = body;
+    // Self-heal: ensure session exists (lazy init on /turn)
+    const { brain } = await this.ensureSession(leadId ?? 'unknown');
+
+    // ── FIX 2: Dedup by turnId + transcript hash ──
+    const cleanTranscript = (transcript || '').trim();
+    const hash = await sha256Hex(cleanTranscript);
+    const cacheKey = `turn:${turnId}:${hash}`;
+
+    const cached = await this.state.storage.get<any>(cacheKey);
+    if (cached) {
+      console.log(`[DEDUP] turnId=${turnId} — returning cached packet`);
+      return json({ ...cached, dedup: true });
+    }
 
     // 1. Extract values from transcript
     const targets = extractTargetsForCurrentStage(brain);
-    const result = extractFromTranscript(transcript, targets, brain.stage, brain.intel.industryLanguage?.industryLabel);
+    const result = extractFromTranscript(transcript, targets, brain.stage, brain.intel.industryLanguage?.industryLabel, brain.extracted);
     const applied = applyExtraction(brain, result);
 
     console.log(`[TURN] turnId=${turnId} stage=${brain.stage} stall=${brain.wowStall} extracted=[${applied.join(',')}]`);
 
     // 2. Gate check + advance
-    const advanced = advanceIfGateOpen(brain);
+    let advanced = advanceIfGateOpen(brain);
     if (advanced) {
       console.log(`[ADVANCE] → ${brain.stage}`);
     }
@@ -84,33 +143,50 @@ export class CallBrainDO {
       brain.wowStall = Math.min(brain.wowStall + 1, 10);
     }
 
+    // 3b. Channel stage escape hatch: force-advance after 5 loops
+    if (!advanced && brain.stage.startsWith('ch_') && brain.retry.stageLoops >= 5) {
+      console.log(`[ESCAPE] force-advancing from ${brain.stage} after ${brain.retry.stageLoops} stalls`);
+      advanceIfGateOpen(brain);
+      if (brain.stage.startsWith('ch_')) {
+        advance(brain);
+        advanced = true;
+        console.log(`[ADVANCE] → ${brain.stage} (escape)`);
+      }
+    }
+
     // 4. Build next turn packet
     const packet = buildNextTurnPacket(brain);
 
     // 5. Track retry misses
-    if (applied.length === 0 && targets.length > 0) {
+    if (!advanced && targets.length > 0) {
       brain.retry.stageLoops++;
-      for (const t of targets) {
-        brain.retry.extractionMisses[t] = (brain.retry.extractionMisses[t] ?? 0) + 1;
+      if (applied.length === 0) {
+        for (const t of targets) {
+          brain.retry.extractionMisses[t] = (brain.retry.extractionMisses[t] ?? 0) + 1;
+        }
       }
-    } else {
+    } else if (advanced) {
       brain.retry.stageLoops = 0;
     }
 
-    // 6. Persist
-    await persistState(this.state.storage, brain);
-
-    return json({
+    // 6. Persist state + cache turn result
+    const responseBody = {
       packet,
       extraction: {
         applied,
         confidence: result.confidence,
         normalized: result.normalized,
       },
+      extractedState: brain.extracted,
       advanced,
       stage: brain.stage,
       wowStall: brain.wowStall,
-    });
+    };
+
+    await persistState(this.state.storage, brain);
+    await this.state.storage.put(cacheKey, responseBody);
+
+    return json({ ...responseBody, dedup: false });
   }
 
   // ── POST /event — all other events ─────────────────────────────────────────
@@ -119,8 +195,19 @@ export class CallBrainDO {
     const event = await request.json<BrainEvent>();
 
     switch (event.type) {
-      case 'session_init':
-        return await this.handleSessionInit(event);
+      case 'session_init': {
+        // Route through ensureSession — idempotent
+        const { brain, created } = await this.ensureSession(event.leadId, event.starterIntel);
+        const packet = buildNextTurnPacket(brain);
+        return json({
+          status: created ? 'initialized' : 'existing',
+          callId: this.state.id.toString(),
+          leadId: event.leadId,
+          packet,
+          stage: brain.stage,
+          wowStall: brain.wowStall,
+        });
+      }
 
       case 'fast_intel_ready':
       case 'consultant_ready':
@@ -128,7 +215,6 @@ export class CallBrainDO {
         return await this.handleIntelEvent(event);
 
       case 'user_turn':
-        // user_turn via /event is allowed but callers should prefer /turn
         return json({ error: 'use_turn_endpoint', message: 'POST /turn for user turns' }, 400);
 
       case 'llm_reply_done':
@@ -142,48 +228,33 @@ export class CallBrainDO {
     }
   }
 
-  // ── session_init ───────────────────────────────────────────────────────────
-
-  private async handleSessionInit(
-    event: Extract<BrainEvent, { type: 'session_init' }>,
-  ): Promise<Response> {
-    const callId = this.state.id.toString();
-    const brain = initState(callId, event.leadId);
-
-    // Seed starter intel if provided
-    if (event.starterIntel) {
-      brain.intel.fast = event.starterIntel;
-      brain.intel.mergedVersion = 1;
-      initQueueFromIntel(brain);
-    }
-
-    await persistState(this.state.storage, brain);
-
-    console.log(`[INIT] callId=${callId} leadId=${event.leadId} queue=[${brain.currentQueue.join(',')}]`);
-
-    // Return initial packet (wow stall 1)
-    const packet = buildNextTurnPacket(brain);
-
-    return json({
-      status: 'initialized',
-      callId,
-      leadId: event.leadId,
-      packet,
-      stage: brain.stage,
-      wowStall: brain.wowStall,
-    });
-  }
-
-  // ── Intel events ───────────────────────────────────────────────────────────
+  // ── Intel events with version guard (FIX 3) ────────────────────────────────
 
   private async handleIntelEvent(
     event: Extract<BrainEvent, { type: 'fast_intel_ready' | 'consultant_ready' | 'deep_ready' }>,
   ): Promise<Response> {
-    const brain = await loadState(this.state.storage);
-    if (!brain) {
-      return json({ error: 'no_session', message: 'No active session' }, 400);
+    // Intel can arrive BEFORE first /turn — ensureSession creates session if needed
+    const callId = this.state.id.toString();
+    const { brain } = await this.ensureSession(callId);
+
+    // Version guard: only apply if version > last applied
+    const intelType = event.type === 'fast_intel_ready' ? 'fast'
+      : event.type === 'consultant_ready' ? 'consultant'
+      : 'deep';
+
+    if (!shouldApplyVersion(event.version, brain.intelVersions[intelType])) {
+      console.log(`[INTEL_SKIP] type=${event.type} version=${event.version} <= current=${brain.intelVersions[intelType]}`);
+      return json({
+        status: 'skipped',
+        reason: 'stale_version',
+        type: event.type,
+        version: event.version,
+        currentVersion: brain.intelVersions[intelType],
+      });
     }
 
+    // Version accepted — merge
+    brain.intelVersions[intelType] = event.version;
     mergeIntel(brain, event);
 
     // Re-init queue if this is the first intel and queue is empty
@@ -213,25 +284,20 @@ export class CallBrainDO {
       return json({ error: 'no_session', message: 'No active session' }, 400);
     }
 
-    // Track spoken move
     if (event.moveId && !brain.spoken.moveIds.includes(event.moveId)) {
       brain.spoken.moveIds.push(event.moveId);
     }
 
-    // Mark ROI delivered if roi move was spoken
     if (event.moveId === 'roi_delivery_total') {
       brain.flags.roiDelivered = true;
-      // Advance if gate now opens (roiDelivered is the gate for roi_delivery stage)
       advanceIfGateOpen(brain);
     }
 
-    // Mark per-channel ROI delivered
     if (event.moveId?.endsWith('_roi')) {
       const agentName = event.moveId.replace('ch_', '').replace('_roi', '');
       if (!brain.spoken.agentPitchesGiven.includes(agentName)) {
         brain.spoken.agentPitchesGiven.push(agentName);
       }
-      // Advance past channel stage after ROI is delivered
       advanceIfGateOpen(brain);
     }
 
@@ -254,7 +320,6 @@ export class CallBrainDO {
       return json({ status: 'no_session' });
     }
 
-    // Compute final ROI if not done
     if (!brain.flags.roiComputed) {
       computeROI(brain);
     }
@@ -289,9 +354,9 @@ function extractTargetsForCurrentStage(state: CallBrainState): string[] {
     case 'wow': return ['_just_demo'];
     case 'anchor_acv': return ['acv', 'timeframe'];
     case 'anchor_timeframe': return ['timeframe'];
-    case 'ch_website': return ['web_leads', 'web_conversions'];
+    case 'ch_website': return ['web_leads', 'web_conversions', 'web_followup_speed'];
     case 'ch_ads': return ['ads_leads', 'ads_conversions', 'ads_followup_speed'];
-    case 'ch_phone': return ['phone_volume', 'missed_call_handling'];
+    case 'ch_phone': return ['phone_volume', 'missed_call_handling', 'missed_call_callback_speed'];
     case 'ch_old_leads': return ['old_leads'];
     case 'ch_reviews': return ['new_customers', 'has_review_system'];
     case 'roi_delivery': return [];
@@ -312,12 +377,10 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    // Health check
     if (url.pathname === '/health') {
-      return json({ status: 'ok', version: '2.0.0-do-alpha.1', worker: 'call-brain-do' });
+      return json({ status: 'ok', version: '2.1.0-hardened', worker: 'call-brain-do' });
     }
 
-    // Route to DO by callId (from header or query param)
     const callId = request.headers.get('x-call-id') ?? url.searchParams.get('callId');
     if (!callId) {
       return json({ error: 'missing_call_id', message: 'Provide x-call-id header or callId param' }, 400);

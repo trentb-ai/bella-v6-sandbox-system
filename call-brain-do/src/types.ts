@@ -103,6 +103,13 @@ export type CallBrainState = {
     totalValue: number | null;
   };
 
+  // ── Intel version tracking (dedup stale events) ──
+  intelVersions: {
+    fast?: number;
+    consultant?: number;
+    deep?: number;
+  };
+
   // ── Retry tracking ──
   retry: {
     extractionMisses: Record<string, number>;

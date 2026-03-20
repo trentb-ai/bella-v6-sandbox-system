@@ -27,7 +27,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.15.0-perplexity"; // Backport Perplexity script to bridge buildStageDirective
+const VERSION = "9.16.0-hardened"; // FIX 4: buildTinyVoicePrompt, no ref blob, no session re-init
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2244,56 +2244,36 @@ interface DONextTurnPacket {
 interface DOTurnResponse {
   packet: DONextTurnPacket;
   extraction: { applied: string[]; confidence: number; normalized: Record<string, string> };
+  extractedState?: Record<string, any>;
   advanced: boolean;
   stage: string;
   wowStall: number;
 }
 
 /**
- * buildTinyPrompt — T011
- * Fixed-shape template that replaces buildTurnPrompt + buildStageDirective + persona block.
- * Target: <1,500 chars. All intelligence is pre-computed by the DO.
+ * buildTinyVoicePrompt — V2.1.0 (FIX 4: hardening packet)
+ * Drastically smaller prompt. DO owns all state. Bridge just formats for Gemini.
+ * NO 5K reference blob. NO <DELIVER_THIS> tags. NO "Good catch" rule.
+ * Target: <1,500 chars.
  */
-function buildTinyPrompt(packet: DONextTurnPacket): string {
-  const terms = packet.style.industryTerms.length > 0
-    ? packet.style.industryTerms.join(', ')
-    : 'business, client, lead';
-
-  const factsBlock = packet.criticalFacts.length > 0
-    ? packet.criticalFacts.map(f => `- ${f}`).join('\n')
-    : '- (none available)';
-
-  const extractBlock = packet.extractTargets.length > 0
-    ? packet.extractTargets.join(', ')
-    : 'none';
-
-  let roiBlock = '';
-  if (packet.roi) {
-    const lines = Object.entries(packet.roi.agentValues)
-      .map(([agent, val]) => `- ${agent}: ${val.toLocaleString()} dollars per week`)
-      .join('\n');
-    roiBlock = `\nROI TO DELIVER (say as words, never symbols):\n${lines}\nTotal: ${packet.roi.totalValue.toLocaleString()} dollars per week`;
-  }
-
-  const prompt = `You are Bella. Follow the chosen move exactly.
-Max ${packet.style.maxSentences} sentences.
-No apology. No filler. No repetition.
-Use these terms naturally: ${terms}
-React briefly to what they said, then deliver the move, then stop.
-Say numbers as words. No symbols, no markdown. ONLY SPOKEN WORDS.
-NEVER APOLOGISE — say "Good catch" or "Thanks for clarifying" instead.
-
-OBJECTIVE: ${packet.objective}
-
-CHOSEN MOVE [${packet.chosenMove.kind.toUpperCase()}]:
-${packet.chosenMove.text}
-
-CRITICAL FACTS:
-${factsBlock}
-${roiBlock}
-EXTRACT TARGETS: ${extractBlock}`;
-
-  return prompt;
+function buildTinyVoicePrompt(packet: DONextTurnPacket): string {
+  return [
+    "You are Bella.",
+    "Speak naturally and briefly.",
+    `Max ${packet.style.maxSentences} sentences.`,
+    "Do not apologize.",
+    "Only acknowledge a correction if the user actually corrected something.",
+    "Do not use filler acknowledgements.",
+    "Deliver the CHOSEN MOVE exactly once.",
+    "",
+    `OBJECTIVE: ${packet.objective}`,
+    `CHOSEN MOVE: ${packet.chosenMove.text}`,
+    "",
+    "CRITICAL FACTS:",
+    ...packet.criticalFacts.slice(0, 5).map(f => `- ${f}`),
+    "",
+    `STYLE: tone=${packet.style.tone}; terms=${packet.style.industryTerms.join(', ')}`,
+  ].join("\n");
 }
 
 /**
@@ -2311,7 +2291,7 @@ async function callDOTurn(
       new Request(`https://do-internal/turn?callId=${encodeURIComponent(lid)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
-        body: JSON.stringify({ transcript, turnId }),
+        body: JSON.stringify({ leadId: lid, transcript, turnId }),
       }),
     );
     if (!res.ok) {
@@ -2567,29 +2547,29 @@ export default {
       intel.recent_reviews = intel.deep.googleMaps.recent_reviews;
     }
 
-    // ── DO BRAIN PATH (Phase C — T010) ──────────────────────────────────────
-    // When USE_DO_BRAIN=true: DO owns state, extraction, gating.
-    // Bridge just builds tiny prompt from NextTurnPacket and streams Gemini.
+    // ── DO BRAIN PATH (Phase C — V2.1.0 hardened) ─────────────────────────
+    // DO owns state, extraction, gating. Bridge builds TINY prompt from
+    // NextTurnPacket. NO 5K reference blob. NO fallback session re-init.
+    // /turn self-heals via ensureSession() inside the DO.
     const useDoPath = env.USE_DO_BRAIN === 'true' && !!lid;
     if (useDoPath) {
       const utt = lastUser(messages);
       const turnNum = messages.length;
       log('DO_PATH', `lid=${lid} turn=${turnNum} utt_chars=${utt.length}`);
 
-      // Init session on first turn (seed with intel so DO has data)
-      if (turnNum <= 3) {
-        await callDOSessionInit(lid, intel, env);
-      }
-
-      // POST /turn → get NextTurnPacket
+      // POST /turn — DO self-heals via ensureSession, no separate init needed
       const doResult = await callDOTurn(lid, utt, String(turnNum), env);
       if (!doResult) {
         // DO failed — fall through to old path
         log('DO_FALLBACK', `DO call failed for lid=${lid} — falling back to old path`);
       } else {
-        // Build tiny prompt from DO packet
-        const tinyPrompt = buildTinyPrompt(doResult.packet);
+        // Build tiny prompt from DO packet (FIX 4: <1,500 chars, no reference blob)
+        const tinyPrompt = buildTinyVoicePrompt(doResult.packet);
         log('DO_PROMPT', `stage=${doResult.stage} stall=${doResult.wowStall} move=${doResult.packet.chosenMove.id} chars=${tinyPrompt.length}`);
+
+        // Assemble system message
+        const systemContent = `lead_id: ${lid}\n\n${tinyPrompt}`;
+        log("PROMPT", `DO path system_chars=${systemContent.length}`);
 
         // Assemble messages for Gemini
         const trimmed = trimHistory(messages);
@@ -2598,7 +2578,7 @@ export default {
           conversation = conversation.slice(1);
         }
         const finalMessages: Msg[] = [
-          { role: "system", content: `lead_id: ${lid}\n\n${tinyPrompt}` },
+          { role: "system", content: systemContent },
           ...conversation,
         ];
 
