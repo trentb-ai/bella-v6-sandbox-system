@@ -57,6 +57,22 @@ function sf(state: CallBrainState): Record<string, any> {
   return consultant(state).scriptFills ?? {};
 }
 
+// ─── Critical facts sanitizer ────────────────────────────────────────────────
+
+function cleanFact(input: unknown): string | null {
+  if (typeof input !== 'string') return null;
+  let s = input.trim();
+  if (!s) return null;
+  s = s.replace(/^["'`]+|["'`]+$/g, '');
+  s = s.replace(/\s+/g, ' ').trim();
+  if (s.includes('{') || s.includes('}') || s.includes('":') || s.includes('[]') || s.length < 6) return null;
+  return s;
+}
+
+function cleanFacts(inputs: unknown[]): string[] {
+  return inputs.map(cleanFact).filter((x): x is string => Boolean(x)).slice(0, 5);
+}
+
 // ─── Extract targets per stage ───────────────────────────────────────────────
 
 function extractTargetsForStage(stage: Stage): string[] {
@@ -121,6 +137,10 @@ function buildWowPacket(state: CallBrainState): NextTurnPacket {
   const c = consultant(state);
   const s = sf(state);
 
+  const deepMissing = !!(state.watchdog?.deepIntelMissingEscalation);
+  if (deepMissing && state.wowStall <= 2) {
+    console.log(`[WATCHDOG] deep intel missing — using fast-intel-only fallback for stall ${state.wowStall}`);
+  }
   const googleRating = d.googleMaps?.rating ?? null;
   const googleReviews = d.googleMaps?.review_count ?? 0;
   const icpGuess = s.icp_guess ?? '';
@@ -174,8 +194,8 @@ function buildWowPacket(state: CallBrainState): NextTurnPacket {
         objective: 'Leverage reputation for free trial mention',
         chosenMove: {
           id: 'wow_s2_reputation',
-          kind: 'insight',
-          text: `Oh ${fn}, I noticed ${biz} has a ${googleRating}-star reputation from ${googleReviews} reviews — that's strong. Businesses already delivering good ${pack.singularOutcome} outcomes qualify for our free trial, so if you'd like, I can get that set up for you at any point during this demo.`,
+          kind: 'question',
+          text: `Oh ${fn}, I noticed ${biz} has a ${googleRating}-star reputation from ${googleReviews} reviews — that's strong. That actually qualifies you for a free trial of the AI team — no card required. I can set that up at any point during this demo. Sound good?`,
         },
         criticalFacts: buildCriticalFacts(state, 3),
         extractTargets: [],
@@ -190,8 +210,8 @@ function buildWowPacket(state: CallBrainState): NextTurnPacket {
       objective: 'Mention free trial',
       chosenMove: {
         id: 'wow_s2_trial',
-        kind: 'insight',
-        text: `Just so you know ${fn}, because of the work we've done with similar businesses in your space, you qualify for a free trial of the AI team. If you'd like, I can set that up at any point during this demo.`,
+        kind: 'question',
+        text: `Just so you know ${fn}, ${shortBiz(state)} qualifies for a free trial of the AI team. No card required, and I can set that up at any point during this demo. Sound good?`,
       },
       criticalFacts: buildCriticalFacts(state, 3),
       extractTargets: [],
@@ -206,11 +226,14 @@ function buildWowPacket(state: CallBrainState): NextTurnPacket {
       ? icpGuess.replace(/^it\s+(looks|seems)\s+like\s+/i, '').replace(/[,;—–-]+\s*(is that right|right|yeah)\??\s*$/i, '').replace(/\?+$/, '').trim()
       : '';
     const bellaCheck = c.icpAnalysis?.bellaCheckLine ?? '';
+    // Strip surrounding quotes so Gemini doesn't read them aloud
+    const cleanProblems = cleanFacts(icpProblems);
+    const cleanSolutions = cleanFacts(icpSolutions);
     let insightText = '';
 
     // PRIMARY: ICP + problems + solutions when data is rich
-    if (cleanIcp && icpProblems.length >= 2 && icpSolutions.length >= 2) {
-      insightText = `It looks like you're primarily targeting ${cleanIcp}. The typical challenges your ${pack.pluralOutcome} face are ${icpProblems[0]} and ${icpProblems[1]}, and you solve those through ${icpSolutions[0]} and ${icpSolutions[1]}. Does that sound right?`;
+    if (cleanIcp && cleanProblems.length >= 2 && cleanSolutions.length >= 2) {
+      insightText = `It looks like you're primarily targeting ${cleanIcp}. The typical challenges your ${pack.pluralOutcome} face are ${cleanProblems[0]} and ${cleanProblems[1]}, and you solve those through ${cleanSolutions[0]} and ${cleanSolutions[1]}. Does that sound right?`;
     }
     // FALLBACK: positioning from referenceOffer
     else if (referenceOffer && cleanIcp) {

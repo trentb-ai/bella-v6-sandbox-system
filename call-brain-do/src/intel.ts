@@ -201,6 +201,30 @@ const INDUSTRY_PACKS: Record<string, IndustryLanguagePack> = {
     tone: 'formal',
     examples: ['new policy', 'renewal', 'quote comparison'],
   },
+  'financial planning': {
+    industryLabel: 'financial planning',
+    singularOutcome: 'client',
+    pluralOutcome: 'clients',
+    leadNoun: 'enquiry',
+    conversionVerb: 'engage',
+    revenueEvent: 'new engagement',
+    kpiLabel: 'client value',
+    missedOpportunity: 'missed consultation',
+    tone: 'strategic',
+    examples: ['financial plan', 'retirement strategy', 'wealth review'],
+  },
+  education: {
+    industryLabel: 'education',
+    singularOutcome: 'student',
+    pluralOutcome: 'students',
+    leadNoun: 'enrolment enquiry',
+    conversionVerb: 'enrol',
+    revenueEvent: 'new enrolment',
+    kpiLabel: 'student value',
+    missedOpportunity: 'missed enrolment',
+    tone: 'friendly',
+    examples: ['new student', 'enrolment', 'course enquiry'],
+  },
 };
 
 const GENERIC_PACK: IndustryLanguagePack = {
@@ -228,40 +252,45 @@ const KEYWORD_MAP: Record<string, string> = {
   gym: 'fitness', fitness: 'fitness', 'personal train': 'fitness', yoga: 'fitness', pilates: 'fitness',
   restaurant: 'hospitality', cafe: 'hospitality', hotel: 'hospitality', bar: 'hospitality', catering: 'hospitality',
   insurance: 'insurance', broker: 'insurance', underwrite: 'insurance',
-  consult: 'agency', advisory: 'accounting', financial: 'accounting',
+  consult: 'agency', advisory: 'financial planning',
+  financial: 'financial planning', wealth: 'financial planning', superannuation: 'financial planning',
+  retirement: 'financial planning', investment: 'financial planning', adviser: 'financial planning', advisor: 'financial planning',
 };
 
 export function buildIndustryLanguagePack(intel: Record<string, unknown>): IndustryLanguagePack {
-  // Priority 1: explicit consultant industry
   const consultant = intel.consultant as any;
   const bi = consultant?.businessIdentity ?? {};
-  const explicitIndustry = (bi.industry ?? '').toLowerCase().trim();
+  const fastCore = (intel as any).core_identity ?? {};
 
-  if (explicitIndustry && INDUSTRY_PACKS[explicitIndustry]) {
-    return INDUSTRY_PACKS[explicitIndustry];
-  }
+  // PRIORITY 1: Consultant explicit industry (highest confidence — Gemini analysed the site)
+  // PRIORITY 2: Consultant industryVertical (secondary consultant field)
+  // PRIORITY 3: Fast-intel core_identity.industry (weaker, website-only)
+  const consultantIndustry = (bi.industry ?? '').toLowerCase().trim();
+  const consultantVertical = (bi.industryVertical ?? '').toLowerCase().trim();
+  const coreIndustry = (fastCore.industry ?? '').toLowerCase().trim();
 
-  // Priority 2: keyword match from industry string
-  if (explicitIndustry) {
+  const candidates = [consultantIndustry, consultantVertical, coreIndustry].filter(Boolean);
+
+  for (const candidate of candidates) {
+    // Exact match first
+    if (INDUSTRY_PACKS[candidate]) {
+      console.log(`[INDUSTRY] resolved="${candidate}" source="exact" raw="${candidate}"`);
+      return INDUSTRY_PACKS[candidate];
+    }
+    // Keyword match
     for (const [keyword, industry] of Object.entries(KEYWORD_MAP)) {
-      if (explicitIndustry.includes(keyword)) {
+      if (candidate.includes(keyword)) {
         const pack = INDUSTRY_PACKS[industry];
-        if (pack) return { ...pack, industryLabel: explicitIndustry };
+        if (pack) {
+          console.log(`[INDUSTRY] resolved="${industry}" source="keyword:${keyword}" raw="${candidate}"`);
+          return { ...pack, industryLabel: candidate };
+        }
       }
     }
   }
 
-  // Priority 3: keyword match from core_identity
-  const coreIndustry = ((intel as any).core_identity?.industry ?? '').toLowerCase();
-  if (coreIndustry) {
-    for (const [keyword, industry] of Object.entries(KEYWORD_MAP)) {
-      if (coreIndustry.includes(keyword)) {
-        const pack = INDUSTRY_PACKS[industry];
-        if (pack) return { ...pack, industryLabel: coreIndustry };
-      }
-    }
-  }
-
-  // Priority 4: generic fallback
-  return { ...GENERIC_PACK, industryLabel: explicitIndustry || coreIndustry || 'business' };
+  // FALLBACK: generic
+  const label = consultantIndustry || consultantVertical || coreIndustry || 'business';
+  console.log(`[INDUSTRY] resolved="generic" source="fallback" raw="${label}"`);
+  return { ...GENERIC_PACK, industryLabel: label };
 }

@@ -321,27 +321,32 @@ export function extractFromTranscript(
 
   // ── Cross-stage standalone number ──
   if (Object.keys(fields).length === 0 && !['wow', 'roi_delivery', 'close'].includes(stage)) {
-    const standaloneNum = s.match(/^(?:uh\s*)?(?:about|around|roughly|maybe|probably|say|like|i'?d say|hmm)?\s*(\d+(?:\.\d+)?)\s*(?:ish|or so|maybe|i think|i guess|i reckon)?\.?$/i);
+    // Loosened regex: allows surrounding filler words (yeah, um, so, well) — no strict ^ $ anchors
+    const standaloneNum = s.match(
+      /(?:^|(?:yeah|yep|yes|yup|um|uh|so|oh|like|well|hmm|about|around|roughly|maybe|probably|say|i'?d say)\s+)(\d+(?:\.\d+)?)\s*(?:ish|or so|maybe|i think|i guess|i reckon)?/i
+    );
     if (standaloneNum) {
       const val = parseFloat(standaloneNum[1]);
       if (val > 0) {
-        if (stage === 'anchor_acv' && val >= 100) fields.acv = val;
+        let mappedTo = '';
+        if (stage === 'anchor_acv' && val >= 100) { fields.acv = val; mappedTo = 'acv'; }
         else if (stage === 'ch_ads') {
           if (targets.includes('ads_conversions') && currentExtracted?.ads_leads != null && currentExtracted?.ads_conversions == null) {
-            fields.ads_conversions = val;
+            fields.ads_conversions = val; mappedTo = 'ads_conversions';
           } else if (targets.includes('ads_leads')) {
-            fields.ads_leads = val;
+            fields.ads_leads = val; mappedTo = 'ads_leads';
           }
         }
         else if (stage === 'ch_website') {
           if (targets.includes('web_conversions') && currentExtracted?.web_leads != null && currentExtracted?.web_conversions == null) {
-            fields.web_conversions = val;
-          } else if (targets.includes('web_leads')) {
-            fields.web_leads = val;
+            fields.web_conversions = val; mappedTo = 'web_conversions';
+          } else if (targets.includes('web_leads') && currentExtracted?.web_leads == null) {
+            fields.web_leads = val; mappedTo = 'web_leads';
           }
         }
-        else if (stage === 'ch_phone' && targets.includes('phone_volume')) fields.phone_volume = val;
-        else if (stage === 'ch_old_leads') fields.old_leads = val;
+        else if (stage === 'ch_phone' && targets.includes('phone_volume')) { fields.phone_volume = val; mappedTo = 'phone_volume'; }
+        else if (stage === 'ch_old_leads') { fields.old_leads = val; mappedTo = 'old_leads'; }
+        if (mappedTo) console.log(`[EXTRACT_STANDALONE] stage=${stage} val=${val} targets=[${targets}] mapped_to=${mappedTo}`);
       }
     }
   }
@@ -353,7 +358,12 @@ export function extractFromTranscript(
     }
   }
 
-  const confidence = Object.keys(fields).filter(k => !k.startsWith('_')).length > 0 ? 0.8 : 0;
+  const realFields = Object.keys(fields).filter(k => !k.startsWith('_'));
+  const confidence = realFields.length > 0 ? 0.8 : 0;
+
+  if (realFields.length === 0 && targets.length > 0 && !['wow', 'roi_delivery', 'close'].includes(stage)) {
+    console.log(`[EXTRACT_MISS] stage=${stage} targets=[${targets}] transcript="${transcript.slice(0, 80)}"`);
+  }
 
   return {
     fields,

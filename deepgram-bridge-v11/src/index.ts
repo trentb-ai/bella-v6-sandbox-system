@@ -27,7 +27,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.16.0-hardened"; // FIX 4: buildTinyVoicePrompt, no ref blob, no session re-init
+const VERSION = "9.18.0-question-gate"; // Filler gate, question compliance rule, trial text fix
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2122,7 +2122,7 @@ async function streamToDeepgram(
       "x-goog-api-key": env.GEMINI_API_KEY
     },
     body: JSON.stringify({
-      model: MODEL, messages, stream: true, temperature: 0.5,
+      model: MODEL, messages, stream: true, temperature: 0.3,
       max_tokens: 500,
       stream_options: { include_usage: true },
     }),
@@ -2251,29 +2251,57 @@ interface DOTurnResponse {
 }
 
 /**
- * buildTinyVoicePrompt — V2.1.0 (FIX 4: hardening packet)
- * Drastically smaller prompt. DO owns all state. Bridge just formats for Gemini.
- * NO 5K reference blob. NO <DELIVER_THIS> tags. NO "Good catch" rule.
- * Target: <1,500 chars.
+ * buildDOTurnPrompt — V9.17.0
+ * Rich directive from DO packet. Includes MANDATORY SCRIPT, DELIVER_THIS tags,
+ * CONFIRMED THIS CALL, LIVE ROI, CONTEXT, and full OUTPUT RULES.
+ * Target: ~1.5K chars.
  */
-function buildTinyVoicePrompt(packet: DONextTurnPacket): string {
-  return [
-    "You are Bella.",
-    "Speak naturally and briefly.",
-    `Max ${packet.style.maxSentences} sentences.`,
-    "Do not apologize.",
-    "Only acknowledge a correction if the user actually corrected something.",
-    "Do not use filler acknowledgements.",
-    "Deliver the CHOSEN MOVE exactly once.",
-    "",
-    `OBJECTIVE: ${packet.objective}`,
-    `CHOSEN MOVE: ${packet.chosenMove.text}`,
-    "",
-    "CRITICAL FACTS:",
-    ...packet.criticalFacts.slice(0, 5).map(f => `- ${f}`),
-    "",
-    `STYLE: tone=${packet.style.tone}; terms=${packet.style.industryTerms.join(', ')}`,
-  ].join("\n");
+function buildDOTurnPrompt(doResult: DOTurnResponse): string {
+  const packet = doResult.packet;
+  const extracted = doResult.extractedState ?? {};
+
+  // ── MANDATORY SCRIPT with DELIVER_THIS tags ──
+  const scriptBlock = `====================================
+MANDATORY SCRIPT — FOLLOW EXACTLY
+====================================
+OBJECTIVE: ${packet.objective}
+STAGE: ${packet.stage.toUpperCase()} ${packet.wowStall != null ? `| STALL: ${packet.wowStall}` : ''}
+
+<DELIVER_THIS>${packet.chosenMove.text}</DELIVER_THIS>
+====================================`;
+
+  // ── CONFIRMED THIS CALL — prevent re-asking captured data ──
+  const confirmedEntries = Object.entries(extracted).filter(([_, v]) => v != null && v !== '' && v !== false);
+  const confirmedSection = confirmedEntries.length > 0
+    ? `\nCONFIRMED THIS CALL (DO NOT re-ask ANY of these — the prospect already told you):\n${confirmedEntries.map(([k, v]) => `- ${k}: ${v}`).join('\n')}\n`
+    : '';
+
+  // ── LIVE ROI — for channel stages ──
+  const roiSection = packet.roi
+    ? `\nLIVE ROI:\n${Object.entries(packet.roi.agentValues).map(([agent, val]) => `- ${agent}: $${val.toLocaleString()}/week`).join('\n')}\n- TOTAL: $${packet.roi.totalValue.toLocaleString()}/week\n`
+    : '';
+
+  // ── CONTEXT — labelled "do not read aloud" ──
+  const contextSection = packet.criticalFacts.length > 0
+    ? `\nCONTEXT (use to inform your response — do not read aloud):\n${packet.criticalFacts.slice(0, 8).map(f => `- ${f}`).join('\n')}\n`
+    : '';
+
+  // ── OUTPUT RULES — proven guardrails from old path ──
+  const outputRules = `OUTPUT RULES
+1. ONLY SPOKEN WORDS. No labels, no headers, no XML tags in output.
+2. Up to 3 statements and a question per turn (4 sentences max, fewer is fine).
+3. No symbols, no markdown.
+4. Say numbers as words.
+5. Max one question at the end.
+6. NEVER APOLOGISE — THIS IS AN ABSOLUTE RULE. The words "sorry", "apologies", "my apologies", "I apologise" must NEVER appear in your response under ANY circumstance. If you are corrected, say "Thanks for clarifying" then immediately pivot to the correct data. NEVER grovel. You are a confident consultant, not a customer service bot.
+7. SCRIPT COMPLIANCE: Text inside <DELIVER_THIS> tags is your EXACT script. Deliver it word-for-word. You may add a brief natural reaction to what the prospect just said BEFORE the scripted line (e.g. "Great question." or "Love it."), but the scripted line itself MUST be delivered verbatim. Do NOT paraphrase, restructure, summarise, or omit any part of it.
+8. QUESTION COMPLIANCE: If your script asks a question and the prospect's response does not actually answer it (just filler like "yeah", "ok", "sure"), briefly acknowledge and re-ask or rephrase the question. Do not move to new material until questions are substantively answered. If your script is a statement (no question), deliver it and stop — do not add filler or pad the response.`;
+
+  return `${scriptBlock}
+${confirmedSection}${roiSection}${contextSection}
+STYLE: tone=${packet.style.tone}; terms=${packet.style.industryTerms.join(', ')}; max ${packet.style.maxSentences} sentences
+
+${outputRules}`;
 }
 
 /**
@@ -2303,35 +2331,6 @@ async function callDOTurn(
   } catch (e: any) {
     log('DO_ERR', `turn exception: ${e.message}`);
     return null;
-  }
-}
-
-/**
- * callDOSessionInit — POST /event session_init to Call Brain DO.
- */
-async function callDOSessionInit(
-  lid: string,
-  starterIntel: Record<string, any> | null,
-  env: Env,
-): Promise<boolean> {
-  try {
-    const res = await env.CALL_BRAIN.fetch(
-      new Request(`https://do-internal/event?callId=${encodeURIComponent(lid)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
-        body: JSON.stringify({ type: 'session_init', leadId: lid, starterIntel }),
-      }),
-    );
-    if (!res.ok) {
-      const errText = await res.text().catch(() => 'no-body');
-      log('DO_ERR', `session_init failed: status=${res.status} body=${errText}`);
-      return false;
-    }
-    log('DO_INIT', `session initialized for lid=${lid}`);
-    return true;
-  } catch (e: any) {
-    log('DO_ERR', `session_init exception: ${e.message}`);
-    return false;
   }
 }
 
@@ -2379,11 +2378,7 @@ async function shadowDOCall(
   env: Env,
 ): Promise<void> {
   try {
-    // Init session on first turn (shadow path)
-    if (turnNum <= 3) {
-      await callDOSessionInit(lid, intel, env);
-    }
-
+    // DO self-heals via ensureSession — no separate init needed
     const doResult = await callDOTurn(lid, transcript, turnId, env);
     if (doResult) {
       const doMoveId = doResult.packet?.chosenMove?.id ?? 'unknown';
@@ -2547,9 +2542,9 @@ export default {
       intel.recent_reviews = intel.deep.googleMaps.recent_reviews;
     }
 
-    // ── DO BRAIN PATH (Phase C — V2.1.0 hardened) ─────────────────────────
-    // DO owns state, extraction, gating. Bridge builds TINY prompt from
-    // NextTurnPacket. NO 5K reference blob. NO fallback session re-init.
+    // ── DO BRAIN PATH (Phase C — V9.17.0) ──────────────────────────────────
+    // DO owns state, extraction, gating. Bridge builds rich directive from
+    // NextTurnPacket + full reference data from buildFullSystemContext.
     // /turn self-heals via ensureSession() inside the DO.
     const useDoPath = env.USE_DO_BRAIN === 'true' && !!lid;
     if (useDoPath) {
@@ -2563,12 +2558,17 @@ export default {
         // DO failed — fall through to old path
         log('DO_FALLBACK', `DO call failed for lid=${lid} — falling back to old path`);
       } else {
-        // Build tiny prompt from DO packet (FIX 4: <1,500 chars, no reference blob)
-        const tinyPrompt = buildTinyVoicePrompt(doResult.packet);
-        log('DO_PROMPT', `stage=${doResult.stage} stall=${doResult.wowStall} move=${doResult.packet.chosenMove.id} chars=${tinyPrompt.length}`);
+        // Build rich directive from DO packet (~1.5K)
+        const doTurnPrompt = buildDOTurnPrompt(doResult);
+        log('DO_PROMPT', `stage=${doResult.stage} stall=${doResult.wowStall} move=${doResult.packet.chosenMove.id} chars=${doTurnPrompt.length}`);
 
-        // Assemble system message
-        const systemContent = `lead_id: ${lid}\n\n${tinyPrompt}`;
+        // Build reference data (persona + business intel + benchmarks) (~1.5K)
+        const deepStatus = (intel as any).intel?.deep?.status ?? intel.deep?.status;
+        const apifyDone = deepStatus === 'done';
+        const bridgeSystem = buildFullSystemContext(intel, apifyDone);
+
+        // Assemble system message: directive FIRST, reference LAST
+        const systemContent = `lead_id: ${lid}\n\n${doTurnPrompt}\n\n--- REFERENCE DATA (use to inform your response, do not read aloud) ---\n${bridgeSystem}`;
         log("PROMPT", `DO path system_chars=${systemContent.length}`);
 
         // Assemble messages for Gemini

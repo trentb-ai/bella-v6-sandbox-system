@@ -1327,22 +1327,33 @@ async function deliverDOEvents(
   try {
     // 1. fast_intel_ready — full fast-intel payload
     // NOTE: session_init REMOVED (v2.1.0). DO self-heals via ensureSession on /turn.
-    // Sending session_init from here would wipe state if bridge already initialized.
+    const fastEventId = crypto.randomUUID();
+    const fastSentAt = new Date().toISOString();
+    log('FAST_SEND', `eventId=${fastEventId} lid=${lid} version=1 sentAt=${fastSentAt}`);
     const fastRes = await doFetch('/event', {
       type: 'fast_intel_ready',
       payload: envelope,
       version: 1,
+      eventId: fastEventId,
+      sentAt: fastSentAt,
+      source: 'fast-intel',
     });
-    log('DO_FAST', `lid=${lid} fast_intel_ready status=${fastRes.status}`);
+    log('DO_FAST', `lid=${lid} fast_intel_ready eventId=${fastEventId} status=${fastRes.status}`);
 
     // 3. consultant_ready — if consultant data available
     if (consultant) {
+      const consultEventId = crypto.randomUUID();
+      const consultSentAt = new Date().toISOString();
+      log('CONSULTANT_SEND', `eventId=${consultEventId} lid=${lid} version=1 sentAt=${consultSentAt}`);
       const consultRes = await doFetch('/event', {
         type: 'consultant_ready',
         payload: consultant,
         version: 1,
+        eventId: consultEventId,
+        sentAt: consultSentAt,
+        source: 'fast-intel',
       });
-      log('DO_CONSULTANT', `lid=${lid} consultant_ready status=${consultRes.status}`);
+      log('DO_CONSULTANT', `lid=${lid} consultant_ready eventId=${consultEventId} status=${consultRes.status}`);
     }
   } catch (e: any) {
     log('DO_ERR', `lid=${lid} event delivery failed: ${e.message}`);

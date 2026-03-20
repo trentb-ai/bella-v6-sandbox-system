@@ -115,6 +115,14 @@ export type CallBrainState = {
     extractionMisses: Record<string, number>;
     stageLoops: number;
   };
+
+  // ── Watchdog (alarm-driven per-call monitoring) ──
+  watchdog: {
+    mustDeliverRoiNext: boolean;
+    deepIntelMissingEscalation: boolean;
+    lastTurnAt: string | null;
+    nextChecks: Array<'deep_missing' | 'roi_pending' | 'call_stale' | 'stage_loop'>;
+  };
 };
 
 // ─── BrainEvent (workflow/services → DO) ─────────────────────────────────────

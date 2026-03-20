@@ -1,5 +1,5 @@
 /**
- * call-brain-do/src/index.ts — v2.1.0-hardened
+ * call-brain-do/src/index.ts — v2.4.0-watchdog
  * CallBrainDO: Durable Object HTTP handler.
  *
  * V2.1.0 fixes:
@@ -84,6 +84,7 @@ export class CallBrainDO {
         initQueueFromIntel(brain);
       }
       await persistState(this.state.storage, brain);
+      await this.scheduleNextAlarm(brain);
       console.log(`[INIT] callId=${this.state.id.toString()} leadId=${leadId} queue=[${brain.currentQueue.join(',')}]`);
       return { brain, created: true };
     }
@@ -138,12 +139,38 @@ export class CallBrainDO {
       console.log(`[ADVANCE] → ${brain.stage}`);
     }
 
-    // 3. WOW stall increment (if still in wow and didn't advance)
-    if (!advanced && brain.stage === 'wow') {
-      brain.wowStall = Math.min(brain.wowStall + 1, 10);
+    // 2b. Watchdog: force ROI delivery if alarm flagged it
+    if (brain.watchdog?.mustDeliverRoiNext
+        && !brain.flags.roiDelivered
+        && brain.stage !== 'roi_delivery'
+        && brain.stage !== 'close'
+        && brain.stage !== 'wow') {
+      console.log(`[WATCHDOG] mustDeliverRoiNext — forcing advance to roi_delivery from ${brain.stage}`);
+      if (!brain.flags.roiComputed) computeROI(brain);
+      brain.stage = 'roi_delivery';
+      brain.watchdog.mustDeliverRoiNext = false;
+      advanced = true;
     }
 
-    // 3b. Channel stage escape hatch: force-advance after 5 loops
+    // 3. Build packet BEFORE stall increment (reads current stall)
+    const packet = buildNextTurnPacket(brain);
+
+    // 4. THEN increment stall for NEXT turn
+    //    - Question moves: only advance on substantive response (not filler)
+    //    - Statement/bridge moves: always advance (flow naturally)
+    if (!advanced && brain.stage === 'wow') {
+      const isQuestionMove = packet.chosenMove.kind === 'question';
+      const trimmed = cleanTranscript.trim();
+      const isFillerOnly = trimmed.length < 30 && /^((yeah|yep|yes|yup|sure|ok|okay|mm+h?m?|uh\s*huh|right|got\s*it|hmm+|ah+|oh+|cool|nice|alright|sounds?\s*good|go\s*ahead|go\s*for\s*it|sure\s*thing|for\s*sure|that's?\s*fine|no\s*worries)\s*[.,!?]*\s*)+$/i.test(trimmed);
+
+      if (isQuestionMove && isFillerOnly) {
+        console.log(`[STALL_HOLD] stall=${brain.wowStall} — filler response to question, not advancing`);
+      } else {
+        brain.wowStall = Math.min(brain.wowStall + 1, 10);
+      }
+    }
+
+    // 4b. Channel stage escape hatch: force-advance after 5 loops
     if (!advanced && brain.stage.startsWith('ch_') && brain.retry.stageLoops >= 5) {
       console.log(`[ESCAPE] force-advancing from ${brain.stage} after ${brain.retry.stageLoops} stalls`);
       advanceIfGateOpen(brain);
@@ -153,9 +180,6 @@ export class CallBrainDO {
         console.log(`[ADVANCE] → ${brain.stage} (escape)`);
       }
     }
-
-    // 4. Build next turn packet
-    const packet = buildNextTurnPacket(brain);
 
     // 5. Track retry misses
     if (!advanced && targets.length > 0) {
@@ -169,7 +193,13 @@ export class CallBrainDO {
       brain.retry.stageLoops = 0;
     }
 
-    // 6. Persist state + cache turn result
+    // 6. Update watchdog lastTurnAt
+    if (!brain.watchdog) {
+      (brain as any).watchdog = { mustDeliverRoiNext: false, deepIntelMissingEscalation: false, lastTurnAt: null, nextChecks: [] };
+    }
+    brain.watchdog.lastTurnAt = new Date().toISOString();
+
+    // 7. Persist state + cache turn result
     const responseBody = {
       packet,
       extraction: {
@@ -185,6 +215,7 @@ export class CallBrainDO {
 
     await persistState(this.state.storage, brain);
     await this.state.storage.put(cacheKey, responseBody);
+    await this.scheduleNextAlarm(brain);
 
     return json({ ...responseBody, dedup: false });
   }
@@ -242,8 +273,13 @@ export class CallBrainDO {
       : event.type === 'consultant_ready' ? 'consultant'
       : 'deep';
 
+    const eventId = (event as any).eventId ?? 'none';
+    const sentAt = (event as any).sentAt ?? 'unknown';
+    const source = (event as any).source ?? 'unknown';
+    const receivedAt = new Date().toISOString();
+
     if (!shouldApplyVersion(event.version, brain.intelVersions[intelType])) {
-      console.log(`[INTEL_SKIP] type=${event.type} version=${event.version} <= current=${brain.intelVersions[intelType]}`);
+      console.log(`[INTEL_REJECT] eventId=${eventId} type=${event.type} version=${event.version} <= current=${brain.intelVersions[intelType]} reason=stale_version source=${source}`);
       return json({
         status: 'skipped',
         reason: 'stale_version',
@@ -262,9 +298,10 @@ export class CallBrainDO {
       initQueueFromIntel(brain);
     }
 
-    console.log(`[INTEL] type=${event.type} version=${event.version} mergedVersion=${brain.intel.mergedVersion}`);
+    console.log(`[INTEL_RECV] eventId=${eventId} type=${event.type} version=${event.version} mergedVersion=${brain.intel.mergedVersion} source=${source} sentAt=${sentAt} receivedAt=${receivedAt}`);
 
     await persistState(this.state.storage, brain);
+    await this.scheduleNextAlarm(brain);
 
     return json({
       status: 'merged',
@@ -302,6 +339,7 @@ export class CallBrainDO {
     }
 
     await persistState(this.state.storage, brain);
+    await this.scheduleNextAlarm(brain);
 
     return json({
       status: 'recorded',
@@ -345,6 +383,87 @@ export class CallBrainDO {
     }
     return json(brain);
   }
+
+  // ── Watchdog alarm ────────────────────────────────────────────────────────
+
+  async alarm(): Promise<void> {
+    const brain = await loadState(this.state.storage);
+    if (!brain) return;
+
+    // Backfill watchdog for sessions created before this deploy
+    if (!brain.watchdog) {
+      (brain as any).watchdog = {
+        mustDeliverRoiNext: false,
+        deepIntelMissingEscalation: false,
+        lastTurnAt: null,
+        nextChecks: [],
+      };
+    }
+
+    const now = Date.now();
+    const lastTurnMs = brain.watchdog.lastTurnAt
+      ? new Date(brain.watchdog.lastTurnAt).getTime()
+      : null;
+
+    // ── ROI pending: computed but not delivered ──
+    if (brain.flags.roiComputed && !brain.flags.roiDelivered) {
+      brain.watchdog.mustDeliverRoiNext = true;
+      console.log(`[ALARM] ROI pending — mustDeliverRoiNext=true callId=${brain.callId}`);
+    }
+
+    // ── Deep intel missing: apifyDone still false ──
+    if (!brain.flags.apifyDone && !brain.watchdog.deepIntelMissingEscalation) {
+      brain.watchdog.deepIntelMissingEscalation = true;
+      console.log(`[ALARM] Deep intel missing — escalation flagged callId=${brain.callId}`);
+    }
+
+    // ── Call stale: no /turn for 120s ──
+    if (lastTurnMs && now - lastTurnMs > 120_000) {
+      console.log(`[ALARM] Call stale — no turn for ${Math.round((now - lastTurnMs) / 1000)}s callId=${brain.callId}`);
+      if (!brain.flags.roiComputed) {
+        computeROI(brain);
+      }
+    }
+
+    // ── Stage loop: same stage 5+ times ──
+    if (brain.retry.stageLoops >= 5 && !brain.flags.questionBudgetTight) {
+      brain.flags.questionBudgetTight = true;
+      console.log(`[ALARM] Stage loop detected — questionBudgetTight=true stage=${brain.stage} loops=${brain.retry.stageLoops}`);
+    }
+
+    await persistState(this.state.storage, brain);
+    await this.scheduleNextAlarm(brain);
+  }
+
+  private async scheduleNextAlarm(brain: CallBrainState): Promise<void> {
+    const now = Date.now();
+    const times: number[] = [];
+
+    // ROI computed but not delivered — check in 15s
+    if (brain.flags.roiComputed && !brain.flags.roiDelivered) {
+      times.push(now + 15_000);
+    }
+
+    // Deep intel still missing — check in 20s
+    if (!brain.flags.apifyDone && !brain.watchdog.deepIntelMissingEscalation) {
+      times.push(now + 20_000);
+    }
+
+    // Call stale — 120s after last turn
+    if (brain.watchdog.lastTurnAt) {
+      const lastMs = new Date(brain.watchdog.lastTurnAt).getTime();
+      const staleAt = lastMs + 120_000;
+      if (staleAt > now) {
+        times.push(staleAt);
+      }
+    }
+
+    if (times.length > 0) {
+      const nextAlarm = Math.min(...times);
+      await this.state.storage.setAlarm(nextAlarm);
+      console.log(`[ALARM_SCHED] next in ${Math.round((nextAlarm - now) / 1000)}s`);
+    }
+  }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -378,7 +497,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/health') {
-      return json({ status: 'ok', version: '2.1.0-hardened', worker: 'call-brain-do' });
+      return json({ status: 'ok', version: '2.4.0-watchdog', worker: 'call-brain-do' });
     }
 
     const callId = request.headers.get('x-call-id') ?? url.searchParams.get('callId');

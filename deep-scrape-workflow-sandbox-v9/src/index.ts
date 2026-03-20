@@ -40,7 +40,7 @@ async function runApifyActor(
   if (!apiKey) return null;
   try {
     const startResp = await fetch(
-      `https://api.apify.com/v9/acts/${actorId}/runs?token=${apiKey}`,
+      `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }
     );
     if (!startResp.ok) {
@@ -53,7 +53,7 @@ async function runApifyActor(
 
     for (let i = 0; i < maxPolls; i++) {
       await new Promise((r) => setTimeout(r, pollIntervalMs));
-      const statusResp = await fetch(`https://api.apify.com/v9/actor-runs/${runId}?token=${apiKey}`);
+      const statusResp = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`);
       if (!statusResp.ok) break;
       const statusData = (await statusResp.json()) as { data?: { status?: string; defaultDatasetId?: string } };
       const status = statusData?.data?.status;
@@ -61,7 +61,7 @@ async function runApifyActor(
         const datasetId = statusData?.data?.defaultDatasetId;
         if (!datasetId) return null;
         const itemsResp = await fetch(
-          `https://api.apify.com/v9/datasets/${datasetId}/items?token=${apiKey}&limit=15`
+          `https://api.apify.com/v2/datasets/${datasetId}/items?token=${apiKey}&limit=15`
         );
         if (!itemsResp.ok) return null;
         return (await itemsResp.json()) as unknown[];
@@ -326,6 +326,9 @@ export class DeepScrapeWorkflow extends WorkflowEntrypoint<Env, DeepScrapeParams
       { retries: { limit: 2, delay: "3 seconds" }, timeout: "15 seconds" },
       async () => {
         try {
+          const eventId = crypto.randomUUID();
+          const sentAt = new Date().toISOString();
+          console.log(`[DEEP_SEND] eventId=${eventId} lid=${lid} version=1 sentAt=${sentAt}`);
           const res = await this.env.CALL_BRAIN.fetch(
             new Request(`https://do-internal/event?callId=${encodeURIComponent(lid)}`, {
               method: 'POST',
@@ -334,10 +337,13 @@ export class DeepScrapeWorkflow extends WorkflowEntrypoint<Env, DeepScrapeParams
                 type: 'deep_ready',
                 payload: scraped,
                 version: 1,
+                eventId,
+                sentAt,
+                source: 'deep-scrape-workflow',
               }),
             }),
           );
-          console.log(`[DeepScrape] DO deep_ready delivered lid=${lid} status=${res.status}`);
+          console.log(`[DeepScrape] DO deep_ready delivered lid=${lid} eventId=${eventId} status=${res.status}`);
         } catch (e: any) {
           console.log(`[DeepScrape] DO deep_ready failed lid=${lid}: ${e.message}`);
         }

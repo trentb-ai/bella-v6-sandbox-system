@@ -71,6 +71,13 @@ export function initState(callId: string, leadId: string): CallBrainState {
       extractionMisses: {},
       stageLoops: 0,
     },
+
+    watchdog: {
+      mustDeliverRoiNext: false,
+      deepIntelMissingEscalation: false,
+      lastTurnAt: null,
+      nextChecks: [],
+    },
   };
 }
 
