@@ -13,7 +13,13 @@ id = "0fec6982d8644118aba1830afd4a58cb"
 binding = "TOOLS"
 service = "bella-tools-worker-v8"
 
+# Call Brain DO — state machine authority (Phase C integration)
+[[services]]
+binding = "CALL_BRAIN"
+service = "call-brain-do"
+
 [vars]
+USE_DO_BRAIN = "false"
 # GEMINI_API_KEY set via: wrangler secret put GEMINI_API_KEY
 # TOOLS_BEARER    set via: wrangler secret put TOOLS_BEARER
 

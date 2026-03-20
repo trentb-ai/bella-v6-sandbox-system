@@ -1,5 +1,5 @@
 /**
- * deep-scrape-workflow-sandbox v9.1.0
+ * deep-scrape-workflow-sandbox v9.2.0
  *
  * All 5 Apify actors run concurrently in a single step via Promise.allSettled.
  * Per-actor error isolation: one failure never kills the others.
@@ -16,6 +16,7 @@ import { WorkflowEntrypoint, WorkflowStep, WorkflowEvent } from "cloudflare:work
 interface Env {
   LEADS_KV: KVNamespace;
   DEEP_SCRAPE_WORKFLOW: Workflow;
+  CALL_BRAIN: Fetcher;             // service binding → call-brain-do (Phase D)
   APIFY_API_KEY: string;
 }
 
@@ -319,7 +320,31 @@ export class DeepScrapeWorkflow extends WorkflowEntrypoint<Env, DeepScrapeParams
       }
     );
 
-    console.log(`[DeepScrape v9.2] Complete lid=${lid} wall=${Date.now() - t0}ms`);
+    // ── Step 3: Deliver deep_ready event to Call Brain DO (Phase D — T013) ──
+    await step.do(
+      "notify-do-brain",
+      { retries: { limit: 2, delay: "3 seconds" }, timeout: "15 seconds" },
+      async () => {
+        try {
+          const res = await this.env.CALL_BRAIN.fetch(
+            new Request(`https://do-internal/event?callId=${encodeURIComponent(lid)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
+              body: JSON.stringify({
+                type: 'deep_ready',
+                payload: scraped,
+                version: 1,
+              }),
+            }),
+          );
+          console.log(`[DeepScrape] DO deep_ready delivered lid=${lid} status=${res.status}`);
+        } catch (e: any) {
+          console.log(`[DeepScrape] DO deep_ready failed lid=${lid}: ${e.message}`);
+        }
+      }
+    );
+
+    console.log(`[DeepScrape v9.3] Complete lid=${lid} wall=${Date.now() - t0}ms`);
   }
 }
 

@@ -22,6 +22,11 @@ service = "deep-scrape-workflow-v8"
 binding = "BIG_SCRAPER"
 service = "personalisedaidemofinal-sandbox"
 
+# Call Brain DO — event delivery (Phase D)
+[[services]]
+binding = "CALL_BRAIN"
+service = "call-brain-do"
+
 # ─── Secrets (set via: wrangler secret put <NAME>) ───────────────────────────
 # FIRECRAWL_API_KEY
 # GEMINI_API_KEY  (fallback if Consultant service binding unavailable)

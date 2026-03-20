@@ -20,12 +20,14 @@
 export interface Env {
   LEADS_KV: KVNamespace;
   TOOLS: Fetcher;
+  CALL_BRAIN: Fetcher;
   GEMINI_API_KEY: string;
   TOOLS_BEARER: string;
   ENABLE_EMBEDDING?: string;
+  USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.13.2"; // Fix: adsOn false-negative (deep data path), shortBiz stop-word, tag stripping broadened
+const VERSION = "9.14.1"; // Fix: await llm_reply_done callback to prevent subrequest cancellation
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2235,7 +2237,11 @@ function lastUser(messages: Msg[]): string {
 
 // ─── GEMINI STREAMING → DEEPGRAM ─────────────────────────────────────────────
 
-async function streamToDeepgram(messages: Msg[], env: Env): Promise<Response> {
+async function streamToDeepgram(
+  messages: Msg[],
+  env: Env,
+  doReplyCallback?: (spokenText: string) => Promise<void> | void,
+): Promise<Response> {
   const t0 = Date.now();
   const gemRes = await fetch(GEMINI_URL, {
     method: "POST",
@@ -2331,6 +2337,10 @@ async function streamToDeepgram(messages: Msg[], env: Env): Promise<Response> {
       log("BELLA_SAID", responseText.slice(0, 2000));
       log("GEMINI_DONE", `total=${totalMs}ms chunks=${chunkCount} first_chunk=${firstContentAt}ms`);
       await writer.write(enc.encode("data: [DONE]\n\n"));
+      // Phase D — T014: fire llm_reply_done callback after stream completes
+      if (doReplyCallback) {
+        try { await doReplyCallback(responseText); } catch { }
+      }
     } catch (e) {
       log("GEMINI_STREAM_ERR", `${e}`);
     }
@@ -2344,6 +2354,195 @@ async function streamToDeepgram(messages: Msg[], env: Env): Promise<Response> {
       "Access-Control-Allow-Origin": "*",
     },
   });
+}
+
+// ─── DO BRAIN INTEGRATION (Phase C) ──────────────────────────────────────────
+
+// NextTurnPacket shape (mirrors call-brain-do/src/types.ts)
+interface DONextTurnPacket {
+  stage: string;
+  wowStall: number | null;
+  objective: string;
+  chosenMove: { id: string; kind: string; text: string };
+  criticalFacts: string[];
+  extractTargets: string[];
+  validation: { mustCaptureAny: string[]; advanceOnlyIf: string[]; doNotAdvanceIf: string[] };
+  style: { tone: string; industryTerms: string[]; maxSentences: number; noApology: boolean };
+  roi?: { agentValues: Record<string, number>; totalValue: number };
+}
+
+interface DOTurnResponse {
+  packet: DONextTurnPacket;
+  extraction: { applied: string[]; confidence: number; normalized: Record<string, string> };
+  advanced: boolean;
+  stage: string;
+  wowStall: number;
+}
+
+/**
+ * buildTinyPrompt — T011
+ * Fixed-shape template that replaces buildTurnPrompt + buildStageDirective + persona block.
+ * Target: <1,500 chars. All intelligence is pre-computed by the DO.
+ */
+function buildTinyPrompt(packet: DONextTurnPacket): string {
+  const terms = packet.style.industryTerms.length > 0
+    ? packet.style.industryTerms.join(', ')
+    : 'business, client, lead';
+
+  const factsBlock = packet.criticalFacts.length > 0
+    ? packet.criticalFacts.map(f => `- ${f}`).join('\n')
+    : '- (none available)';
+
+  const extractBlock = packet.extractTargets.length > 0
+    ? packet.extractTargets.join(', ')
+    : 'none';
+
+  let roiBlock = '';
+  if (packet.roi) {
+    const lines = Object.entries(packet.roi.agentValues)
+      .map(([agent, val]) => `- ${agent}: ${val.toLocaleString()} dollars per week`)
+      .join('\n');
+    roiBlock = `\nROI TO DELIVER (say as words, never symbols):\n${lines}\nTotal: ${packet.roi.totalValue.toLocaleString()} dollars per week`;
+  }
+
+  const prompt = `You are Bella. Follow the chosen move exactly.
+Max ${packet.style.maxSentences} sentences.
+No apology. No filler. No repetition.
+Use these terms naturally: ${terms}
+React briefly to what they said, then deliver the move, then stop.
+Say numbers as words. No symbols, no markdown. ONLY SPOKEN WORDS.
+NEVER APOLOGISE — say "Good catch" or "Thanks for clarifying" instead.
+
+OBJECTIVE: ${packet.objective}
+
+CHOSEN MOVE [${packet.chosenMove.kind.toUpperCase()}]:
+${packet.chosenMove.text}
+
+CRITICAL FACTS:
+${factsBlock}
+${roiBlock}
+EXTRACT TARGETS: ${extractBlock}`;
+
+  return prompt;
+}
+
+/**
+ * callDOTurn — POST /turn to Call Brain DO via service binding.
+ * Returns the parsed DOTurnResponse or null on failure.
+ */
+async function callDOTurn(
+  lid: string,
+  transcript: string,
+  turnId: string,
+  env: Env,
+): Promise<DOTurnResponse | null> {
+  try {
+    const res = await env.CALL_BRAIN.fetch(
+      new Request(`https://do-internal/turn?callId=${encodeURIComponent(lid)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
+        body: JSON.stringify({ transcript, turnId }),
+      }),
+    );
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'no-body');
+      log('DO_ERR', `turn failed: status=${res.status} body=${errText}`);
+      return null;
+    }
+    return await res.json() as DOTurnResponse;
+  } catch (e: any) {
+    log('DO_ERR', `turn exception: ${e.message}`);
+    return null;
+  }
+}
+
+/**
+ * callDOSessionInit — POST /event session_init to Call Brain DO.
+ */
+async function callDOSessionInit(
+  lid: string,
+  starterIntel: Record<string, any> | null,
+  env: Env,
+): Promise<boolean> {
+  try {
+    const res = await env.CALL_BRAIN.fetch(
+      new Request(`https://do-internal/event?callId=${encodeURIComponent(lid)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
+        body: JSON.stringify({ type: 'session_init', leadId: lid, starterIntel }),
+      }),
+    );
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'no-body');
+      log('DO_ERR', `session_init failed: status=${res.status} body=${errText}`);
+      return false;
+    }
+    log('DO_INIT', `session initialized for lid=${lid}`);
+    return true;
+  } catch (e: any) {
+    log('DO_ERR', `session_init exception: ${e.message}`);
+    return false;
+  }
+}
+
+/**
+ * callDOLlmReplyDone — T014: After Gemini finishes streaming, notify DO.
+ * Non-blocking — fire-and-forget.
+ */
+async function callDOLlmReplyDone(
+  lid: string,
+  moveId: string,
+  spokenText: string,
+  env: Env,
+): Promise<void> {
+  try {
+    const res = await env.CALL_BRAIN.fetch(
+      new Request(`https://do-internal/event?callId=${encodeURIComponent(lid)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
+        body: JSON.stringify({
+          type: 'llm_reply_done',
+          spokenText: spokenText.slice(0, 2000),
+          moveId,
+          ts: new Date().toISOString(),
+        }),
+      }),
+    );
+    log('DO_REPLY', `lid=${lid} moveId=${moveId} status=${res.status}`);
+  } catch (e: any) {
+    log('DO_REPLY_ERR', `lid=${lid} ${e.message}`);
+  }
+}
+
+/**
+ * shadowDOCall — T015: Background DO call for shadow mode comparison.
+ * Fires via ctx.waitUntil when USE_DO_BRAIN=false.
+ */
+async function shadowDOCall(
+  lid: string,
+  transcript: string,
+  turnId: string,
+  turnNum: number,
+  oldStage: string,
+  oldStall: number,
+  intel: Record<string, any>,
+  env: Env,
+): Promise<void> {
+  try {
+    // Init session on first turn (shadow path)
+    if (turnNum <= 3) {
+      await callDOSessionInit(lid, intel, env);
+    }
+
+    const doResult = await callDOTurn(lid, transcript, turnId, env);
+    if (doResult) {
+      const doMoveId = doResult.packet?.chosenMove?.id ?? 'unknown';
+      const stageMatch = oldStage === doResult.stage ? 'MATCH' : 'DIFF';
+      log('SHADOW_DIFF', `${stageMatch} old_stage=${oldStage} do_stage=${doResult.stage} old_stall=${oldStall} do_stall=${doResult.wowStall} do_move=${doMoveId} extracted=[${doResult.extraction?.applied?.join(',') ?? ''}]`);
+    }
+  } catch (e: any) {
+    log('SHADOW_ERR', `${e.message}`);
+  }
 }
 
 // ─── MAIN HANDLER ─────────────────────────────────────────────────────────────
@@ -2497,6 +2696,53 @@ export default {
     if (!intel.recent_reviews && intel.deep?.googleMaps?.recent_reviews?.length) {
       intel.recent_reviews = intel.deep.googleMaps.recent_reviews;
     }
+
+    // ── DO BRAIN PATH (Phase C — T010) ──────────────────────────────────────
+    // When USE_DO_BRAIN=true: DO owns state, extraction, gating.
+    // Bridge just builds tiny prompt from NextTurnPacket and streams Gemini.
+    const useDoPath = env.USE_DO_BRAIN === 'true' && !!lid;
+    if (useDoPath) {
+      const utt = lastUser(messages);
+      const turnNum = messages.length;
+      log('DO_PATH', `lid=${lid} turn=${turnNum} utt_chars=${utt.length}`);
+
+      // Init session on first turn (seed with intel so DO has data)
+      if (turnNum <= 3) {
+        await callDOSessionInit(lid, intel, env);
+      }
+
+      // POST /turn → get NextTurnPacket
+      const doResult = await callDOTurn(lid, utt, String(turnNum), env);
+      if (!doResult) {
+        // DO failed — fall through to old path
+        log('DO_FALLBACK', `DO call failed for lid=${lid} — falling back to old path`);
+      } else {
+        // Build tiny prompt from DO packet
+        const tinyPrompt = buildTinyPrompt(doResult.packet);
+        log('DO_PROMPT', `stage=${doResult.stage} stall=${doResult.wowStall} move=${doResult.packet.chosenMove.id} chars=${tinyPrompt.length}`);
+
+        // Assemble messages for Gemini
+        const trimmed = trimHistory(messages);
+        let conversation = trimmed;
+        if (conversation.length > 0 && conversation[0].role === "assistant") {
+          conversation = conversation.slice(1);
+        }
+        const finalMessages: Msg[] = [
+          { role: "system", content: `lead_id: ${lid}\n\n${tinyPrompt}` },
+          ...conversation,
+        ];
+
+        log('STREAM', `DO path stage=${doResult.stage} history=${conversation.length} turns → streaming`);
+        const doMoveId = doResult.packet.chosenMove.id;
+        return streamToDeepgram(finalMessages, env, async (spokenText) => {
+          await callDOLlmReplyDone(lid!, doMoveId, spokenText, env);
+        });
+      }
+    }
+
+    // ── SHADOW MODE (Phase C — T015) ──────────────────────────────────────
+    // When USE_DO_BRAIN=false, fire DO call in background for comparison.
+    const shadowMode = env.USE_DO_BRAIN !== 'true' && !!lid;
 
     // ── Load or init state (using pre-loaded state from parallel KV read) ──
     // Guard: only call initState on early turns (≤3 messages). On later turns,
@@ -2656,6 +2902,13 @@ export default {
     // Fire-and-forget: state save AFTER buildTurnPrompt so mutations (stall skip, trial flag) are captured.
     if (lid) ctx.waitUntil(saveState(lid, s, env));
 
+    // ── SHADOW MODE: fire DO call in background for comparison (T015) ─────
+    if (shadowMode) {
+      const shadowUtt = lastUser(messages);
+      const shadowTurnNum = messages.length;
+      ctx.waitUntil(shadowDOCall(lid!, shadowUtt, String(shadowTurnNum), shadowTurnNum, s.stage, s.stall, intel, env));
+    }
+
     // ── System message: DIRECTIVE FIRST, then reference data ─────
     // Gemini reads top-down — stage directive must be first so it follows the script
     const systemContent = lid
@@ -2675,6 +2928,12 @@ export default {
     ];
 
     log("STREAM", `stage=${s.stage} history=${conversation.length} turns → streaming`);
+    // Phase D — T014: fire llm_reply_done in shadow mode to keep DO state in sync
+    if (shadowMode) {
+      return streamToDeepgram(finalMessages, env, async (spokenText) => {
+        await callDOLlmReplyDone(lid!, 'old_path_unknown', spokenText, env);
+      });
+    }
     return streamToDeepgram(finalMessages, env);
   },
 };

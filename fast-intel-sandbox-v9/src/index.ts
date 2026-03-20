@@ -36,7 +36,7 @@ import { Env, FastIntelResult, ConsultantPayload } from "./types";
 
 export { Env };
 
-const VERSION = "1.9.0"; // Fix: fast consultant is name authority — full consultant name no longer overwrites
+const VERSION = "1.10.0"; // Phase D: DO brain event delivery (session_init + fast_intel_ready + consultant_ready)
 // KV_TTL removed — data persists permanently
 
 const CORS = {
@@ -1307,6 +1307,58 @@ async function writeFastIntelToKV(
 }
 
 
+// ─── DO Brain event delivery (Phase D — T012) ───────────────────────────────
+
+async function deliverDOEvents(
+  lid: string,
+  envelope: Record<string, any>,
+  consultant: Record<string, any> | null,
+  env: Env,
+): Promise<void> {
+  const doFetch = (path: string, body: Record<string, any>) =>
+    env.CALL_BRAIN.fetch(
+      new Request(`https://do-internal${path}?callId=${encodeURIComponent(lid)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
+        body: JSON.stringify(body),
+      }),
+    );
+
+  try {
+    // 1. session_init — seed with full fast-intel envelope
+    const initRes = await doFetch('/event', {
+      type: 'session_init',
+      leadId: lid,
+      starterIntel: envelope,
+    });
+    if (!initRes.ok) {
+      log('DO_INIT_ERR', `lid=${lid} status=${initRes.status}`);
+      return;
+    }
+    log('DO_INIT', `lid=${lid} session initialized`);
+
+    // 2. fast_intel_ready — full fast-intel payload
+    const fastRes = await doFetch('/event', {
+      type: 'fast_intel_ready',
+      payload: envelope,
+      version: 1,
+    });
+    log('DO_FAST', `lid=${lid} fast_intel_ready status=${fastRes.status}`);
+
+    // 3. consultant_ready — if consultant data available
+    if (consultant) {
+      const consultRes = await doFetch('/event', {
+        type: 'consultant_ready',
+        payload: consultant,
+        version: 1,
+      });
+      log('DO_CONSULTANT', `lid=${lid} consultant_ready status=${consultRes.status}`);
+    }
+  } catch (e: any) {
+    log('DO_ERR', `lid=${lid} event delivery failed: ${e.message}`);
+  }
+}
+
 // ─── HTTP handler ─────────────────────────────────────────────────────────────
 
 export default {
@@ -1374,6 +1426,18 @@ export default {
 
       // Write to KV
       await writeFastIntelToKV(lid, firstName, websiteUrl, fastIntel, env);
+
+      // Phase D: Deliver events to Call Brain DO (non-blocking)
+      ctx.waitUntil(
+        deliverDOEvents(lid, {
+          core_identity: fastIntel.core_identity,
+          flags: fastIntel.flags,
+          tech_stack: fastIntel.tech_stack,
+          bella_opener: fastIntel.bella_opener,
+          firstName: fastIntel.firstName,
+          first_name: fastIntel.first_name,
+        }, fastIntel.consultant ?? null, env)
+      );
 
       // Apify deep scrape already fired from inside runFastIntel (fast consultant callback)
       // — do NOT fire again here. Only trigger the big scraper.
