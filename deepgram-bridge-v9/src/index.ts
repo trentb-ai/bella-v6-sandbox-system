@@ -27,7 +27,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.14.1"; // Fix: await llm_reply_done callback to prevent subrequest cancellation
+const VERSION = "9.15.0-perplexity"; // Backport Perplexity script to bridge buildStageDirective
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -361,10 +361,12 @@ interface Inputs {
   ad_spend: number | null;
   web_leads: number | null;
   web_conversions: number | null;
+  web_followup_speed: string | null;
   phone_volume: number | null;
   phone_conversion: number | null;
   after_hours: string | null;
   missed_calls: number | null;
+  missed_call_callback_speed: string | null;
   old_leads: number | null;
   star_rating: number | null;
   review_count: number | null;
@@ -395,8 +397,8 @@ interface State {
 const BLANK: Inputs = {
   acv: null, timeframe: null,
   ads_leads: null, ads_conversions: null, ads_followup: null, ad_spend: null,
-  web_leads: null, web_conversions: null,
-  phone_volume: null, phone_conversion: null, after_hours: null, missed_calls: null,
+  web_leads: null, web_conversions: null, web_followup_speed: null,
+  phone_volume: null, phone_conversion: null, after_hours: null, missed_calls: null, missed_call_callback_speed: null,
   old_leads: null,
   star_rating: null, review_count: null, has_review_system: null, new_cust_per_period: null,
 };
@@ -525,15 +527,15 @@ async function initState(lid: string, env: Env, preloadedIntel?: Record<string, 
 function gateOpen(s: State): boolean {
   const { stage: st, inputs: i } = s;
   switch (st) {
-    // WOW: stalls 1-12, gate at 13 so stall 12 (bridge to numbers) renders before advancing
-    case "wow": return s.stall >= 13;
+    // WOW: stalls 1-9, gate at 10 so stall 9 (bridge to numbers) renders before advancing
+    case "wow": return s.stall >= 10;
     // deep_dive: no longer a blocking stage — auto-advance
     case "deep_dive": return true;
     case "anchor_acv": return i.acv !== null;
     case "anchor_timeframe": return i.timeframe !== null;
     case "ch_ads": return i.ads_leads !== null && i.ads_conversions !== null;
-    case "ch_website": return i.web_leads !== null && i.web_conversions !== null;
-    case "ch_phone": return i.after_hours !== null && i.phone_volume !== null;
+    case "ch_website": return i.web_leads !== null && i.web_conversions !== null && i.web_followup_speed !== null;
+    case "ch_phone": return i.after_hours !== null && i.phone_volume !== null && i.missed_call_callback_speed !== null;
     case "ch_old_leads": return i.old_leads !== null;
     case "ch_reviews": return i.new_cust_per_period !== null && i.star_rating !== null && i.review_count !== null && i.has_review_system !== null;
     case "roi_delivery": return s.stall >= 2;  // Must deliver ROI in stall 0, confirm in stall 1
@@ -1124,6 +1126,12 @@ function regexExtract(utt: string, stage: Stage, industry?: string): Partial<Inp
     // Single number with lead context
     const leadMatch = s.match(/(?:get|getting|about|around|roughly|maybe)\s*(\d+)\s*(?:lead|enquir|inqu|a week|a month)/i);
     if (leadMatch) out.web_leads = parseInt(leadMatch[1]);
+    // Web follow-up speed — same tiers as ads_followup
+    if (/(?:instant|immediate|right away|straight away|within.*minute|under.*minute|less than.*minute|asap|as soon as)/i.test(s)) out.web_followup_speed = "<30m";
+    else if (/(?:within.*hour|couple.*hour|an hour|hour or two|pretty quick|quickly)/i.test(s)) out.web_followup_speed = "30m_to_3h";
+    else if (/(?:same day|few hours|later that day|end of day|half a day|that day|by end of day|before close)/i.test(s)) out.web_followup_speed = "3h_to_24h";
+    else if (/(?:next day|day or two|couple.*day|next business|24 hour|48 hour|few days|a week|tomorrow|next morning)/i.test(s)) out.web_followup_speed = ">24h";
+    else if (/(?:depends|varies|usually|generally|try to|we try)/i.test(s)) out.web_followup_speed = "3h_to_24h";
   }
 
   // ── PHONE CHANNEL
@@ -1145,6 +1153,12 @@ function regexExtract(utt: string, stage: Stage, industry?: string): Partial<Inp
     // Conversion rate
     const pct = parsePercent(s);
     if (pct && pct > 0 && pct <= 1) out.phone_conversion = pct;
+    // Missed call callback speed — same tiers as ads_followup
+    if (/(?:instant|immediate|right away|straight away|within.*minute|under.*minute|less than.*minute|asap|as soon as)/i.test(s)) out.missed_call_callback_speed = "<30m";
+    else if (/(?:within.*hour|couple.*hour|an hour|hour or two|pretty quick|quickly)/i.test(s)) out.missed_call_callback_speed = "30m_to_3h";
+    else if (/(?:same day|few hours|later that day|end of day|half a day|that day|by end of day|before close)/i.test(s)) out.missed_call_callback_speed = "3h_to_24h";
+    else if (/(?:next day|day or two|couple.*day|next business|24 hour|48 hour|few days|a week|tomorrow|next morning)/i.test(s)) out.missed_call_callback_speed = ">24h";
+    else if (/(?:depends|varies|usually|generally|try to|we try|don'?t|never|no)/i.test(s)) out.missed_call_callback_speed = ">24h";
   }
 
   // ── OLD LEADS
@@ -1561,9 +1575,11 @@ function buildTurnPrompt(s: State, intel: Record<string, any>, convMemory: strin
   if (i.ad_spend) knownLines.push(`- Ad spend: ${i.ad_spend}/mo`);
   if (i.web_leads) knownLines.push(`- Web leads: ${i.web_leads} ${tf}`);
   if (i.web_conversions) knownLines.push(`- Web conversions: ${i.web_conversions} ${tf}`);
+  if (i.web_followup_speed) knownLines.push(`- Web followup speed: ${i.web_followup_speed}`);
   if (i.phone_volume) knownLines.push(`- Phone volume: ${i.phone_volume} ${tf}`);
   if (i.after_hours) knownLines.push(`- After hours: ${i.after_hours}`);
   if (i.missed_calls) knownLines.push(`- Missed calls: ${i.missed_calls} ${tf}`);
+  if (i.missed_call_callback_speed) knownLines.push(`- Callback speed: ${i.missed_call_callback_speed}`);
   if (i.old_leads) knownLines.push(`- Old leads: ${i.old_leads}`);
   if (i.new_cust_per_period) knownLines.push(`- New ${ct}s: ${i.new_cust_per_period} ${tf}`);
   if (i.star_rating) knownLines.push(`- Star rating: ${i.star_rating}`);
@@ -1705,45 +1721,35 @@ function buildStageDirective(
     || (rawHero.title ? rawHero.title.replace(/\s*[-–|].*/s, "").trim() : "")
     || "";
 
-  // Industry benchmark for ACV (sensible defaults)
-  const acvBenchmarks: Record<string, string> = {
-    "legal": "around thirty thousand dollars",
-    "law": "around thirty thousand dollars",
-    "accounting": "around fifteen thousand dollars",
-    "medical": "around five thousand dollars",
-    "dental": "around three thousand dollars",
-    "real_estate": "around ten thousand dollars",
-    "trade": "around five thousand dollars",
-    "agency": "around twenty thousand dollars",
-    "consulting": "around twenty five thousand dollars",
-  };
-  const acvBenchmark = acvBenchmarks[ind.toLowerCase()] ?? "varies by industry";
-
   switch (s.stage) {
     case "wow": {
-      // Multi-turn WOW: 12 stalls, gate at 13
-      // Order: 1=Research → 2=FreeTrial(skip if no reviews) → 3=ICP → 4=Problems →
-      //   5=PreTrain(+generic trial) → 6=Reputation(reviewer names) → 7=Conversion(soft close) →
-      //   8=ProcessCheck(follow-up speed) → 9=DataReview(campaigns+hiring) → 10=LateData →
-      //   11=AgentRec → 12=BridgeToNumbers
+      // Multi-turn WOW: 9 stalls, gate at 10 (Perplexity spec)
+      // Order: 1=Research → 2=Reputation+Trial(skip if no reviews) → 3=ICP+Problems+Solutions →
+      //   4=PreTrain → 5=Conversion → 6=AuditTransition → 7=LeadSource →
+      //   8=Hiring → 9=ProvisionalRec+Bridge
       // IMPORTANT: stall is incremented BEFORE this function runs, so stall=1 is first turn
+
+      // Consultant pre-built spoken lines
+      const convNarrative: string = (intel.consultant as any)?.conversionEventAnalysis?.conversionNarrative ?? "";
+      const bellaCheckLine: string = icpAnalysis.bellaCheckLine ?? "";
+      const routing = intel.consultant?.routing ?? {};
+      const priorityAgents: string[] = (routing.priority_agents ?? []).map((a: string) =>
+        a.charAt(0).toUpperCase() + a.slice(1).toLowerCase());
 
       if (s.stall === 1) {
         // ── 1. RESEARCH INTRO ──
         return `WOW — RESEARCH INTRO
-<DELIVER_THIS>Now ${fn}, I think you'll be impressed. We've done a lot of research on ${biz} — we use that to pre-train your agents so they understand your ${ct}s, your industry, and how you win business. Can I just confirm a couple of our findings with you, make sure your agents are dialled in?</DELIVER_THIS>
+<DELIVER_THIS>Now ${fn}, I think you'll be impressed. We've done some research on ${biz}, and we use that to pre-train your agents so they understand your ${ct}s, your industry, and how you win business. Can I quickly confirm a couple of our findings with you, just to make sure your agents are dialled in?</DELIVER_THIS>
 Then STOP and wait for their response.`;
       }
 
       if (s.stall === 2) {
-        // ── 2. FREE TRIAL PITCH — ONLY if Google reviews >= 3 stars ──
+        // ── 2. REPUTATION + SHORT TRIAL — ONLY if Google reviews >= 3 stars ──
         const hasGoodRep = googleRating && googleRating >= 3;
         if (hasGoodRep) {
           s.trial_reviews_done = true;
-          const repAdj = googleRating >= 4.5 ? "an outstanding" : googleRating >= 4 ? "an excellent" : "a strong";
-          const repCompliment = googleRating >= 4.5 ? "That's really impressive" : googleRating >= 4 ? `That tells me you're clearly delivering for your ${ct}s` : "That's a solid signal in the market";
-          return `WOW — FREE TRIAL PITCH (reviews-linked)
-<DELIVER_THIS>Oh ${fn}, I noticed ${biz} has ${repAdj} reputation with ${googleRating} stars from ${googleReviews} reviews. ${repCompliment}. We offer a limited number of free trials each month and they're only available to businesses that are already delivering strong results in the market — and with a ${googleRating} star review rating that means you qualify for the free trial offer. One caveat, it's only available during this demo session, but it's no credit card, takes about ten minutes to set up, it's totally set and forget and just count the extra ${ct}s. Sound good?</DELIVER_THIS>
+          return `WOW — REPUTATION + TRIAL
+<DELIVER_THIS>Oh ${fn}, I noticed ${biz} has a ${googleRating}-star reputation from ${googleReviews} reviews — that's strong. Businesses already delivering good ${ct} outcomes qualify for our free trial, so if you'd like, I can get that set up for you at any point during this demo.</DELIVER_THIS>
 Then STOP and wait for their response.`;
         }
         // No reviews or < 3 stars — SKIP stall 2 entirely
@@ -1751,250 +1757,127 @@ Then STOP and wait for their response.`;
       }
 
       if (s.stall === 3) {
-        // ── 3. ICP OBSERVATION ──
+        // ── 3. ICP + PROBLEMS + SOLUTIONS (combined per Perplexity spec) ──
         const shortBiz = shortBizName(biz);
         const cleanIcp = icpGuess
           ? icpGuess.replace(/^it\s+(looks|seems)\s+like\s+/i, "")
               .replace(/[,;—–-]+\s*(is that right|right|yeah)\??\s*$/i, "")
               .replace(/\?+$/, "").trim()
           : "";
-        let insight = "";
-        if (cleanIcp) insight = `It looks like ${cleanIcp}`;
-        else if (referenceOffer) insight = `Your core offering around ${referenceOffer} comes through strongly on the site`;
-        else if (websitePositiveFinal) insight = websitePositiveFinal;
-        else insight = `The site does a strong job of positioning what ${shortBiz} does`;
+        let insightText = "";
 
-        return `WOW — ICP OBSERVATION
-<DELIVER_THIS>${insight}. Is that right?</DELIVER_THIS>
-One insight, one confirmation. Then STOP.`;
+        // PRIMARY: ICP + problems + solutions when data is rich
+        if (cleanIcp && icpProblems.length >= 2 && icpSolutions.length >= 2) {
+          insightText = `It looks like you're primarily targeting ${cleanIcp}. The typical challenges your ${ct}s face are ${icpProblems[0]} and ${icpProblems[1]}, and you solve those through ${icpSolutions[0]} and ${icpSolutions[1]}. Does that sound right?`;
+        }
+        // FALLBACK: positioning from referenceOffer
+        else if (referenceOffer && cleanIcp) {
+          insightText = `From your website, it looks like your positioning is really centred around ${referenceOffer}, and the way you present it suggests you're speaking to ${cleanIcp}. Does that sound right?`;
+        }
+        // LAST RESORT: bellaCheckLine or generic
+        else if (bellaCheckLine) {
+          insightText = bellaCheckLine;
+        } else {
+          insightText = `The site does a strong job of positioning what ${shortBiz} does. Does that sound right?`;
+        }
+
+        return `WOW — ICP + PROBLEMS + SOLUTIONS
+<DELIVER_THIS>${insightText}</DELIVER_THIS>
+Then STOP and wait for their response.`;
       }
 
       if (s.stall === 4) {
-        // ── 4. PROBLEMS + SOLUTIONS ──
-        const hasData = icpProblems.length >= 1 || icpSolutions.length >= 1 || referenceOffer;
-        if (!hasData) {
-          const shortBiz = shortBizName(biz);
-          const fallback = heroQuoteFinal
-            ? `The messaging around "${heroQuoteFinal}" does a great job of tying your positioning together`
-            : `The site does a strong job of communicating what sets ${shortBiz} apart`;
-          return `WOW — WEBSITE OBSERVATION (waiting for intel)
-SAY: "${fallback}. Does that sound right?"
-Declarative only. Then STOP.`;
-        }
-        const problemsLine = icpProblems.length >= 2
-          ? `And from what I can see, the typical challenges your ${ct}s face are things like ${icpProblems.slice(0, 2).join(" and ")}`
-          : icpProblems.length === 1
-            ? `And from what I can see, a key challenge your ${ct}s face is ${icpProblems[0]}`
-            : `And looking at your site I can see the kind of problems you solve for your ${ct}s`;
-        const solutionsLine = icpSolutions.length >= 2
-          ? `, and you address those by offering ${icpSolutions.slice(0, 2).join(" and ")}`
-          : icpSolutions.length === 1
-            ? `, and you help them with ${icpSolutions[0]}`
-            : referenceOffer ? `, and you help them with ${referenceOffer}` : "";
-        return `WOW — PROBLEMS + SOLUTIONS
-SAY: "${problemsLine}${solutionsLine}. Does that sound right?"
-Declarative observations. Then STOP.`;
-      }
-
-      if (s.stall === 5) {
-        // ── 5. PRE-TRAINING CONNECT (right after problems — "this is what we trained your team in") ──
-        const shortBiz = shortBizName(biz);
-
-        // If trial STILL not offered (no reviews ever arrived) — offer generic trial here
-        let trialFallback = "";
+        // ── 4. PRE-TRAINING CONNECT (exact Perplexity text) ──
+        let trialAppend = "";
         if (!s.trial_reviews_done) {
           s.trial_reviews_done = true;
-          trialFallback = ` And because of that, I'd like to offer you a free trial — limited spots each month, no credit card, takes about ten minutes to set up, and the offer is only valid during this demo. Sound good?`;
+          trialAppend = ` If you'd like, I can also help you activate the free trial during this session.`;
         }
 
         return `WOW — PRE-TRAINING CONNECT
-<DELIVER_THIS>This is exactly the kind of business intelligence we've used to pre-train your AI team — so they feel like they've been inside ${shortBiz} for years. Not generic bots, they know your positioning, your ${ct}s, your reputation.${trialFallback}</DELIVER_THIS>
-Keep it to TWO sentences max (three if trial is included). Do NOT repeat any data points already covered. Then STOP.`;
+<DELIVER_THIS>That's exactly the kind of business intelligence we've used to pre-train your AI team — so they don't sound generic. They understand your positioning, your ${ct}s, your reputation, and most importantly how you generate revenue.${trialAppend}</DELIVER_THIS>
+Then STOP and wait for their response.`;
+      }
+
+      if (s.stall === 5) {
+        // ── 5. CONVERSION EVENT ALIGNMENT — use consultant pre-built spoken lines ──
+        let conversionLine = "";
+        // Priority 1: conversionNarrative (already written for Bella to speak)
+        if (convNarrative) conversionLine = convNarrative;
+        // Priority 2: agentTrainingLine
+        else if (agentTrainingLine) conversionLine = agentTrainingLine;
+        // Priority 3: rebuild from primaryCTA
+        else if (primaryCTA) conversionLine = `So looking at your website, it seems your main conversion event is ${primaryCTA}. That's how you turn interest into new ${ct}s, and it's exactly the kind of action we train your AI agents to drive more of, automatically`;
+        else conversionLine = `And looking at how your site is set up to convert visitors into ${ct}s, that's exactly the kind of action we train our AI agents to drive more of, automatically`;
+
+        return `WOW — CONVERSION EVENTS
+<DELIVER_THIS>${conversionLine}. Would that be useful?</DELIVER_THIS>
+End with "Would that be useful?" — soft close. Then STOP.`;
       }
 
       if (s.stall === 6) {
-        // ── 6. REPUTATION — cite specific reviewer first+last names ──
-        if (googleRating) {
-          const reviewsSample: any[] = deep.googleMaps?.reviews_sample ?? [];
-          const namedReviews = reviewsSample.filter((r: any) => r.name && r.name.trim().includes(" "));
-          const topReview = namedReviews.find((r: any) => r.stars >= 4 && r.text) ?? namedReviews[0];
-
-          let reviewAttribution = "";
-          if (topReview) {
-            reviewAttribution = topReview.text
-              ? ` One of your recent reviews from ${topReview.name} says "${topReview.text.slice(0, 120)}"`
-              : ` ${topReview.name} gave you ${topReview.stars} stars`;
-          }
-
-          // If trial not done yet and reviews >= 3 — combine reputation + trial
-          let trialLine = "";
-          if (!s.trial_reviews_done && googleRating >= 3) {
-            s.trial_reviews_done = true;
-            trialLine = ` We offer a limited number of free trials each month and they're only available to businesses delivering strong results — and with a ${googleRating} star rating you qualify. One caveat, it's only available during this demo session, but it's no credit card, takes about ten minutes to set up, it's totally set and forget and just count the extra ${ct}s. Sound good?`;
-          }
-
-          const repAdj = googleRating >= 4.5 ? "an outstanding" : googleRating >= 4 ? "an excellent" : "a strong";
-          const repCompliment = googleRating >= 4.5 ? "That's really impressive" : googleRating >= 4 ? `That tells me you're clearly delivering for your ${ct}s` : "That's a solid signal in the market";
-          return `WOW — REPUTATION
-<DELIVER_THIS>Oh ${fn}, I noticed ${biz} has ${repAdj} reputation with ${googleRating} stars from ${googleReviews} reviews.${reviewAttribution}. ${repCompliment}.${trialLine}</DELIVER_THIS>
-${topReview ? `MUST cite the reviewer by their full name "${topReview.name}". ` : ""}Then STOP.`;
-        }
-        // No reputation data — skip silently (NEVER say "still pulling in data")
-        s.stall = 7;
+        // ── 6. AUDIT SETUP TRANSITION (bridge move, NOT a question — per Perplexity Channel Speed Rule) ──
+        return `WOW — AUDIT TRANSITION
+<DELIVER_THIS>Perfect — so that confirms your agents are trained to bring in the right kind of ${ct}s and move them toward your key conversion points. I've just got a couple of quick opportunity-audit questions so I can work out which agent mix would be most valuable for ${biz}.</DELIVER_THIS>
+Then STOP and wait for their response.`;
       }
 
       if (s.stall === 7) {
-        // ── 7. CONVERSION EVENTS (soft close: "would that be helpful?") ──
-        const convNarrative: string = (intel.consultant as any)?.conversionEventAnalysis?.conversionNarrative ?? "";
-        const hasPhone = !!(primaryCTA?.toLowerCase().includes("call") || primaryCTA?.toLowerCase().includes("phone")
-          || ctaBreakdown.some((c: any) => c.type === "call"));
-        const hasForms = !!(primaryCTA?.toLowerCase().includes("form") || primaryCTA?.toLowerCase().includes("contact")
-          || ctaBreakdown.some((c: any) => c.type === "form"));
+        // ── 7. MAIN CONTROLLABLE SOURCE — 3 variants per Perplexity spec ──
+        const hasStrongPhoneSignal = !!(flags.speed_to_lead_needed || flags.call_handling_needed);
+        const sourceAlreadyClear = priorityAgents.length >= 2 && (adsOn || hasStrongPhoneSignal);
+        const detectedChannel = adsOn ? "paid advertising" : hasStrongPhoneSignal ? "inbound phone calls" : "your website";
 
-        // Build list of ALL conversion events including phone, downloads
-        let conversionLine = "";
-        if (convNarrative) {
-          conversionLine = convNarrative;
-        } else if (agentTrainingLine) {
-          conversionLine = agentTrainingLine;
+        let sourceQ = "";
+        if (sourceAlreadyClear) {
+          sourceQ = `Now ${fn}, apart from referrals, it looks like ${detectedChannel} is a meaningful source of new ${ct}s for you — is that fair to say?`;
+        } else if (adsOn) {
+          sourceQ = `Now ${fn}, I can see you're already running ads, which is interesting. Apart from referrals, would you say that's your main source of new ${ct}s, or is another channel doing most of the heavy lifting?`;
         } else {
-          // Build multi-CTA line: primary + phone + others
-          const events: string[] = [];
-          if (primaryCTA) events.push(primaryCTA);
-          if (hasPhone && !primaryCTA?.toLowerCase().includes("call")) events.push("a phone number");
-          if (allConversionEvents.length > 0) {
-            for (const e of allConversionEvents) {
-              if (!events.some(ex => ex.toLowerCase().includes(e.toLowerCase().slice(0, 10)))) events.push(e);
-            }
-          }
-          if (events.length >= 2) {
-            conversionLine = `I can see your main conversion events are ${events.slice(0, 3).join(", ")} — those are exactly the kind of ${ct} acquisition actions we've trained your AI agents to drive more of, on autopilot`;
-          } else if (events.length === 1) {
-            conversionLine = `I can see your main conversion event is ${events[0]} — that's how you win new ${ct}s, and it's exactly the kind of action we've trained your AI agents to drive more of, on autopilot`;
-          } else {
-            conversionLine = `And looking at how your site is set up to convert visitors into ${ct}s, that's exactly the kind of action we train our AI agents to drive more of, on autopilot`;
-          }
+          sourceQ = `Apart from referrals, what would you say is your main source of new ${ct}s right now — your website, phone calls, organic, paid ads, or something else?`;
         }
-        return `WOW — CONVERSION EVENTS
-<DELIVER_THIS>${conversionLine}. Would that be helpful?</DELIVER_THIS>
-End with "Would that be helpful?" — this is a SOFT CLOSE, not a confirmation. Then STOP.`;
+        return `WOW — LEAD SOURCE
+SAY: "${sourceQ}"
+ONE question. Then STOP.`;
       }
 
       if (s.stall === 8) {
-        // ── 8. PROCESS CHECK (follow-up speed focus — NO chatbot question, that's redundant) ──
-        const hasPhone = !!(primaryCTA?.toLowerCase().includes("call") || primaryCTA?.toLowerCase().includes("phone")
-          || ctaBreakdown.some((c: any) => c.type === "call"));
-        const hasForms = !!(primaryCTA?.toLowerCase().includes("form") || primaryCTA?.toLowerCase().includes("contact")
-          || ctaBreakdown.some((c: any) => c.type === "form"));
-
-        let processQ = "";
-        if (adsOn && hasForms) {
-          processQ = `Now I can see you're running ads and driving ${ct}s to ${primaryCTA || "contact forms"} — how quickly is your team following up with those leads when they come in?`;
-        } else if (adsOn) {
-          processQ = `I can see you're investing in ads — how quickly is your team following up with those leads when they come through?`;
-        } else if (hasForms && hasPhone) {
-          processQ = `So with your CTAs being a mix of forms and phone calls — how is your team currently handling the follow-up when new ${ct} enquiries come in?`;
-        } else if (hasForms) {
-          processQ = `I can see your site is driving ${ct}s to ${primaryCTA || "contact forms"} — how quickly is your team getting back to those enquiries?`;
-        } else if (hasPhone) {
-          processQ = `I can see your main CTA is a phone number — what happens to calls when your team is busy or after hours?`;
+        // ── 8. HIRING / CAPACITY WEDGE ──
+        let hiringLine = "";
+        if (topHiringWedge) {
+          // Use consultant's pre-written wedge line as PRIMARY
+          hiringLine = topHiringWedge;
+        } else if (isHiring && hiringMatches.length > 0) {
+          hiringLine = `I also noticed you're hiring for ${hiringMatches[0].role || hiringMatches[0].title}, which is interesting because that's exactly the kind of workload one of our agents can often absorb.`;
+        } else if (isHiring) {
+          hiringLine = `I noticed you're actively hiring — some of those roles are exactly what our AI agents handle.`;
         } else {
-          processQ = `When a new ${ct} enquiry comes in — whether from the website, a call, or an ad — how quickly is your team typically getting back to them?`;
+          hiringLine = `And are you doing any hiring at the moment?`;
         }
-        return `WOW — PROCESS CHECK
-SAY: "${processQ}"
-ONE question about follow-up speed. Then STOP.`;
-      }
-
-      if (s.stall === 9) {
-        // ── 9. DATA REVIEW (framed + campaigns + hiring) ──
-        if (adsOn) {
-          return `WOW — DATA REVIEW
-SAY: "Now ${fn}, I have an idea of which agents will deliver you the highest ROI — but can I just check a couple more things? I can see you're running paid ads. Are you also doing any social media campaigns or email campaigns that direct ${ct}s to a landing page or form? And are you doing any hiring at the moment?"
-Then STOP.`;
-        }
-        return `WOW — DATA REVIEW
-SAY: "Now ${fn}, I have an idea of which agents will deliver you the highest ROI — but can I just check. Are you running any online ads, social media campaigns, or email campaigns that direct ${ct}s to a landing page or form? And whether you're doing any hiring at the moment?"
-Then STOP.`;
-      }
-
-      if (s.stall === 10) {
-        // ── 10. LATE DATA — hiring intel delivery or lead source question ──
-        if (!s.apify_done && !adsOn) {
-          return `WOW — LEAD SOURCE
-SAY: "Now ${fn}, what's your main source of new ${ct}s at the moment — referrals, online, organic, or something else?"
-ONE question. Then STOP.`;
-        }
-        const hiringLine = isHiring
-          ? (topHiringWedge
-            || (hiringMatches[0]?.title
-              ? `I also noticed you're hiring for a ${hiringMatches[0].role || hiringMatches[0].title} — that's a role ${hiringMatches[0].agents?.[0] || "our AI team"} ${hiringMatches[0].wedge || "handles"}.`
-              : `I noticed you're actively hiring — some of those roles are exactly what our AI agents handle.`))
-          : "";
-        if (hiringLine) {
-          return `WOW — HIRING INTEL
+        return `WOW — HIRING WEDGE
 SAY: "${hiringLine}"
 Then STOP.`;
-        }
-        // Nothing to deliver — acknowledge their answer and move on naturally
-        return `SAY: "Great, thanks for sharing that."
-Then STOP.`;
       }
 
-      if (s.stall === 11) {
-        // ── 11. AGENT RECOMMENDATION ──
-        const shortBiz = shortBizName(biz);
-        const routing = intel.consultant?.routing ?? {};
-        const priorityAgents: string[] = (routing.priority_agents ?? []).map((a: string) =>
-          a.charAt(0).toUpperCase() + a.slice(1).toLowerCase());
-
-        const ctaTypes = new Set(ctaBreakdown.map((c: any) => c.type?.toLowerCase()));
-        const hasFormCTA = ctaTypes.has("form");
-        const hasCallCTA = ctaTypes.has("call");
-        const hasBookingCTA = ctaTypes.has("booking");
-        const mixedCTAs = (hasFormCTA || hasBookingCTA) && hasCallCTA;
-
-        const chrisSurface = adsOn ? "landing page" : "website";
-        const chrisContext = adsOn
-          ? `Chris sits on your ${chrisSurface} so every click from your ads gets engaged instantly — no wasted ad spend`
-          : `Chris engages visitors on your ${chrisSurface} in real time before they bounce`;
+      // stall 9: PROVISIONAL RECOMMENDATION + SHORT BRIDGE
+      {
+        const a1 = priorityAgents[0] ?? "Chris";
+        const a2 = priorityAgents[1] ?? "Alex";
 
         let recLine = "";
         if (ctaAgentMapping) {
-          recLine = `Based on everything I've found, ${ctaAgentMapping}`;
-        } else if (mixedCTAs && ctaBreakdown.length >= 2) {
-          recLine = `Based on everything I've found, I'd say Chris to maximise ${ct} conversions on your ${chrisSurface}, Alex to follow up the form submissions in under 60 seconds, and Maddie to take care of the inbound calls`;
+          recLine = `Based on what I've found so far, the likely standouts for ${biz} look like ${a1} and ${a2}. ${ctaAgentMapping}`;
         } else if (isHiring && hiringMatches.length > 0) {
           const topMatch = hiringMatches[0];
-          const hiringAgent = topMatch.agents?.[0] ?? priorityAgents[0] ?? "Chris";
-          const agent2 = priorityAgents.find((a: string) => a !== hiringAgent) ?? "Alex";
-          recLine = `Based on everything I've found, I'd recommend ${hiringAgent} and ${agent2}. You're hiring for a ${topMatch.role || topMatch.title} — ${hiringAgent} ${topMatch.wedge || "handles that role"}, and ${agent2} makes sure every ${ct} lead gets followed up`;
-        } else if (adsOn) {
-          const a1 = priorityAgents[0] ?? "Chris";
-          const a2 = priorityAgents[1] ?? "Alex";
-          recLine = `Based on everything I've found, I'd recommend ${a1} and ${a2}. You're investing in ads — ${chrisContext}, and ${a2} follows up every ${ct} enquiry that doesn't convert on the first visit`;
-        } else if (hasCallCTA && !hasFormCTA) {
-          recLine = `Based on everything I've found, I'd recommend Chris and Maddie for ${shortBiz}. Your main CTA is a phone number — Maddie handles those inbound calls 24/7, and ${chrisContext}`;
-        } else if (primaryCTA) {
-          const a1 = priorityAgents[0] ?? "Chris";
-          const a2 = priorityAgents[1] ?? "Alex";
-          recLine = `Based on everything I've found, I'd recommend ${a1} and ${a2}. Your main conversion event is ${primaryCTA} — ${chrisContext}, and ${a2} follows up any ${ct} who shows interest but doesn't convert`;
+          const hiringAgent = topMatch.agents?.[0] ?? a1;
+          recLine = `Based on what I've found so far, the likely standouts for ${biz} look like ${hiringAgent} and ${a2}. ${hiringAgent} would help with ${topMatch.wedge || "that role you're hiring for"}, and ${a2} would help with making sure every ${ct} lead gets followed up.`;
         } else {
-          const a1 = priorityAgents[0] ?? "Chris";
-          const a2 = priorityAgents[1] ?? "Alex";
-          recLine = `Based on everything I've found, I'd recommend ${a1} and ${a2} for ${shortBiz}. ${chrisContext}, and ${a2} makes sure no ${ct} opportunity slips through the cracks`;
+          recLine = `Based on what I've found so far, the likely standouts for ${biz} look like ${a1} and ${a2}. ${a1} would help with engaging visitors on your website before they bounce, and ${a2} would help with following up every ${ct} enquiry.`;
         }
+        recLine += ` If you want, I can now work out which of those would likely generate the most extra revenue for you.`;
 
-        return `WOW — AGENT RECOMMENDATION
-SAY: "${recLine}."
-Then STOP.`;
-      }
-
-      // stall 12: BRIDGE TO NUMBERS — transition to calculations
-      {
-        const shortBiz = shortBizName(biz);
-        return `WOW — BRIDGE TO NUMBERS
-<DELIVER_THIS>Now ${fn}, to save you some time we can take a minute to do some back of the napkin math and work out exactly how much extra revenue these agents could generate for ${shortBiz} in new ${ct}s — so you can demo only the highest earners. Would that be helpful?</DELIVER_THIS>
+        return `WOW — PROVISIONAL REC + BRIDGE
+<DELIVER_THIS>${recLine}</DELIVER_THIS>
 Then STOP and wait for approval. Do NOT ask for ACV yet — that comes next stage.`;
       }
     }
@@ -2005,100 +1888,94 @@ Then STOP and wait for approval. Do NOT ask for ACV yet — that comes next stag
 
     case "anchor_acv":
       if (i.acv) return `ACV CONFIRMED: ${i.acv.toLocaleString()} dollars.
-SAY: "Got it, thanks. Do you tend to think about lead flow weekly or monthly?"
+SAY: "Got it, thanks. And when you think about lead flow, do you usually measure it weekly or monthly?"
 ONE question. STOP.`;
-      // stage_before_you_go_acv_setup
       return `ACV SETUP
-<DELIVER_THIS>OK great. The key number for this process is Annual Client Value or ACV — we've got the average ACV for ${ind} as ${acvBenchmark}, but to be spot on with calculating the likely revenue for ${biz}, what's the annual value of a new ${ct}? A ballpark is totally fine.</DELIVER_THIS>
+<DELIVER_THIS>Perfect. What's a new ${ct} worth to ${biz} on average? A ballpark is totally fine.</DELIVER_THIS>
 ONE question. STOP.`;
 
     case "anchor_timeframe":
       if (i.timeframe) return `TIMEFRAME CONFIRMED: ${i.timeframe}.
+SAY: "Great, ${i.timeframe} it is."
 Acknowledge briefly and advance to the first channel question.`;
-      // stage_acv_ack
       return `TIMEFRAME
 ACV confirmed: ${i.acv ? i.acv.toLocaleString() + " dollars" : "(pending)"}.
-SAY: "Got it, thanks. Do you tend to think about lead flow weekly or monthly?"
+SAY: "Got it, thanks. And when you think about lead flow, do you usually measure it weekly or monthly?"
 ONE question. STOP.`;
 
     case "ch_ads": {
-      // stage_running_ads_leads_question OR stage_not_running_ads_question
+      const period = tf === "weekly" ? "week" : "month";
       const need: string[] = [];
       if (i.ads_leads == null) {
         if (adsOn) {
-          need.push(`"Now ${fn}, I noticed you're running ads. How many leads are you getting from those ads each ${tf === "weekly" ? "week" : "month"}? Just a rough figure is fine."`);
+          need.push(`"How many leads are your ads generating per ${period}? Just a rough figure is fine."`);
         } else {
           need.push(`"I didn't see any Google or Facebook ads campaigns — is that right? Are you running any other online campaigns?"`);
         }
       }
       if (i.ads_leads != null && i.ads_conversions == null) {
-        need.push(`"Out of those ${i.ads_leads} leads, roughly how many become ${ct}s?"`);
+        need.push(`"And roughly how many of those are converting into paying ${ct}s?"`);
       }
       if (i.ads_conversions != null && i.ads_followup == null) {
-        need.push(`"And can I ask, how long does it usually take someone to follow up with those new leads?"`);
+        need.push(`"And when those ad leads come in, how quickly is your team following up — under 30 minutes, 30 minutes to 3 hours, 3 to 24 hours, or more than 24 hours?"`);
       }
       // ALL INPUTS CAPTURED → DELIVER ROI IMMEDIATELY
       if (!need.length) {
         const alexCalc = calcAgentROI("Alex", i);
         if (alexCalc) {
-          const tiers: Record<string, string> = { ">24h": "same day or next day", "3h_to_24h": "within a few hours", "30m_to_3h": "within an hour or two", "<30m": "pretty quickly" };
-          const speedDesc = tiers[i.ads_followup ?? ">24h"] ?? "same day";
-          const upliftPct = { ">24h": "up to 391%", "3h_to_24h": "up to 200%", "30m_to_3h": "around 100%", "<30m": "around 50%" }[i.ads_followup ?? ">24h"];
           return `ADS — Alex — DELIVER ROI NOW
-Start with a brief acknowledgment, then deliver the math:
-<DELIVER_THIS>Perfect, let me just crunch those numbers for you quickly. So your average ${ct} is worth ${i.acv!.toLocaleString()} dollars, and you're currently converting ${i.ads_conversions} from ${i.ads_leads} leads ${tf}. Now, you said you're following up ${speedDesc} — the statistics show that responding in under 30 seconds while the prospect is actively looking raises conversion by ${upliftPct}. So conservatively, Alex could add around ${alexCalc.weekly.toLocaleString()} dollars per week just from speed to lead. Does that make sense?</DELIVER_THIS>
+<DELIVER_THIS>So your average ${ct} is worth ${i.acv!.toLocaleString()} dollars, and you're currently converting ${i.ads_conversions} from ${i.ads_leads} ad leads per ${period}. Based on the follow-up speed you mentioned, Alex could conservatively add around ${alexCalc.weekly.toLocaleString()} dollars per week just by improving speed-to-lead. Does that make sense?</DELIVER_THIS>
 ALWAYS end with a confirmation question. Then STOP and wait.`;
         }
         return `ADS — Alex — inputs captured but missing ACV for calc. Acknowledge and advance.`;
       }
       return `ADS CHANNEL — Alex
-${i.ads_leads != null ? `Leads: ${i.ads_leads} ${tf}. ` : ""}${i.ads_conversions != null ? `Conversions: ${i.ads_conversions}. ` : ""}${i.ads_followup != null ? `Follow-up: ${i.ads_followup}. ` : ""}
+${i.ads_leads != null ? `Leads: ${i.ads_leads} ${period}. ` : ""}${i.ads_conversions != null ? `Conversions: ${i.ads_conversions}. ` : ""}${i.ads_followup != null ? `Follow-up: ${i.ads_followup}. ` : ""}
 SAY THIS:
 ${need[0]}
 ONE question. STOP.`;
     }
 
     case "ch_website": {
-      // stage_website_leads_question + stage_site_followup_rate_question
+      const period = tf === "weekly" ? "week" : "month";
       const need: string[] = [];
       if (i.web_leads == null) {
-        need.push(`"Got it. How many leads are you getting from the website each ${tf === "weekly" ? "week" : "month"}? Again, just a rough figure is fine."`);
+        need.push(`"How many enquiries or leads is your website generating per ${period}?"`);
       }
       if (i.web_leads != null && i.web_conversions == null) {
-        need.push(`"And out of those ${i.web_leads} website leads, roughly how many become ${ct}s?"`);
+        need.push(`"And roughly how many of those convert into paying ${ct}s?"`);
+      }
+      if (i.web_conversions != null && i.web_followup_speed == null) {
+        need.push(`"And when a website enquiry comes in, how quickly is your team usually getting back to them?"`);
       }
       // ALL INPUTS CAPTURED → DELIVER ROI IMMEDIATELY
       if (!need.length) {
         const chrisCalc = calcAgentROI("Chris", i);
         if (chrisCalc) {
           return `WEBSITE — Chris — DELIVER ROI NOW
-Start with a brief acknowledgment, then deliver the math:
-<DELIVER_THIS>Great, let me crunch those website numbers. You're getting ${i.web_leads} leads ${tf} and converting ${i.web_conversions} into ${ct}s. Chris our Website Concierge typically lifts conversion by around 23% by engaging visitors in real-time before they bounce. At your ACV of ${i.acv!.toLocaleString()} dollars, Chris could add roughly ${chrisCalc.weekly.toLocaleString()} dollars per week from better website engagement. Sound reasonable?</DELIVER_THIS>
+<DELIVER_THIS>So you're getting around ${i.web_leads} website leads per ${period}, and converting about ${i.web_conversions} of them into paying ${ct}s. Chris, our Website Concierge, typically lifts conversion by engaging visitors in real time, and at your value of ${i.acv!.toLocaleString()} dollars that could mean roughly ${chrisCalc.weekly.toLocaleString()} dollars per week in additional revenue. Does that sound reasonable?</DELIVER_THIS>
 ALWAYS end with a confirmation question. Then STOP and wait.`;
         }
         return `WEBSITE — Chris — inputs captured but missing ACV for calc. Acknowledge and advance.`;
       }
       return `WEBSITE CHANNEL — Chris
-${i.web_leads != null ? `Web leads: ${i.web_leads} ${tf}. ` : ""}${i.web_conversions != null ? `Conversions: ${i.web_conversions}. ` : ""}
+${i.web_leads != null ? `Web leads: ${i.web_leads} ${period}. ` : ""}${i.web_conversions != null ? `Conversions: ${i.web_conversions}. ` : ""}${i.web_followup_speed != null ? `Follow-up: ${i.web_followup_speed}. ` : ""}
 SAY THIS:
 ${need[0]}
 ONE question. STOP.`;
     }
 
     case "ch_phone": {
-      // stage_inbound_calls_question + stage_after_hours_question
+      const period = tf === "weekly" ? "week" : "month";
       const need: string[] = [];
       if (i.phone_volume == null) {
-        const phoneLine = loc
-          ? `Obviously you have a team taking calls — presumably at the ${loc} office — can I ask, do you know how many appointments you're booking from those inbound calls each ${tf === "weekly" ? "week" : "month"}?`
-          : `Obviously you have a team taking calls — can I ask, do you know how many appointments you're booking from those inbound calls each ${tf === "weekly" ? "week" : "month"}?`;
-        need.push(`"${phoneLine}"`);
+        need.push(`"Roughly how many inbound calls does ${biz} get per ${period}?"`);
       }
       if (i.phone_volume != null && i.after_hours == null) {
-        need.push(`"And I didn't see any mention of a 24/7 phone number on the site, so can I ask what happens to calls that come in after hours or weekends, or just during the day if the reception team is too busy to answer?"`);
+        need.push(`"And when calls are missed — whether that's after hours or during busy periods — what usually happens?"`);
       }
-      if (i.after_hours && !["24/7 coverage"].includes(i.after_hours) && i.missed_calls == null) {
-        need.push(`"Roughly how many calls do you think go unanswered each ${tf === "weekly" ? "week" : "month"}?"`);
+      if (i.after_hours != null && !["24/7 coverage"].includes(i.after_hours) && i.missed_call_callback_speed == null) {
+        need.push(`"And how quickly are missed calls usually called back?"`);
       }
       // 24/7 coverage → skip Maddie entirely
       if (i.after_hours === "24/7 coverage") return `PHONE — Maddie — 24/7 coverage confirmed. Skip Maddie, acknowledge and advance.`;
@@ -2106,36 +1983,32 @@ ONE question. STOP.`;
       if (!need.length) {
         const maddieCalc = calcAgentROI("Maddie", i);
         if (maddieCalc) {
-          const missedEst = i.missed_calls ?? Math.round(i.phone_volume! * 0.3);
           return `PHONE — Maddie — DELIVER ROI NOW
-Start with a brief acknowledgment, then deliver the math:
-<DELIVER_THIS>OK let me work out the phone opportunity. You're getting around ${i.phone_volume} calls ${tf}, and after hours ${i.after_hours}. Typically, businesses miss around 30% of calls — so roughly ${missedEst} missed calls ${tf}. At a 30% conversion rate and your ACV of ${i.acv!.toLocaleString()} dollars, Maddie answering those missed calls could add around ${maddieCalc.weekly.toLocaleString()} dollars per week. Does that track with what you'd expect?</DELIVER_THIS>
+<DELIVER_THIS>So you're getting around ${i.phone_volume} inbound calls per ${period}, and when calls are missed they're currently handled by ${i.after_hours}. Even a small percentage of missed opportunities there adds up fast, so conservatively Maddie could recover around ${maddieCalc.weekly.toLocaleString()} dollars per week in extra revenue by answering and qualifying more of those calls consistently. Does that track?</DELIVER_THIS>
 ALWAYS end with a confirmation question. Then STOP and wait.`;
         }
         return `PHONE — Maddie — inputs captured but missing ACV for calc. Acknowledge and advance.`;
       }
       return `PHONE CHANNEL — Maddie
-${i.phone_volume != null ? `Phone volume: ${i.phone_volume} ${tf}. ` : ""}${i.after_hours != null ? `After hours: ${i.after_hours}. ` : ""}${i.missed_calls != null ? `Missed calls: ${i.missed_calls}. ` : ""}
+${i.phone_volume != null ? `Phone volume: ${i.phone_volume} ${period}. ` : ""}${i.after_hours != null ? `After hours: ${i.after_hours}. ` : ""}${i.missed_call_callback_speed != null ? `Callback speed: ${i.missed_call_callback_speed}. ` : ""}
 SAY THIS:
 ${need[0]}
 ONE question. STOP.`;
     }
 
     case "ch_old_leads": {
-      // stage_old_leads_question
       if (i.old_leads != null) {
         const sarahCalc = calcAgentROI("Sarah", i);
         if (sarahCalc) {
           return `OLD LEADS — Sarah — DELIVER ROI NOW
-Start with a brief acknowledgment, then deliver the math:
-<DELIVER_THIS>OK let me calculate the database opportunity. So ${i.old_leads} old leads — typically about 5% of dormant leads can be reactivated with the right follow-up sequence. At your ACV of ${i.acv!.toLocaleString()} dollars, that's roughly ${Math.round(i.old_leads * 0.05)} potential ${ct}s. Sarah running a database reactivation campaign could add around ${sarahCalc.weekly.toLocaleString()} dollars per week. Sound about right?</DELIVER_THIS>
+<DELIVER_THIS>If even a small percentage of those older leads re-engage, Sarah could turn that dormant database into a real revenue channel. Based on the number you gave me, that could look like around ${sarahCalc.weekly.toLocaleString()} dollars per week in recovered opportunity. Sound fair?</DELIVER_THIS>
 ALWAYS end with a confirmation question. Then STOP and wait.`;
         }
         return `OLD LEADS — Sarah — CONFIRMED: ${i.old_leads} leads but missing ACV. Acknowledge and advance.`;
       }
       return `OLD LEADS — Sarah
 SAY THIS:
-"OK so I see that your business has been around a while — so I'm guessing you must have a pretty sizeable database of old leads. Can you tell me how many old leads you have, say from the last 12 months?"
+"How many past ${ct}s or older leads would you say are sitting in your database that haven't been contacted in a while?"
 ONE question. STOP.`;
     }
 
@@ -2161,10 +2034,8 @@ ONE question. STOP.`;
       if (!need.length) {
         const jamesCalc = calcAgentROI("James", i);
         if (jamesCalc && jamesCalc.weekly > 0) {
-          const annualCust = i.new_cust_per_period! * (i.timeframe === "monthly" ? 12 : 52);
           return `REVIEWS — James — DELIVER ROI NOW
-Start with a brief acknowledgment, then deliver the math:
-<DELIVER_THIS>OK let me work out the reputation opportunity. You're bringing in ${i.new_cust_per_period} new ${ct}s ${tf}, and you don't have an automated review system. Research shows that a one-star improvement in rating can lift revenue by up to 9%. With ${annualCust} ${ct}s a year at ${i.acv!.toLocaleString()} dollars each, James running automated review requests could add around ${jamesCalc.weekly.toLocaleString()} dollars per week from better reputation. Does that resonate?</DELIVER_THIS>
+<DELIVER_THIS>With your current ${ct} flow, even a modest lift in review volume and response consistency can materially improve trust and conversion. Conservatively, James could create around ${jamesCalc.weekly.toLocaleString()} dollars per week in additional value by increasing review momentum and protecting your reputation. Does that seem realistic?</DELIVER_THIS>
 ALWAYS end with a confirmation question. Then STOP and wait.`;
         }
         if (i.has_review_system === true) {
@@ -2181,13 +2052,13 @@ ONE question. STOP.`;
     }
 
     case "roi_delivery": {
-      // TOTAL SUMMARY — individual agent ROIs were delivered during their channel stages
-      // This stage adds them all up for the combined total
+      // TOTAL SUMMARY — clean format per Perplexity: agent-by-agent + combined total, NO annual, NO trial re-pitch
+      const period = tf === "weekly" ? "week" : "month";
       if (top3.length) {
-        const agentRecap = top3.map(c => `${c.agent} at ${c.weekly.toLocaleString()} dollars per week`).join(", ");
+        const agentLines = top3.map(c => `${c.agent} at about ${c.weekly.toLocaleString()} dollars per ${period}`).join(", and ");
         return `ROI TOTAL — ADD THEM ALL UP
-<DELIVER_THIS>So ${fn}, let me add all of that up for you. We've got ${agentRecap}. That's a combined total of approximately ${total.toLocaleString()} dollars per week in additional revenue across your ${top3.length} agents. And those are conservative numbers. Does that all make sense?</DELIVER_THIS>
-Then STOP and wait for their response. Let the total land.`;
+<DELIVER_THIS>So ${fn}, let me add that up for you. We've got ${agentLines}. That's a combined total of approximately ${total.toLocaleString()} dollars per ${period} in additional revenue across your selected agents — and those are conservative numbers. Does that all make sense?</DELIVER_THIS>
+Then STOP and wait for their response. Let the total land. NO annual projection. NO trial pitch here.`;
       }
       return `ROI DELIVERY
 Not enough inputs for precise ROI.
@@ -2196,9 +2067,8 @@ Then STOP and wait.`;
     }
 
     case "close":
-      // stage_trial_close_and_exit
       return `CLOSE
-<DELIVER_THIS>I'll leave you to enjoy your demo. And just to make sure you see that these numbers are real, we're currently offering a free trial of the entire team for 7 days — I'd suggest you take advantage of that. I'll get you onboarded myself, no card required. Based on these numbers you're looking at a bump of at least ${total > 0 ? total.toLocaleString() + " dollars" : "solid revenue"} just during your first free week. Anyway, I'll leave you to explore. If you have any questions or need any more help just click my button and I'll be here to help. Enjoy!</DELIVER_THIS>`;
+<DELIVER_THIS>Perfect. Would you like to go ahead and activate your free trial? It takes about ten minutes to set up, there's no credit card required, and you could start seeing results this week.</DELIVER_THIS>`;
 
     default:
       return `${(s.stage as string).toUpperCase()} — continue naturally.`;
