@@ -138,3 +138,6 @@ workflows-test/
 temp-deploy-bella-v9/
 mcp-worker-v9/
 wrangler.jsonc
+
+# Local Netlify folder
+.netlify
