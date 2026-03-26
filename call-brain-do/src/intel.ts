@@ -1,21 +1,49 @@
 /**
- * call-brain-do/src/intel.ts — v2.0.0-do-alpha.1
- * Intel merging and IndustryLanguagePack resolution.
+ * call-brain-do/src/intel.ts — v3.0.0-bella-v2
+ * Intel merging, IndustryLanguagePack resolution, and V2 queue initialization.
+ *
+ * Exports:
+ *   mergeIntel              — merge intel events into ConversationState
+ *   initQueueFromIntel      — derive eligibility + topAgents + queue from intel
+ *   buildIndustryLanguagePack — resolve IndustryLanguagePack from intel signals
+ *   INDUSTRY_PACKS          — all 12 industry-specific language packs
+ *   KEYWORD_MAP             — keyword → industry fuzzy resolution
  */
 
-import type { CallBrainState, BrainEvent, IndustryLanguagePack } from './types';
-import { buildQueue, rebuildFutureQueue } from './gate';
+import type {
+  ConversationState,
+  BrainEvent,
+  IndustryLanguagePack,
+  MergedIntel,
+} from './types';
+
+import {
+  deriveEligibility,
+  deriveTopAgents,
+  buildInitialQueue,
+  rebuildFutureQueueOnLateLoad,
+} from './gate';
 
 // ─── Deep merge utility ─────────────────────────────────────────────────────
 
-function deepMerge(target: any, source: any): any {
-  if (!source || typeof source !== 'object' || Array.isArray(source)) return source ?? target;
+export function deepMerge(target: any, source: any): any {
+  // Top-level array: if source is empty array but target has data, keep target
+  if (!source || typeof source !== 'object' || Array.isArray(source)) {
+    if (Array.isArray(source) && source.length === 0 && Array.isArray(target) && target.length > 0) {
+      return target; // Preserve non-empty array — don't nuke with empty
+    }
+    return source ?? target;
+  }
   if (!target || typeof target !== 'object' || Array.isArray(target)) return source;
   const result = { ...target };
   for (const key of Object.keys(source)) {
     const srcVal = source[key];
     const tgtVal = result[key];
     if (srcVal !== null && srcVal !== undefined) {
+      // Don't replace non-empty arrays with empty arrays
+      if (Array.isArray(srcVal) && srcVal.length === 0 && Array.isArray(tgtVal) && tgtVal.length > 0) {
+        continue;
+      }
       if (
         srcVal && typeof srcVal === 'object' && !Array.isArray(srcVal) &&
         tgtVal && typeof tgtVal === 'object' && !Array.isArray(tgtVal)
@@ -29,10 +57,25 @@ function deepMerge(target: any, source: any): any {
   return result;
 }
 
+// ─── Build MergedIntel from state (for gate functions) ──────────────────────
+
+function buildMergedIntelFromState(state: ConversationState): MergedIntel {
+  const deepBlob = (state.intel.deep as any) ?? {};
+  return {
+    fast: (state.intel.fast as any) ?? {},
+    consultant: (state.intel.consultant as any) ?? {},
+    deep: deepBlob,
+    places: deepBlob.googleMaps
+      ? { rating: deepBlob.googleMaps.rating, reviewCount: deepBlob.googleMaps.review_count }
+      : undefined,
+    scriptFills: (state.intel.consultant as any)?.scriptFills ?? undefined,
+  };
+}
+
 // ─── Merge intel event into state ────────────────────────────────────────────
 
 export function mergeIntel(
-  state: CallBrainState,
+  state: ConversationState,
   event: Extract<BrainEvent, { type: 'fast_intel_ready' | 'consultant_ready' | 'deep_ready' }>,
 ): void {
   const { type, payload } = event;
@@ -46,7 +89,6 @@ export function mergeIntel(
       break;
     case 'deep_ready':
       state.intel.deep = deepMerge(state.intel.deep ?? {}, payload);
-      state.flags.apifyDone = true;
       break;
   }
 
@@ -58,29 +100,44 @@ export function mergeIntel(
     consultant: state.intel.consultant,
     deep: state.intel.deep,
   };
-  state.intel.industryLanguage = buildIndustryLanguagePack(allIntel);
+  const pack = buildIndustryLanguagePack(allIntel);
+  state.industryLanguage = pack;
+  state.intel.industryLanguagePack = pack;
 
-  // Rebuild future queue from latest signals
-  const flags = (state.intel.fast as any)?.flags ?? {};
-  rebuildFutureQueue(state, flags, allIntel);
+  // Rebuild future queue using V2 gate functions
+  const mergedIntel = buildMergedIntelFromState(state);
+  const freshQueue = rebuildFutureQueueOnLateLoad(state.currentQueue, state, mergedIntel);
+  state.currentQueue = freshQueue;
+
+  // Update eligibility
+  const eligibility = deriveEligibility(mergedIntel, state);
+  state.alexEligible = eligibility.alexEligible;
+  state.chrisEligible = eligibility.chrisEligible;
+  state.maddieEligible = eligibility.maddieEligible;
+  state.whyRecommended = eligibility.whyRecommended;
+  state.topAgents = deriveTopAgents(state);
 }
 
 // ─── Build initial queue from intel ──────────────────────────────────────────
 
-export function initQueueFromIntel(state: CallBrainState): void {
-  const allIntel = {
-    ...(state.intel.fast as any ?? {}),
-    consultant: state.intel.consultant,
-    deep: state.intel.deep,
-  };
-  const flags = (state.intel.fast as any)?.flags ?? {};
-  const { queue } = buildQueue(flags, allIntel);
-  state.currentQueue = queue;
+export function initQueueFromIntel(state: ConversationState): void {
+  const mergedIntel = buildMergedIntelFromState(state);
+
+  // Derive eligibility
+  const eligibility = deriveEligibility(mergedIntel, state);
+  state.alexEligible = eligibility.alexEligible;
+  state.chrisEligible = eligibility.chrisEligible;
+  state.maddieEligible = eligibility.maddieEligible;
+  state.whyRecommended = eligibility.whyRecommended;
+
+  // Derive top agents and build queue
+  state.topAgents = deriveTopAgents(state);
+  state.currentQueue = buildInitialQueue(state);
 }
 
 // ─── IndustryLanguagePack resolution ─────────────────────────────────────────
 
-const INDUSTRY_PACKS: Record<string, IndustryLanguagePack> = {
+export const INDUSTRY_PACKS: Record<string, IndustryLanguagePack> = {
   legal: {
     industryLabel: 'legal',
     singularOutcome: 'client',
@@ -227,21 +284,8 @@ const INDUSTRY_PACKS: Record<string, IndustryLanguagePack> = {
   },
 };
 
-const GENERIC_PACK: IndustryLanguagePack = {
-  industryLabel: 'business',
-  singularOutcome: 'client',
-  pluralOutcome: 'clients',
-  leadNoun: 'lead',
-  conversionVerb: 'convert',
-  revenueEvent: 'new client',
-  kpiLabel: 'client value',
-  missedOpportunity: 'missed opportunity',
-  tone: 'practical',
-  examples: ['new client', 'enquiry', 'conversion'],
-};
-
 // Keyword → industry mapping for fuzzy resolution
-const KEYWORD_MAP: Record<string, string> = {
+export const KEYWORD_MAP: Record<string, string> = {
   law: 'legal', lawyer: 'legal', solicitor: 'legal', barrister: 'legal', attorney: 'legal',
   dentist: 'dental', orthodont: 'dental',
   doctor: 'medical', gp: 'medical', clinic: 'medical', physio: 'medical', chiro: 'medical', health: 'medical',
@@ -256,6 +300,9 @@ const KEYWORD_MAP: Record<string, string> = {
   financial: 'financial planning', wealth: 'financial planning', superannuation: 'financial planning',
   retirement: 'financial planning', investment: 'financial planning', adviser: 'financial planning', advisor: 'financial planning',
 };
+
+// GENERIC_PACK — imported from state.ts to avoid duplication
+import { GENERIC_INDUSTRY_PACK } from './state';
 
 export function buildIndustryLanguagePack(intel: Record<string, unknown>): IndustryLanguagePack {
   const consultant = intel.consultant as any;
@@ -292,5 +339,5 @@ export function buildIndustryLanguagePack(intel: Record<string, unknown>): Indus
   // FALLBACK: generic
   const label = consultantIndustry || consultantVertical || coreIndustry || 'business';
   console.log(`[INDUSTRY] resolved="generic" source="fallback" raw="${label}"`);
-  return { ...GENERIC_PACK, industryLabel: label };
+  return { ...GENERIC_INDUSTRY_PACK, industryLabel: label };
 }

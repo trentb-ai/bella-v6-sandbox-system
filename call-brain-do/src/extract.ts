@@ -1,10 +1,42 @@
 /**
- * call-brain-do/src/extract.ts — v2.0.0-do-alpha.1
- * Deterministic regex extraction + normalization.
- * Ported from bridge parseNumber/normalizeSpokenNumbers/regexExtract.
+ * call-brain-do/src/extract.ts — v3.0.0-bella-v2
+ * V2 deterministic regex extraction, correction-aware overwrites,
+ * memory note detection, and transcript logging.
+ *
+ * Exports:
+ *   parseNumber, normalizeSpokenNumbers  — battle-tested number parsers (ported from V1)
+ *   extractFromTranscript                — V2 extraction with V2 StageId + field names
+ *   applyExtraction                      — writes V2 fields to ConversationState
+ *   extractBellaMemoryNotes              — detects commitments from Bella spoken text
+ *   appendTranscript                     — appends to transcriptLog with 200-entry cap
+ *
+ * Memory note inclusion rules:
+ *   Notes are created ONLY when an utterance contains one or more of:
+ *     - explicit preference, personal identity/detail
+ *     - business context, staff/relationship structure
+ *     - recurring objection/concern, operational constraint
+ *     - scheduling preference, trust/communication preference
+ *     - buying signal / disqualifier
+ *     - correction to a previously remembered fact
+ *   Filler, pleasantries, and low-value one-off chatter are ignored.
+ *
+ * Supersession / contradiction handling:
+ *   When `correctionDetected` is true, `applyExtraction` overwrites existing scalar values.
+ *   For memory notes, the newest note is marked active and the older contradicted note
+ *   gets `status='superseded'` and `supersededById` set to the new note's stable ID.
+ *   Only explicit, clear contradictions trigger supersession — ambiguous statements
+ *   are stored as additional notes without superseding.
  */
 
-import type { ExtractionResult, CallBrainState, Stage } from './types';
+import type {
+  ExtractionResult,
+  ConversationState,
+  StageId,
+  ResponseSpeedBand,
+  TranscriptEntry,
+  MemoryNote,
+  MemoryCategory,
+} from './types';
 
 // ─── Word maps ───────────────────────────────────────────────────────────────
 
@@ -171,29 +203,251 @@ export function normalizeSpokenNumbers(text: string): string {
   return s;
 }
 
-// ─── extractFromTranscript ───────────────────────────────────────────────────
+// ─── Correction detection ───────────────────────────────────────────────────
 
-type ExtractedFields = CallBrainState['extracted'];
-type FieldKey = keyof ExtractedFields;
+const CORRECTION_SIGNALS = /\b(actually|sorry|wait|I mean|not quite|correction|that'?s wrong|let me correct|no(?:\s*,|\s+it'?s|\s+that'?s|\s+I|\s+we))\b/i;
+
+function detectCorrection(text: string): boolean {
+  return CORRECTION_SIGNALS.test(text);
+}
+
+// ─── Response speed band extraction ─────────────────────────────────────────
+
+function extractResponseSpeedBand(text: string): ResponseSpeedBand | null {
+  const s = text.toLowerCase();
+  if (/(?:instant|immediate|right away|straight away|within.*seconds?|under.*seconds?)/i.test(s)) return 'under_30_seconds';
+  if (/(?:within.*minute|couple.*minute|under.*(?:five|5).*minute|pretty quick|minute or two)/i.test(s)) return 'under_5_minutes';
+  if (/(?:within.*(?:half|30).*(?:hour|min)|10.*(?:to|-).*20.*min|under.*30.*min|(?:fifteen|15|twenty|20).*min)/i.test(s)) return '5_to_30_minutes';
+  if (/(?:within.*hour|couple.*hour|an hour|hour or two)/i.test(s)) return '30_minutes_to_2_hours';
+  if (/(?:same day|few hours|later that day|end of day|half a day)/i.test(s)) return '2_to_24_hours';
+  if (/(?:next day|day or two|couple.*day|next business|24 hour|48 hour|few days|tomorrow)/i.test(s)) return 'next_day_plus';
+  if (/(?:depends|varies|usually|generally|try to|we try)/i.test(s)) return '2_to_24_hours';
+  return null;
+}
+
+// ─── Percentage extraction ──────────────────────────────────────────────────
+
+function extractPercentage(text: string): number | null {
+  const match = text.match(/(\d+(?:\.\d+)?)\s*(?:%|percent)/i);
+  if (match) {
+    const val = parseFloat(match[1]);
+    if (val > 0 && val <= 100) return val / 100;
+  }
+  return null;
+}
+
+// ─── Memory note ID generation ──────────────────────────────────────────────
+
+function generateNoteId(category: string, text: string, turnIndex: number, source: string): string {
+  let hash = 0;
+  const str = (source + ':' + text).slice(0, 60);
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  const hex = Math.abs(hash).toString(16).padStart(8, '0');
+  return `${category}-${hex}-t${turnIndex}`;
+}
+
+/** Assign scope based on category — session for transient, lead for personal, account for business-wide */
+function scopeForCategory(category: MemoryCategory): 'session' | 'lead' | 'account' {
+  switch (category) {
+    case 'business_context': return 'account';
+    case 'constraint': return 'account';
+    case 'scheduling': return 'account';
+    case 'relationship': return 'account';
+    case 'personal': return 'lead';
+    case 'preference': return 'lead';
+    case 'communication_style': return 'lead';
+    case 'objection': return 'lead';
+    case 'commitment': return 'lead';
+    case 'roi_context': return 'session';
+    case 'other': return 'session';
+  }
+}
+
+/**
+ * Produce a stable comparison key from commitment note text.
+ * Normalizes contractions, casing, whitespace, punctuation, and context ellipsis
+ * so "I'll send that over" and "I will send that over..." compare as equal.
+ */
+export function commitmentKey(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/^\.{3}/, '')          // strip leading ellipsis
+    .replace(/\.{3}$/, '')          // strip trailing ellipsis
+    .replace(/i'll/g, 'i will')     // normalize contraction
+    .replace(/let's/g, 'let us')
+    .replace(/that's/g, 'that is')
+    .replace(/[^a-z0-9 ]/g, '')     // strip all punctuation
+    .replace(/\s+/g, ' ')           // collapse whitespace
+    .trim();
+}
+
+// ─── Memory note detection ──────────────────────────────────────────────────
+
+interface MemoryPattern {
+  pattern: RegExp;
+  category: MemoryCategory;
+  tags?: string[];
+}
+
+const MEMORY_PATTERNS: MemoryPattern[] = [
+  // Personal
+  { pattern: /\bmy\s+(?:wife|husband|partner|son|daughter|kids?|family|father|mother|dad|mum|mom|brother|sister)\b/i, category: 'personal', tags: ['family'] },
+  { pattern: /\bI(?:'m|\s+am)\s+a\s+(?:big\s+)?fan\s+of\b/i, category: 'personal', tags: ['interest'] },
+  { pattern: /\bI\s+love\s+(?!it\b|that\b|this\b)/i, category: 'personal', tags: ['interest'] },
+  { pattern: /\bmy\s+fav(?:ou?rite)\b/i, category: 'personal', tags: ['preference'] },
+  { pattern: /\bI\s+(?:follow|support|barrack for|go for)\s+/i, category: 'personal', tags: ['sport', 'interest'] },
+
+  // Business context
+  { pattern: /\bwe(?:'re|\s+are)\s+open\b/i, category: 'business_context', tags: ['hours'] },
+  { pattern: /\bour\s+busiest\b/i, category: 'business_context', tags: ['peak'] },
+  { pattern: /\bwe\s+only\s+(?:do|handle|take|service|work)\b/i, category: 'business_context', tags: ['scope'] },
+  { pattern: /\bwe\s+don'?t\s+(?:do|handle|take|service|offer)\b/i, category: 'business_context', tags: ['scope'] },
+  { pattern: /\bwe\s+focus\s+on\b/i, category: 'business_context', tags: ['specialty'] },
+  { pattern: /\bwe(?:'ve|\s+have)\s+(?:been|started|opened)\b/i, category: 'business_context', tags: ['history'] },
+  { pattern: /\b(?:expanding|growing|opening|second|third|new)\s+(?:location|office|branch|store|clinic|site)\b/i, category: 'business_context', tags: ['expansion'] },
+  { pattern: /\b(?:\d+|couple|few|several)\s+(?:staff|employees?|team\s+members?|people)\b/i, category: 'business_context', tags: ['team_size'] },
+
+  // Objection
+  { pattern: /\bwe\s+tried\b/i, category: 'objection', tags: ['past_experience'] },
+  { pattern: /\bdidn'?t\s+work\b/i, category: 'objection', tags: ['past_failure'] },
+  { pattern: /\btoo\s+expensive\b/i, category: 'objection', tags: ['price'] },
+  { pattern: /\bwe\s+hate\b/i, category: 'objection', tags: ['aversion'] },
+  { pattern: /\bwe(?:'re|\s+are)\s+not\s+interested\s+in\b/i, category: 'objection', tags: ['disinterest'] },
+  { pattern: /\bconcern(?:ed)?\s+about\b/i, category: 'objection', tags: ['concern'] },
+  { pattern: /\bpreviously\s+burned\b/i, category: 'objection', tags: ['past_experience'] },
+  { pattern: /\bbad\s+experience\b/i, category: 'objection', tags: ['past_experience'] },
+
+  // Relationship / staff
+  { pattern: /\bmy\s+(?:receptionist|office\s+manager|assistant|admin|secretary|PA)\b/i, category: 'relationship', tags: ['staff'] },
+  { pattern: /\b(?:my\s+)?(?:business\s+)?partner\s+(?:handles?|does|manages?|runs?|looks?\s+after)\b/i, category: 'relationship', tags: ['decision_maker'] },
+  { pattern: /\b(\w+)\s+(?:handles?|does|manages?|runs?|looks?\s+after)\s+(?:the\s+)?(?:calls?|phones?|leads?|marketing|sales|admin|reception)\b/i, category: 'relationship', tags: ['staff'] },
+  { pattern: /\bmy\s+(?:daughter|son|wife|husband|partner)\s+(?:handles?|does|manages?|runs?|works)\b/i, category: 'relationship', tags: ['family_staff'] },
+
+  // Constraint
+  { pattern: /\bbudget\s+is\b/i, category: 'constraint', tags: ['budget'] },
+  { pattern: /\bwe\s+can'?t\b/i, category: 'constraint', tags: ['limitation'] },
+  { pattern: /\blimited\s+to\b/i, category: 'constraint', tags: ['limitation'] },
+  { pattern: /\bonly\s+available\b/i, category: 'constraint', tags: ['availability'] },
+  { pattern: /\bnot\s+on\s+weekends?\b/i, category: 'constraint', tags: ['scheduling'] },
+
+  // Scheduling
+  { pattern: /\b(?:mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)\s+(?:are?|is)\b/i, category: 'scheduling', tags: ['day'] },
+  { pattern: /\bbusiest\s+(?:day|time|period)\b/i, category: 'scheduling', tags: ['peak'] },
+  { pattern: /\bafter\s+hours\b/i, category: 'scheduling', tags: ['hours'] },
+  { pattern: /\bbefore\s+(?:\d+|nine|eight|seven)\b/i, category: 'scheduling', tags: ['hours'] },
+  { pattern: /\bclose(?:s)?\s+(?:early|at)\b/i, category: 'scheduling', tags: ['hours'] },
+
+  // Communication style
+  { pattern: /\bI\s+prefer\s+(?:text|sms|email|call|phone)/i, category: 'communication_style', tags: ['channel_preference'] },
+  { pattern: /\bonly\s+want\s+(?:text|sms|email|call|phone)/i, category: 'communication_style', tags: ['channel_preference'] },
+  { pattern: /\bdon'?t\s+(?:call|email|text)\s+me\b/i, category: 'communication_style', tags: ['channel_preference'] },
+
+  // Process / follow-up method
+  { pattern: /\b(?:goes?|goes? straight|rings?|end up|straight)\s+(?:to\s+)?voicemail\b/i, category: 'business_context', tags: ['voicemail'] },
+  { pattern: /\bnobody\s+(?:answers?|picks?\s*up|responds?)\b/i, category: 'business_context', tags: ['voicemail'] },
+  { pattern: /\blet\s+(?:it|them|calls?)\s+(?:ring|go)\b/i, category: 'business_context', tags: ['voicemail'] },
+  { pattern: /\b(?:we|I)\s+(?:call|ring|chase|follow)\s+(?:them|people|leads?)\s+back\b/i, category: 'business_context', tags: ['follow_up_method'] },
+  { pattern: /\b(?:we|I)\s+(?:send|use)\s+(?:a\s+)?(?:follow[\s-]?up|callback|auto[\s-]?reply|auto[\s-]?respond)/i, category: 'business_context', tags: ['follow_up_method'] },
+  { pattern: /\b(?:no[\s-]?one|nobody|don'?t|never)\s+(?:follows?\s+up|gets?\s+back|responds?|chases?)/i, category: 'business_context', tags: ['no_follow_up'] },
+  { pattern: /\b(?:we|I)\s+(?:use|'re\s+on|'re\s+using|run|have)\s+(?:a\s+)?(?:Google\s+(?:Form|Sheet|Doc)|spreadsheet|paper|sticky\s+note|whiteboard|notebook|Excel)/i, category: 'business_context', tags: ['manual_process'] },
+  { pattern: /\b(?:we|I)\s+(?:use|'re\s+on|'re\s+using|run|have)\s+(?:a\s+)?(?:CRM|Salesforce|HubSpot|Cliniko|ServiceM8|Jobber|Xero|MYOB|Pipedrive|Zoho|Monday|Freshworks|HighLevel|GoHighLevel)/i, category: 'business_context', tags: ['current_tool'] },
+  { pattern: /\b(?:we|I)\s+(?:use|'re\s+on|'re\s+using)\s+\w+\s+(?:for|to\s+(?:manage|track|handle|run))\b/i, category: 'business_context', tags: ['current_tool'] },
+
+  // Pain / urgency / decision gate
+  { pattern: /\b(?:biggest|main|number\s+one|worst)\s+(?:problem|challenge|issue|headache|struggle|pain\s+point)\b/i, category: 'objection', tags: ['pain_point'] },
+  { pattern: /\b(?:killing|drowning|losing|bleeding|costing)\s+(?:us|me)\b/i, category: 'objection', tags: ['pain_point'] },
+  { pattern: /\bkeeps?\s+me\s+(?:up|awake)\b/i, category: 'objection', tags: ['pain_point'] },
+  { pattern: /\b(?:need|have|want|got)\s+to\s+(?:sort|fix|solve|address|deal\s+with)\s+(?:this|it|that)\b/i, category: 'constraint', tags: ['timeline'] },
+  { pattern: /\b(?:this\s+(?:month|quarter|week)|as\s+soon\s+as|asap|urgently?|right\s+away|before\s+(?:end\s+of|christmas|easter|eofy|new\s+year))\b/i, category: 'constraint', tags: ['timeline'] },
+  { pattern: /\b(?:need\s+to|have\s+to|got\s+to)\s+(?:talk|check|run\s+it\s+(?:by|past)|speak|discuss\s+(?:it\s+)?with)\s+(?:my\s+)?(?:partner|wife|husband|boss|business\s+partner|co[\s-]?founder|accountant|the\s+team)\b/i, category: 'constraint', tags: ['decision_gate'] },
+  { pattern: /\b(?:looking\s+to|want\s+to|trying\s+to|need\s+to|planning\s+to)\s+(?:hire|scale|grow|expand|double|triple|bring\s+on)\b/i, category: 'business_context', tags: ['growth_intent'] },
+
+  // Competitor / tool / marketing spend
+  { pattern: /\b(?:also\s+)?(?:talking\s+to|looking\s+at|comparing|spoke\s+to|met\s+with|got\s+a\s+quote\s+from|currently\s+with|signed\s+up\s+with)\s+\w+/i, category: 'business_context', tags: ['competitor'] },
+  { pattern: /\b(?:used\s+to\s+use|switched\s+from|moved\s+away\s+from|left|cancelled|ditched)\s+\w+/i, category: 'objection', tags: ['past_vendor'] },
+  { pattern: /\bspend(?:ing)?\s+(?:about\s+)?(?:\$[\d,.]+\s*(?:k|K)?|[\d,.]+\s*(?:k|K|thousand|grand|hundred))\s+(?:a\s+)?(?:month|week|year|quarter)\b/i, category: 'business_context', tags: ['marketing_spend'] },
+  { pattern: /\b(?:marketing|ad|ads|advertising)\s+(?:budget|spend)\s+(?:is|of)\b/i, category: 'business_context', tags: ['marketing_spend'] },
+
+  // Commitment / promise (detected from Bella utterances via extractBellaMemoryNotes)
+  { pattern: /\bI(?:'ll| will)\s+(?:send|email|follow up|call you|get back|set up|prepare|share|arrange)\b/i, category: 'commitment', tags: ['follow_up'] },
+  { pattern: /\bI(?:'ll| will)\s+(?:make sure|ensure|check|confirm|look into)\b/i, category: 'commitment', tags: ['action_item'] },
+  { pattern: /\blet me\s+(?:set that up|arrange|check|get|send|prepare)\b/i, category: 'commitment', tags: ['action_item'] },
+  { pattern: /\bnext step\b/i, category: 'commitment', tags: ['next_step'] },
+  { pattern: /\bI(?:'ll| will)\s+have\s+(?:that|it|everything)\s+(?:ready|done|sent|prepared)\b/i, category: 'commitment', tags: ['deliverable'] },
+];
+
+// Filler check — don't create notes from pure filler
+const FILLER_ONLY = /^((yeah|yep|yes|yup|sure|ok|okay|mm+h?m?|uh\s*huh|right|got\s*it|hmm+|ah+|oh+|cool|nice|alright|sounds?\s*good|go\s*ahead|go\s*for\s*it|sure\s*thing|for\s*sure|that'?s?\s*fine|no\s*worries|haha|fair\s*enough|give\s*me\s*a\s*sec|I'?m\s*driving)\s*[.,!?]*\s*)+$/i;
+
+function detectMemoryNotes(text: string, turnIndex: number): MemoryNote[] {
+  if (FILLER_ONLY.test(text.trim())) return [];
+  if (text.trim().length < 10) return [];
+
+  const notes: MemoryNote[] = [];
+  for (const mp of MEMORY_PATTERNS) {
+    if (mp.pattern.test(text)) {
+      // Extract the surrounding context for the note text (up to 120 chars around the match)
+      const match = text.match(mp.pattern);
+      if (!match) continue;
+
+      const idx = match.index ?? 0;
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + match[0].length + 60);
+      let noteText = text.slice(start, end).trim();
+      if (start > 0) noteText = '...' + noteText;
+      if (end < text.length) noteText = noteText + '...';
+
+      const noteId = generateNoteId(mp.category, noteText, turnIndex, 'user');
+      notes.push({
+        id: noteId,
+        text: noteText,
+        category: mp.category,
+        tags: mp.tags,
+        source: 'user',
+        sourceTurnIndex: turnIndex,
+        confidence: 'stated',
+        createdAt: new Date().toISOString(),
+        status: 'active',
+        scope: scopeForCategory(mp.category),
+        salience: 2,
+      });
+    }
+  }
+
+  return notes;
+}
+
+// ─── extractFromTranscript (V2) ─────────────────────────────────────────────
 
 export function extractFromTranscript(
   transcript: string,
   targets: string[],
-  stage: Stage,
-  industry?: string,
-  currentExtracted?: Partial<ExtractedFields>,
+  stage: StageId,
+  industryLabel?: string,
+  currentState?: Partial<ConversationState>,
 ): ExtractionResult {
   const s = normalizeSpokenNumbers(transcript.toLowerCase());
   const fields: Record<string, number | string | boolean | null> = {};
   const normalized: Record<string, string> = {};
+  const correctionDetected = detectCorrection(transcript);
 
   if (s !== transcript.toLowerCase()) {
     normalized['_spoken'] = transcript;
     normalized['_normalized'] = s;
   }
 
+  // If correction detected, broaden targets to all scalar fields
+  const effectiveTargets = correctionDetected
+    ? [...new Set([...targets, 'acv', 'inboundLeads', 'inboundConversions', 'inboundConversionRate',
+        'webLeads', 'webConversions', 'webConversionRate', 'phoneVolume', 'missedCalls',
+        'missedCallRate', 'responseSpeedBand',
+        'leadSourceDominant', 'websiteRelevant', 'phoneRelevant', 'adsConfirmed'])]
+    : targets;
+
   // ── ACV ──
-  if (targets.includes('acv') && (stage === 'anchor_acv' || stage === 'wow')) {
+  if (effectiveTargets.includes('acv') && (stage === 'anchor_acv' || stage === 'wow' || correctionDetected)) {
     const dollarMatch = s.match(/\$\s*([\d,.]+\s*(?:k|m|mil|million|thousand|grand|hundred)?)/i)
       ?? s.match(/(?:about|around|roughly|maybe|probably|say|like|approximately)?\s*(?:\$\s*)?([\d,.]+\s*(?:k|m|mil|million|thousand|grand|hundred))\b/i)
       ?? s.match(/((?:quarter|half|three quarter|one|two|three|four|five|six|seven|eight|nine|ten|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred).{0,15}(?:thousand|grand|k|million|mil|m|hundred thousand))/i);
@@ -216,137 +470,234 @@ export function extractFromTranscript(
     }
   }
 
-  // ── Timeframe ──
-  if (targets.includes('timeframe') && (stage === 'anchor_timeframe' || stage === 'anchor_acv')) {
-    if (/\bweek/i.test(s)) { fields.timeframe = 'weekly'; normalized.timeframe = 'weekly'; }
-    else if (/\bmonth/i.test(s)) { fields.timeframe = 'monthly'; normalized.timeframe = 'monthly'; }
-  }
-
-  // ── Ads leads + conversions ──
-  if (targets.includes('ads_leads') && stage === 'ch_ads') {
+  // ── Inbound leads (Alex — ch_alex) ──
+  if (effectiveTargets.includes('inboundLeads') && (stage === 'ch_alex' || correctionDetected)) {
     const leadMatch = s.match(/(?:about|around|roughly|maybe|probably|say|like|get|getting)?\s*(\$?[\d,.]+\s*(?:k|thousand)?)\s*(?:leads?|enquir|inqu|a\s+week|a\s+month)/i);
     if (leadMatch) {
       const val = parseNumber(leadMatch[1]);
-      if (val && val > 0) { fields.ads_leads = val; normalized.ads_leads = leadMatch[0]; }
+      if (val && val > 0) { fields.inboundLeads = val; normalized.inboundLeads = leadMatch[0]; }
     }
-    if (!fields.ads_leads) {
+    if (!fields.inboundLeads) {
       const standaloneMatch = s.match(/(?:about|around|roughly|maybe|probably|say|like|get|getting)?\s*(?:a\s+)?(thousand|hundred|[\d,.]+\s*(?:k|thousand)?|couple\s+hundred|few\s+hundred)/i);
       if (standaloneMatch) {
         const val = parseNumber(standaloneMatch[0]);
-        if (val && val > 0) { fields.ads_leads = val; normalized.ads_leads = standaloneMatch[0]; }
+        const acv = currentState?.acv ?? 0;
+        const isAcvMatch = acv > 0 && (val === acv || val === acv / 10 || val === acv / 100 || val === acv / 1000 || val * 10 === acv || val * 100 === acv || val * 1000 === acv);
+        if (val && val > 0 && !isAcvMatch) { fields.inboundLeads = val; normalized.inboundLeads = standaloneMatch[0]; }
+      }
+    }
+    // Bare number fallback — only for SHORT direct answers (not historical RE_EXTRACT context).
+    // Guards: text < 50 chars (direct answer), not an ACV fragment, not ACV itself.
+    if (!fields.inboundLeads && currentState?.inboundLeads == null && s.length < 50) {
+      const bareNum = s.match(/\b(\d{1,4})\b/);
+      if (bareNum) {
+        const val = parseInt(bareNum[1]);
+        const acv = currentState?.acv ?? 0;
+        const isAcvFragment = acv > 0 && (acv === val * 1000 || acv === val * 100 || acv === val * 10 || val === acv);
+        if (val > 0 && val < 10000 && !isAcvFragment) {
+          fields.inboundLeads = val;
+          normalized.inboundLeads = bareNum[0];
+        }
       }
     }
   }
-  if (targets.includes('ads_conversions') && stage === 'ch_ads') {
+
+  // ── Inbound conversions (Alex — ch_alex) ──
+  if (effectiveTargets.includes('inboundConversions') && (stage === 'ch_alex' || correctionDetected)) {
     const convMatch = s.match(/(?:about|around|roughly|maybe|probably|say|like|convert|converting|become|turn into)?\s*(\d+(?:\.\d+)?)\s*(?:convert|become|turn|close|sale|client|customer|booking|job|patient)/i);
     if (convMatch) {
       const val = parseInt(convMatch[1]);
-      if (val > 0) { fields.ads_conversions = val; normalized.ads_conversions = convMatch[0]; }
+      if (val > 0) { fields.inboundConversions = val; normalized.inboundConversions = convMatch[0]; }
     }
-    if (!fields.ads_conversions) {
+    // Standalone fallback: only fire if inboundLeads was NOT extracted from the same utterance
+    // (prevents mirroring the same number to both fields)
+    if (!fields.inboundConversions && !fields.inboundLeads) {
       const standaloneConv = s.match(/(?:about|around|roughly|maybe|probably|say|like)?\s*(ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|\d{1,3})\b/i);
       if (standaloneConv) {
         const val = parseNumber(standaloneConv[1]);
-        if (val && val > 0 && val <= 500) { fields.ads_conversions = val; normalized.ads_conversions = standaloneConv[0]; }
+        const acv = currentState?.acv ?? 0;
+        const isAcvMatch = acv > 0 && (val === acv || val === acv / 10 || val === acv / 100 || val === acv / 1000 || (val && (val * 10 === acv || val * 100 === acv || val * 1000 === acv)));
+        if (val && val > 0 && val <= 500 && !isAcvMatch) { fields.inboundConversions = val; normalized.inboundConversions = standaloneConv[0]; }
       }
     }
-  }
-  if (targets.includes('ads_followup_speed') && stage === 'ch_ads') {
-    if (/(?:instant|immediate|right away|straight away|within.*minute|under.*minute|asap)/i.test(s)) fields.ads_followup_speed = '<30m';
-    else if (/(?:within.*hour|couple.*hour|an hour|hour or two|pretty quick|quickly)/i.test(s)) fields.ads_followup_speed = '30m_to_3h';
-    else if (/(?:same day|few hours|later that day|end of day|half a day)/i.test(s)) fields.ads_followup_speed = '3h_to_24h';
-    else if (/(?:next day|day or two|couple.*day|next business|24 hour|48 hour|few days|tomorrow)/i.test(s)) fields.ads_followup_speed = '>24h';
-    else if (/(?:depends|varies|usually|generally|try to|we try)/i.test(s)) fields.ads_followup_speed = '3h_to_24h';
   }
 
-  // ── Website leads + conversions ──
-  if (targets.includes('web_leads') && stage === 'ch_website') {
-    const numMatches = s.match(/\b(\d+)\b/g);
-    if (numMatches) {
-      const nums = numMatches.map(n => parseInt(n)).filter(n => n > 0 && n < 100000);
-      if (nums.length >= 2) {
-        fields.web_leads = nums[0];
-        fields.web_conversions = nums[1];
-        normalized.web_leads = String(nums[0]);
-        normalized.web_conversions = String(nums[1]);
-      } else if (nums.length === 1) {
-        fields.web_leads = nums[0];
-        normalized.web_leads = String(nums[0]);
-      }
+  // ── Inbound conversion rate (Alex — ch_alex) ──
+  if (effectiveTargets.includes('inboundConversionRate') && (stage === 'ch_alex' || correctionDetected)) {
+    const rate = extractPercentage(s);
+    if (rate != null) {
+      fields.inboundConversionRate = rate;
+      normalized.inboundConversionRate = `${(rate * 100).toFixed(1)}%`;
     }
+  }
+
+  // ── Response speed band (Alex — ch_alex) ──
+  if (effectiveTargets.includes('responseSpeedBand') && (stage === 'ch_alex' || correctionDetected)) {
+    const band = extractResponseSpeedBand(s);
+    if (band) {
+      fields.responseSpeedBand = band;
+      normalized.responseSpeedBand = band;
+    }
+  }
+
+  // ── Web leads (Chris — ch_chris) ──
+  if (effectiveTargets.includes('webLeads') && (stage === 'ch_chris' || correctionDetected)) {
+    // Priority 1: keyword-aware lead match (context-aware, high confidence)
     const leadMatch = s.match(/(?:get|getting|about|around|roughly|maybe)\s*(\d+)\s*(?:lead|enquir|inqu|a week|a month)/i);
-    if (leadMatch) { fields.web_leads = parseInt(leadMatch[1]); normalized.web_leads = leadMatch[0]; }
+    if (leadMatch) { fields.webLeads = parseInt(leadMatch[1]); normalized.webLeads = leadMatch[0]; }
+
+    // Priority 2: greedy single-number fallback — only for SHORT direct answers
+    // (not historical RE_EXTRACT context which picks up ACV fragments)
+    if (!fields.webLeads && s.length < 50) {
+      const numMatches = s.match(/\b(\d+)\b/g);
+      if (numMatches) {
+        const acv = currentState?.acv ?? 0;
+        const nums = numMatches.map(n => parseInt(n)).filter(n => {
+          if (n <= 0 || n >= 100000) return false;
+          // Skip ACV fragments (e.g. "20" from "$20,000")
+          if (acv > 0 && (acv === n * 1000 || acv === n * 100 || acv === n * 10 || n === acv)) return false;
+          return true;
+        });
+        if (nums.length >= 1) {
+          fields.webLeads = nums[0];
+          normalized.webLeads = String(nums[0]);
+        }
+      }
+    }
   }
-  if (targets.includes('web_conversions') && stage === 'ch_website' && !fields.web_conversions) {
+
+  // ── Web conversions (Chris — ch_chris) ──
+  if (effectiveTargets.includes('webConversions') && (stage === 'ch_chris' || correctionDetected) && !fields.webConversions) {
+    // Keyword-aware conversion match only — no greedy multi-number extraction
     const convMatch = s.match(/(\d+)\s*(?:convert|become|turn|close|sale|client|customer)/i);
-    if (convMatch) { fields.web_conversions = parseInt(convMatch[1]); normalized.web_conversions = convMatch[0]; }
+    if (convMatch) { fields.webConversions = parseInt(convMatch[1]); normalized.webConversions = convMatch[0]; }
   }
 
-  // ── Phone ──
-  if (targets.includes('phone_volume') && stage === 'ch_phone') {
+  // ── Web conversion rate (Chris — ch_chris) ──
+  if (effectiveTargets.includes('webConversionRate') && (stage === 'ch_chris' || correctionDetected)) {
+    if (!fields.webConversionRate) {
+      const rate = extractPercentage(s);
+      if (rate != null) {
+        fields.webConversionRate = rate;
+        normalized.webConversionRate = `${(rate * 100).toFixed(1)}%`;
+      }
+    }
+  }
+
+  // ── Phone volume (Maddie — ch_maddie) ──
+  if (effectiveTargets.includes('phoneVolume') && (stage === 'ch_maddie' || correctionDetected)) {
     const phoneMatch = s.match(/(?:about|around|roughly|maybe|probably|get|getting)?\s*(\d+)\s*(?:call|phone|ring|inbound)/i);
-    if (phoneMatch) { fields.phone_volume = parseInt(phoneMatch[1]); normalized.phone_volume = phoneMatch[0]; }
+    if (phoneMatch) { fields.phoneVolume = parseInt(phoneMatch[1]); normalized.phoneVolume = phoneMatch[0]; }
   }
-  if (targets.includes('missed_call_handling') && stage === 'ch_phone') {
-    if (/(?:voicemail|answering machine|goes to message|no.?one answers|ring.?out|don'?t answer|nobody|nothing|miss)/i.test(s)) {
-      fields.missed_call_handling = 'voicemail/unanswered';
-    } else if (/(?:24.?7|24.?hour|always.?(?:someone|covered|answer)|call cent|after.?hours.?(?:service|team|staff))/i.test(s)) {
-      fields.missed_call_handling = '24/7 coverage';
-    } else if (/(?:close|shut|finish|knock off|go home|stop.*answer)/i.test(s)) {
-      fields.missed_call_handling = 'close at business hours';
+
+  // ── Missed calls — as number (Maddie — ch_maddie) ──
+  if (effectiveTargets.includes('missedCalls') && (stage === 'ch_maddie' || correctionDetected)) {
+    // Try numeric missed calls
+    const missedNumMatch = s.match(/(?:miss|lose|drop)(?:ing|ed)?\s+(?:about|around|roughly|maybe|probably)?\s*(\d+)/i)
+      ?? s.match(/(?:about|around|roughly|maybe|probably)?\s*(\d+)\s*(?:missed|unanswered|lost|dropped)/i);
+    if (missedNumMatch) {
+      const val = parseInt(missedNumMatch[1]);
+      if (val > 0) { fields.missedCalls = val; normalized.missedCalls = missedNumMatch[0]; }
     }
   }
 
-  // ── Old leads ──
-  if (targets.includes('old_leads') && stage === 'ch_old_leads') {
-    const oldMatch = s.match(/(?:about|around|roughly|maybe|probably|say|like)?\s*(\d[\d,.]*\s*(?:k|thousand|hundred)?)/i);
-    if (oldMatch) {
-      const val = parseNumber(oldMatch[1]);
-      if (val && val > 0) { fields.old_leads = val; normalized.old_leads = oldMatch[0]; }
+  // ── Missed call rate (Maddie — ch_maddie) ──
+  if (effectiveTargets.includes('missedCallRate') && (stage === 'ch_maddie' || correctionDetected)) {
+    if (!fields.missedCalls) {
+      const rate = extractPercentage(s);
+      if (rate != null) {
+        fields.missedCallRate = rate;
+        normalized.missedCallRate = `${(rate * 100).toFixed(1)}%`;
+      }
     }
   }
 
-  // ── Reviews ──
-  if (targets.includes('new_customers') && stage === 'ch_reviews') {
-    const newCustMatch = s.match(/(?:about|around|roughly|maybe|probably|say|like|get|getting)?\s*(\d+)\s*(?:new|client|customer|patient|job|booking|deal|sale|matter|listing)/i);
-    if (newCustMatch) { fields.new_customers = parseInt(newCustMatch[1]); normalized.new_customers = newCustMatch[0]; }
-  }
-  if (targets.includes('has_review_system') && stage === 'ch_reviews') {
-    if (/\b(no|nah|not really|don'?t|haven'?t|nothing|no system|no process)\b/i.test(s) && /\b(review|ask|system|process)\b/i.test(s)) {
-      fields.has_review_system = false;
-    } else if (/\b(yes|yeah|yep|we do|we use|send|auto|email|sms|text|follow.?up)\b/i.test(s) && /\b(review|ask|system|process)\b/i.test(s)) {
-      fields.has_review_system = true;
+  // ── Old leads / dormant database (Sarah — ch_sarah) ──
+  if (effectiveTargets.includes('oldLeads') && (stage === 'ch_sarah' || correctionDetected)) {
+    const oldLeadsMatch = s.match(/(?:about|around|roughly|maybe|probably)?\s*(\d+)\s*(?:old|dormant|past|previous|inactive|dead|stale|database|leads?\s+(?:in|on|sitting))/i)
+      ?? s.match(/(?:database|list|crm|system)\s+(?:of|with|has|about|around)\s+(?:about|around|roughly|maybe)?\s*(\d+)/i);
+    if (oldLeadsMatch) {
+      const val = parseInt(oldLeadsMatch[1]);
+      if (val > 0) { fields.oldLeads = val; normalized.oldLeads = oldLeadsMatch[0]; }
     }
   }
 
-  // ── Cross-stage standalone number ──
-  if (Object.keys(fields).length === 0 && !['wow', 'roi_delivery', 'close'].includes(stage)) {
-    // Loosened regex: allows surrounding filler words (yeah, um, so, well) — no strict ^ $ anchors
+  // ── New customers per week (James — ch_james) ──
+  if (effectiveTargets.includes('newCustomersPerWeek') && (stage === 'ch_james' || correctionDetected)) {
+    const custMatch = s.match(/(?:about|around|roughly|maybe|probably)?\s*(\d+)\s*(?:new|fresh)?\s*(?:customer|client|account|patient|job|project|booking)s?\s*(?:a|per|each|every)?\s*(?:week|wk)/i)
+      ?? s.match(/(?:about|around|roughly|maybe|probably)?\s*(\d+)\s*(?:a|per|each|every)\s*(?:week|wk)/i);
+    if (custMatch) {
+      const val = parseInt(custMatch[1]);
+      if (val > 0) { fields.newCustomersPerWeek = val; normalized.newCustomersPerWeek = custMatch[0]; }
+    }
+  }
+
+  // ── Current Google star rating (James — ch_james) ──
+  if (effectiveTargets.includes('currentStars') && (stage === 'ch_james' || correctionDetected)) {
+    const starsMatch = s.match(/(\d+(?:\.\d+)?)\s*(?:star|rating)/i)
+      ?? s.match(/(?:star|rating|rated|google)\s+(?:is|at|of)?\s*(\d+(?:\.\d+)?)/i);
+    if (starsMatch) {
+      const val = parseFloat(starsMatch[1] ?? starsMatch[2] ?? starsMatch[0]);
+      if (val >= 1 && val <= 5) { fields.currentStars = val; normalized.currentStars = starsMatch[0]; }
+    }
+  }
+
+  // ── Has review system (James — ch_james) ──
+  if (effectiveTargets.includes('hasReviewSystem') && (stage === 'ch_james' || correctionDetected)) {
+    if (/\b(yes|yeah|yep|yup|we do|we have|got one|use|using|have a|set up|automated|system|birdeye|podium|grade\.us|trustpilot)\b/i.test(s) && /review/i.test(s)) {
+      fields.hasReviewSystem = true;
+      normalized.hasReviewSystem = 'yes';
+    } else if (/\b(no|nah|nope|don'?t|nothing|not really|manual|haven'?t)\b/i.test(s) && /review/i.test(s)) {
+      fields.hasReviewSystem = false;
+      normalized.hasReviewSystem = 'no';
+    }
+  }
+
+  // ── Cross-stage standalone number fallback ──
+  if (Object.keys(fields).length === 0 && !['wow', 'greeting', 'recommendation', 'roi_delivery', 'close', 'optional_side_agents'].includes(stage)) {
     const standaloneNum = s.match(
       /(?:^|(?:yeah|yep|yes|yup|um|uh|so|oh|like|well|hmm|about|around|roughly|maybe|probably|say|i'?d say)\s+)(\d+(?:\.\d+)?)\s*(?:ish|or so|maybe|i think|i guess|i reckon)?/i
     );
     if (standaloneNum) {
       const val = parseFloat(standaloneNum[1]);
-      if (val > 0) {
+      const acv = currentState?.acv ?? 0;
+      // Skip if value matches ACV or is an ACV fragment (e.g. "20" from "$20,000")
+      const isAcvMatch = acv > 0 && (val === acv || val === acv / 10 || val === acv / 100 || val === acv / 1000 || val * 10 === acv || val * 100 === acv || val * 1000 === acv);
+      if (val > 0 && !isAcvMatch) {
         let mappedTo = '';
         if (stage === 'anchor_acv' && val >= 100) { fields.acv = val; mappedTo = 'acv'; }
-        else if (stage === 'ch_ads') {
-          if (targets.includes('ads_conversions') && currentExtracted?.ads_leads != null && currentExtracted?.ads_conversions == null) {
-            fields.ads_conversions = val; mappedTo = 'ads_conversions';
-          } else if (targets.includes('ads_leads')) {
-            fields.ads_leads = val; mappedTo = 'ads_leads';
+        else if (stage === 'ch_alex') {
+          if (effectiveTargets.includes('inboundConversions') && currentState?.inboundLeads != null && currentState?.inboundConversions == null && val !== currentState.inboundLeads) {
+            fields.inboundConversions = val; mappedTo = 'inboundConversions';
+          } else if (effectiveTargets.includes('inboundLeads') && currentState?.inboundLeads == null) {
+            fields.inboundLeads = val; mappedTo = 'inboundLeads';
           }
         }
-        else if (stage === 'ch_website') {
-          if (targets.includes('web_conversions') && currentExtracted?.web_leads != null && currentExtracted?.web_conversions == null) {
-            fields.web_conversions = val; mappedTo = 'web_conversions';
-          } else if (targets.includes('web_leads') && currentExtracted?.web_leads == null) {
-            fields.web_leads = val; mappedTo = 'web_leads';
+        else if (stage === 'ch_chris') {
+          if (effectiveTargets.includes('webConversions') && currentState?.webLeads != null && currentState?.webConversions == null && val !== currentState.webLeads) {
+            fields.webConversions = val; mappedTo = 'webConversions';
+          } else if (effectiveTargets.includes('webLeads') && currentState?.webLeads == null) {
+            fields.webLeads = val; mappedTo = 'webLeads';
           }
         }
-        else if (stage === 'ch_phone' && targets.includes('phone_volume')) { fields.phone_volume = val; mappedTo = 'phone_volume'; }
-        else if (stage === 'ch_old_leads') { fields.old_leads = val; mappedTo = 'old_leads'; }
-        if (mappedTo) console.log(`[EXTRACT_STANDALONE] stage=${stage} val=${val} targets=[${targets}] mapped_to=${mappedTo}`);
+        else if (stage === 'ch_maddie') {
+          if (effectiveTargets.includes('missedCalls') && currentState?.phoneVolume != null && currentState?.missedCalls == null && val !== currentState.phoneVolume) {
+            fields.missedCalls = val; mappedTo = 'missedCalls';
+          } else if (effectiveTargets.includes('phoneVolume') && currentState?.phoneVolume == null) {
+            fields.phoneVolume = val; mappedTo = 'phoneVolume';
+          }
+        }
+        else if (stage === 'ch_sarah') {
+          if (effectiveTargets.includes('oldLeads') && currentState?.oldLeads == null) {
+            fields.oldLeads = val; mappedTo = 'oldLeads';
+          }
+        }
+        else if (stage === 'ch_james') {
+          if (effectiveTargets.includes('newCustomersPerWeek') && currentState?.newCustomersPerWeek == null) {
+            fields.newCustomersPerWeek = val; mappedTo = 'newCustomersPerWeek';
+          }
+        }
+        if (mappedTo) console.log(`[EXTRACT_STANDALONE] stage=${stage} val=${val} targets=[${effectiveTargets}] mapped_to=${mappedTo}`);
       }
     }
   }
@@ -358,39 +709,396 @@ export function extractFromTranscript(
     }
   }
 
+  // ── Source-check routing fields (wow stage, wow_8 step) ──
+  if (effectiveTargets.includes('leadSourceDominant') && (stage === 'wow' || correctionDetected)) {
+    // Determine dominant lead source from prospect's answer
+    const phoneSignal = /\b(phone|call|ring|inbound call|phone call|over the phone)\b/i.test(s);
+    const websiteSignal = /\b(website|web|site|online|form|enquir|submit|landing page)\b/i.test(s);
+    const adsSignal = /\b(ads?|paid|google ads?|facebook ads?|ppc|campaign|adwords|meta ads?|paid search|paid social)\b/i.test(s);
+    const organicSignal = /\b(organic|seo|search engine|google search|natural search)\b/i.test(s);
+    const mostlyModifier = /\b(most|mostly|mainly|primarily|main|biggest|dominant|bulk)\b/i.test(s);
+
+    // Priority: explicit "mostly X" > first strong signal
+    if (adsSignal) {
+      fields.leadSourceDominant = 'ads';
+      fields.adsConfirmed = true;
+    } else if (phoneSignal && mostlyModifier) {
+      fields.leadSourceDominant = 'phone';
+    } else if (websiteSignal && mostlyModifier) {
+      fields.leadSourceDominant = 'website';
+    } else if (organicSignal && mostlyModifier) {
+      fields.leadSourceDominant = 'organic';
+    } else if (phoneSignal) {
+      fields.leadSourceDominant = 'phone';
+    } else if (websiteSignal) {
+      fields.leadSourceDominant = 'website';
+    } else if (organicSignal) {
+      fields.leadSourceDominant = 'organic';
+    }
+
+    // Set boolean flags from signals
+    if (websiteSignal) fields.websiteRelevant = true;
+    if (phoneSignal) fields.phoneRelevant = true;
+    if (adsSignal) fields.adsConfirmed = true;
+
+    if (fields.leadSourceDominant) {
+      console.log(`[EXTRACT_SOURCE] dominant=${fields.leadSourceDominant} website=${!!websiteSignal} phone=${!!phoneSignal} ads=${!!adsSignal}`);
+    }
+  }
+
+  // ── Calculate confidence ──
   const realFields = Object.keys(fields).filter(k => !k.startsWith('_'));
   const confidence = realFields.length > 0 ? 0.8 : 0;
 
-  if (realFields.length === 0 && targets.length > 0 && !['wow', 'roi_delivery', 'close'].includes(stage)) {
-    console.log(`[EXTRACT_MISS] stage=${stage} targets=[${targets}] transcript="${transcript.slice(0, 80)}"`);
+  if (realFields.length === 0 && effectiveTargets.length > 0 && !['wow', 'greeting', 'recommendation', 'roi_delivery', 'close', 'optional_side_agents'].includes(stage)) {
+    console.log(`[EXTRACT_MISS] stage=${stage} targets=[${effectiveTargets}] transcript="${transcript.slice(0, 80)}"`);
   }
+
+  // ── Detect memory notes ──
+  const turnIndex = currentState?.transcriptLog?.length ?? 0;
+  const memoryNotes = detectMemoryNotes(transcript, turnIndex);
 
   return {
     fields,
     confidence,
     raw: transcript,
     normalized,
+    correctionDetected,
+    memoryNotes,
   };
 }
 
-// ─── Apply extraction to state ───────────────────────────────────────────────
+// ─── Calculator invalidation on correction ──────────────────────────────────
 
-export function applyExtraction(state: CallBrainState, result: ExtractionResult): string[] {
+/** Map of calculator-input fields to the agent whose result must be cleared on correction. */
+const CALC_INPUT_TO_AGENT: Record<string, string> = {
+  inboundLeads: 'alex',
+  inboundConversions: 'alex',
+  inboundConversionRate: 'alex',
+  responseSpeedBand: 'alex',
+  webLeads: 'chris',
+  webConversions: 'chris',
+  webConversionRate: 'chris',
+  phoneVolume: 'maddie',
+  missedCalls: 'maddie',
+  missedCallRate: 'maddie',
+  acv: 'all',  // ACV affects all calculators
+};
+
+function invalidateCalculatorOnCorrection(state: ConversationState, field: string): void {
+  const agent = CALC_INPUT_TO_AGENT[field];
+  if (!agent) return;
+
+  if (agent === 'all') {
+    // ACV correction invalidates every agent that already has a result
+    for (const key of ['alex', 'chris', 'maddie'] as const) {
+      if (state.calculatorResults[key]) {
+        console.log(`[CALC_INVALIDATE] Cleared ${key} result — acv corrected`);
+        delete state.calculatorResults[key];
+      }
+    }
+  } else if (state.calculatorResults[agent as keyof typeof state.calculatorResults]) {
+    console.log(`[CALC_INVALIDATE] Cleared ${agent} result — ${field} corrected`);
+    delete state.calculatorResults[agent as keyof typeof state.calculatorResults];
+  }
+}
+
+// ─── Apply extraction to V2 state ───────────────────────────────────────────
+
+/** Writable V2 scalar field names on ConversationState */
+const V2_SCALAR_FIELDS: ReadonlySet<string> = new Set([
+  'acv', 'inboundLeads', 'inboundConversions', 'inboundConversionRate',
+  'responseSpeedBand', 'webLeads', 'webConversions', 'webConversionRate',
+  'phoneVolume', 'missedCalls', 'missedCallRate',
+  'oldLeads', 'newCustomersPerWeek', 'currentStars', 'hasReviewSystem',
+  'leadSourceDominant', 'websiteRelevant', 'phoneRelevant', 'adsConfirmed',
+]);
+
+export function applyExtraction(
+  state: ConversationState,
+  result: ExtractionResult,
+): string[] {
   const applied: string[] = [];
 
   for (const [field, value] of Object.entries(result.fields)) {
     if (value == null || field.startsWith('_')) continue;
 
-    if (field in state.extracted) {
-      (state.extracted as any)[field] = value;
-      applied.push(field);
+    // Same-number guard: reject conversions that mirror leads from same extraction
+    // Only applies when BOTH fields came from the SAME source (regex fallback)
+    // Skip guard when Gemini provided the conversions value (Gemini understands context)
+    const geminiProvided = result.fields._geminiFields as Record<string, boolean> | undefined;
+    if (field === 'inboundConversions' && result.fields.inboundLeads != null && value === result.fields.inboundLeads) {
+      if (!geminiProvided?.[field]) {
+        console.log(`[EXTRACT_GUARD] Rejected inboundConversions=${value} — mirrors inboundLeads from same utterance`);
+        continue;
+      }
+      console.log(`[EXTRACT_GUARD_SKIP] inboundConversions=${value} mirrors inboundLeads but Gemini provided it — trusting Gemini`);
+    }
+    if (field === 'webConversions' && result.fields.webLeads != null && value === result.fields.webLeads) {
+      if (!geminiProvided?.[field]) {
+        console.log(`[EXTRACT_GUARD] Rejected webConversions=${value} — mirrors webLeads from same utterance`);
+        continue;
+      }
+      console.log(`[EXTRACT_GUARD_SKIP] webConversions=${value} mirrors webLeads but Gemini provided it — trusting Gemini`);
+    }
+
+    if (V2_SCALAR_FIELDS.has(field)) {
+      const current = (state as any)[field];
+      // Correction-aware: overwrite if correction detected, otherwise only write if null/undefined/false
+      if (result.correctionDetected || current == null || current === false) {
+        (state as any)[field] = value;
+        applied.push(field);
+        if (result.correctionDetected && current != null) {
+          console.log(`[EXTRACT_CORRECT] field=${field} old=${current} new=${value}`);
+          // Invalidate stale calculator result when a correction overwrites a calculator-input field
+          invalidateCalculatorOnCorrection(state, field);
+        }
+      }
     }
   }
 
+  // Handle _just_demo
   if (result.fields._just_demo) {
-    state.flags.justDemo = true;
-    applied.push('justDemo');
+    state.proceedToROI = false;
+    applied.push('proceedToROI');
+  }
+
+  // Append memory notes (cap at 100, FIFO oldest)
+  if (result.memoryNotes.length > 0) {
+    const now = new Date().toISOString();
+
+    // Check for supersession: if a new note contradicts an existing one of the same category+tags
+    for (const newNote of result.memoryNotes) {
+      if (result.correctionDetected) {
+        // Find existing active notes in same category that might be superseded
+        for (const existing of state.memoryNotes) {
+          if (existing.category === newNote.category
+            && existing.status === 'active'
+            && existing.tags?.some(t => newNote.tags?.includes(t))) {
+            existing.status = 'superseded';
+            existing.supersededById = newNote.id;
+            existing.updatedAt = now;
+            console.log(`[MEMORY_SUPERSEDE] old="${existing.text.slice(0, 50)}" by="${newNote.text.slice(0, 50)}" newId=${newNote.id}`);
+          }
+        }
+      }
+    }
+
+    state.memoryNotes.push(...result.memoryNotes);
+
+    // Enforce 100-entry cap (FIFO oldest, preserving active notes over superseded ones)
+    if (state.memoryNotes.length > 100) {
+      state.memoryNotes = state.memoryNotes.slice(-100);
+    }
   }
 
   return applied;
+}
+
+// ─── Early-ROI prescan (transcript scan at channel entry) ────────────────────
+
+/**
+ * Scan accumulated transcriptLog for ROI-relevant numbers volunteered BEFORE
+ * the channel stage begins.  Keyword-aware regexes only — no greedy/standalone.
+ * Write-once: only writes to null fields.
+ * Returns list of field names written.
+ */
+export function prescanForEarlyROI(state: ConversationState): string[] {
+  const written: string[] = [];
+  if (!state.transcriptLog || state.transcriptLog.length === 0) return written;
+
+  // 1. Collect all user turns, normalize, join
+  const userText = state.transcriptLog
+    .filter(t => t.role === 'user')
+    .map(t => normalizeSpokenNumbers(t.text))
+    .join('. ');
+
+  if (!userText || userText.trim().length === 0) return written;
+
+  // 2. Phone volume — keyword-aware
+  if (state.phoneVolume == null) {
+    const m = userText.match(/(\d+)\s*(?:call|phone|ring|inbound)/i);
+    if (m) {
+      const val = parseInt(m[1]);
+      if (val > 0) { state.phoneVolume = val; written.push('phoneVolume'); }
+    }
+  }
+
+  // 3. Missed calls — keyword-aware
+  if (state.missedCalls == null) {
+    const m = userText.match(/(?:miss|lose|drop)(?:ing|ed)?\s+(?:about|around|roughly|maybe|probably)?\s*(\d+)/i)
+      ?? userText.match(/(?:about|around|roughly|maybe|probably)?\s*(\d+)\s*(?:missed|unanswered|lost|dropped)/i);
+    if (m) {
+      const val = parseInt(m[1]);
+      if (val > 0) { state.missedCalls = val; written.push('missedCalls'); }
+    }
+  }
+
+  // 4. Response speed band — reuses existing extractor (unique keywords)
+  if (state.responseSpeedBand == null) {
+    const band = extractResponseSpeedBand(userText);
+    if (band) { state.responseSpeedBand = band; written.push('responseSpeedBand'); }
+  }
+
+  // 5. Lead / web volume — 40-char context window for scope disambiguation
+  if (state.inboundLeads == null || state.webLeads == null) {
+    const leadRe = /(\d+)\s*(?:leads?|enquir|inqu)/gi;
+    let lm: RegExpExecArray | null;
+    while ((lm = leadRe.exec(userText)) !== null) {
+      const val = parseInt(lm[1]);
+      if (val <= 0) continue;
+      const start = Math.max(0, lm.index - 40);
+      const end = Math.min(userText.length, lm.index + lm[0].length + 40);
+      const ctx = userText.slice(start, end).toLowerCase();
+      const webCtx = /website|web|online|form|landing|seo|organic/.test(ctx);
+      const adCtx = /ad|campaign|paid|ppc|facebook|google ads/.test(ctx);
+
+      if (webCtx && state.webLeads == null) {
+        state.webLeads = val; written.push('webLeads');
+      } else if (adCtx && state.inboundLeads == null) {
+        state.inboundLeads = val; written.push('inboundLeads');
+      } else if (state.leadSourceDominant === 'website' && state.webLeads == null) {
+        state.webLeads = val; written.push('webLeads');
+      } else if (state.inboundLeads == null) {
+        state.inboundLeads = val; written.push('inboundLeads');
+      }
+    }
+  }
+
+  // 5b. Lead volume — broader "X a week/month/day" pattern without "leads" keyword
+  //     Catches: "we get about 50 a week", "handle around 30 per month"
+  if (state.inboundLeads == null) {
+    const weeklyRe = /(?:get|getting|have|had|do|see|seeing|receive|receiving|handle|handling|average|averaging)\s+(?:about|around|roughly|maybe|probably|say|like|approximately)?\s*(\d+)\s*(?:a\s+(?:week|month|day)|per\s+(?:week|month|day))/i;
+    const wm = userText.match(weeklyRe);
+    if (wm) {
+      const val = parseInt(wm[1]);
+      const acv = state.acv ?? 0;
+      const isAcvFragment = acv > 0 && (val === acv || val === acv / 10 || val === acv / 100 || val === acv / 1000 || val * 10 === acv || val * 100 === acv || val * 1000 === acv);
+      if (val > 0 && val <= 1000 && !isAcvFragment) {
+        state.inboundLeads = val;
+        written.push('inboundLeads');
+      }
+    }
+  }
+
+  // 6. Conversions — keyword-aware + same-number guard vs lead value
+  if (state.inboundConversions == null || state.webConversions == null) {
+    const convRe = /(\d+)\s*(?:convert|close|sale|client|customer|booking|job|patient)/gi;
+    let cm: RegExpExecArray | null;
+    while ((cm = convRe.exec(userText)) !== null) {
+      const val = parseInt(cm[1]);
+      if (val <= 0) continue;
+      const start = Math.max(0, cm.index - 40);
+      const end = Math.min(userText.length, cm.index + cm[0].length + 40);
+      const ctx = userText.slice(start, end).toLowerCase();
+      const webCtx = /website|web|online|form|landing|seo|organic/.test(ctx);
+      const adCtx = /ad|campaign|paid|ppc|facebook|google ads/.test(ctx);
+
+      if (webCtx && state.webConversions == null && val !== state.webLeads) {
+        state.webConversions = val; written.push('webConversions');
+      } else if (adCtx && state.inboundConversions == null && val !== state.inboundLeads) {
+        state.inboundConversions = val; written.push('inboundConversions');
+      } else if (state.leadSourceDominant === 'website' && state.webConversions == null && val !== state.webLeads) {
+        state.webConversions = val; written.push('webConversions');
+      } else if (state.inboundConversions == null && val !== state.inboundLeads) {
+        state.inboundConversions = val; written.push('inboundConversions');
+      }
+    }
+  }
+
+  // 7. Conversion rates — only with channel-context disambiguation
+  const pctMatch = userText.match(/(\d+(?:\.\d+)?)\s*(?:%|percent)/i);
+  if (pctMatch) {
+    const rate = parseFloat(pctMatch[1]);
+    if (rate > 0 && rate <= 100) {
+      const rateVal = rate / 100;
+      const pIdx = pctMatch.index ?? 0;
+      const pStart = Math.max(0, pIdx - 40);
+      const pEnd = Math.min(userText.length, pIdx + pctMatch[0].length + 40);
+      const pCtx = userText.slice(pStart, pEnd).toLowerCase();
+      const webCtx = /website|web|online/.test(pCtx);
+      const adCtx = /ad|campaign|paid|inbound/.test(pCtx);
+
+      if (webCtx && state.webConversionRate == null) {
+        state.webConversionRate = rateVal; written.push('webConversionRate');
+      } else if (adCtx && state.inboundConversionRate == null) {
+        state.inboundConversionRate = rateVal; written.push('inboundConversionRate');
+      }
+      // Ambiguous: skip — don't blindly assign to both channels
+    }
+  }
+
+  return written;
+}
+
+// ─── Bella-side memory note extraction ──────────────────────────────────────
+
+/**
+ * Extract memory notes from Bella's spoken text (commitments, promises, next steps).
+ * Only commitment-category patterns are evaluated — user-side patterns are excluded.
+ */
+export function extractBellaMemoryNotes(
+  spokenText: string,
+  turnIndex: number,
+): MemoryNote[] {
+  if (!spokenText || spokenText.trim().length < 10) return [];
+
+  const notes: MemoryNote[] = [];
+  const now = new Date().toISOString();
+
+  for (const mp of MEMORY_PATTERNS) {
+    // Only extract commitment patterns from Bella utterances
+    if (mp.category !== 'commitment') continue;
+
+    if (mp.pattern.test(spokenText)) {
+      const match = spokenText.match(mp.pattern);
+      if (!match) continue;
+
+      const idx = match.index ?? 0;
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(spokenText.length, idx + match[0].length + 60);
+      let noteText = spokenText.slice(start, end).trim();
+      if (start > 0) noteText = '...' + noteText;
+      if (end < spokenText.length) noteText = noteText + '...';
+
+      const noteId = generateNoteId('commitment', noteText, turnIndex, 'bella');
+
+      // Dedup: skip if this exact ID was already created
+      if (notes.some(n => n.id === noteId)) continue;
+
+      notes.push({
+        id: noteId,
+        text: noteText,
+        category: 'commitment',
+        tags: mp.tags,
+        source: 'bella',
+        sourceTurnIndex: turnIndex,
+        confidence: 'stated',
+        createdAt: now,
+        status: 'active',
+        scope: 'lead',
+        salience: 3,
+      });
+    }
+  }
+
+  return notes;
+}
+
+// ─── Transcript logging ─────────────────────────────────────────────────────
+
+const MAX_TRANSCRIPT_ENTRIES = 200;
+
+export function appendTranscript(
+  state: ConversationState,
+  entry: TranscriptEntry,
+): void {
+  if (!state.transcriptLog) state.transcriptLog = [];
+  state.transcriptLog.push(entry);
+  console.log(`[TRANSCRIPT] entries=${state.transcriptLog.length} role=${entry.role} chars=${entry.text.length}`);
+
+  // Enforce 200-entry cap (FIFO oldest)
+  if (state.transcriptLog.length > MAX_TRANSCRIPT_ENTRIES) {
+    state.transcriptLog = state.transcriptLog.slice(-MAX_TRANSCRIPT_ENTRIES);
+  }
 }

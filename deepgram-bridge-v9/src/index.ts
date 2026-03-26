@@ -27,7 +27,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.15.0-perplexity"; // Backport Perplexity script to bridge buildStageDirective
+const VERSION = "9.16.0-channel-confinement"; // Channel constraint + memory injection in DO prompt
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -534,7 +534,7 @@ function gateOpen(s: State): boolean {
     case "anchor_acv": return i.acv !== null;
     case "anchor_timeframe": return i.timeframe !== null;
     case "ch_ads": return i.ads_leads !== null && i.ads_conversions !== null;
-    case "ch_website": return i.web_leads !== null && i.web_conversions !== null && i.web_followup_speed !== null;
+    case "ch_website": return i.web_leads !== null && i.web_conversions !== null;
     case "ch_phone": return i.after_hours !== null && i.phone_volume !== null && i.missed_call_callback_speed !== null;
     case "ch_old_leads": return i.old_leads !== null;
     case "ch_reviews": return i.new_cust_per_period !== null && i.star_rating !== null && i.review_count !== null && i.has_review_system !== null;
@@ -1917,7 +1917,7 @@ ONE question. STOP.`;
         need.push(`"And roughly how many of those are converting into paying ${ct}s?"`);
       }
       if (i.ads_conversions != null && i.ads_followup == null) {
-        need.push(`"And when those ad leads come in, how quickly is your team following up — under 30 minutes, 30 minutes to 3 hours, 3 to 24 hours, or more than 24 hours?"`);
+        need.push(`"And when those ad leads come in, how quickly is your team usually following up?"`);
       }
       // ALL INPUTS CAPTURED → DELIVER ROI IMMEDIATELY
       if (!need.length) {
@@ -1945,9 +1945,6 @@ ONE question. STOP.`;
       if (i.web_leads != null && i.web_conversions == null) {
         need.push(`"And roughly how many of those convert into paying ${ct}s?"`);
       }
-      if (i.web_conversions != null && i.web_followup_speed == null) {
-        need.push(`"And when a website enquiry comes in, how quickly is your team usually getting back to them?"`);
-      }
       // ALL INPUTS CAPTURED → DELIVER ROI IMMEDIATELY
       if (!need.length) {
         const chrisCalc = calcAgentROI("Chris", i);
@@ -1959,7 +1956,7 @@ ALWAYS end with a confirmation question. Then STOP and wait.`;
         return `WEBSITE — Chris — inputs captured but missing ACV for calc. Acknowledge and advance.`;
       }
       return `WEBSITE CHANNEL — Chris
-${i.web_leads != null ? `Web leads: ${i.web_leads} ${period}. ` : ""}${i.web_conversions != null ? `Conversions: ${i.web_conversions}. ` : ""}${i.web_followup_speed != null ? `Follow-up: ${i.web_followup_speed}. ` : ""}
+${i.web_leads != null ? `Web leads: ${i.web_leads} ${period}. ` : ""}${i.web_conversions != null ? `Conversions: ${i.web_conversions}. ` : ""}
 SAY THIS:
 ${need[0]}
 ONE question. STOP.`;
@@ -2235,6 +2232,7 @@ interface DONextTurnPacket {
   objective: string;
   chosenMove: { id: string; kind: string; text: string };
   criticalFacts: string[];
+  activeMemory?: string[];
   extractTargets: string[];
   validation: { mustCaptureAny: string[]; advanceOnlyIf: string[]; doNotAdvanceIf: string[] };
   style: { tone: string; industryTerms: string[]; maxSentences: number; noApology: boolean };
@@ -2275,6 +2273,32 @@ function buildTinyPrompt(packet: DONextTurnPacket): string {
     roiBlock = `\nROI TO DELIVER (say as words, never symbols):\n${lines}\nTotal: ${packet.roi.totalValue.toLocaleString()} dollars per week`;
   }
 
+  // Channel confinement: restrict Gemini to the current channel's data scope
+  let channelConstraint = '';
+  const stage = packet.stage as string;
+  const objective = packet.objective ?? '';
+  if (stage === 'ch_alex') {
+    // Derive scope from the objective (set by buildAlexDirective)
+    if (objective.includes('ads/campaign')) {
+      channelConstraint = '\nCHANNEL CONSTRAINT: You are ONLY discussing ads/campaign-driven inbound leads and follow-up speed. Do NOT ask about website conversion rates, missed calls, phone volume, or any other channel.';
+    } else if (objective.includes('website/online')) {
+      channelConstraint = '\nCHANNEL CONSTRAINT: You are ONLY discussing website and online enquiry follow-up speed. Do NOT ask about phone calls, missed calls, or conversion rates — just lead volume, conversion count, and response time for online enquiries.';
+    } else {
+      // aggregate-online: Alex never owns phone — scope to online/inbound only
+      channelConstraint = '\nCHANNEL CONSTRAINT: You are ONLY discussing online inbound lead follow-up and speed-to-lead. Do NOT ask about phone calls, missed calls, phone volume, or any phone-related topics — those belong to a different agent. Focus on website, ads, and online enquiry channels only.';
+    }
+  } else if (stage === 'ch_chris') {
+    channelConstraint = '\nCHANNEL CONSTRAINT: You are ONLY discussing website conversion and web leads. Do NOT ask about lead follow-up speed, phone calls, missed calls, or any other channel.';
+  } else if (stage === 'ch_maddie') {
+    channelConstraint = '\nCHANNEL CONSTRAINT: You are ONLY discussing phone calls and missed call recovery. Do NOT ask about website leads, online enquiries, lead follow-up speed, or any other channel.';
+  }
+
+  // Active memory context
+  let memoryBlock = '';
+  if (packet.activeMemory && packet.activeMemory.length > 0) {
+    memoryBlock = `\nPROSPECT MEMORY (do NOT re-ask these — already known):\n${packet.activeMemory.map((m: string) => `- ${m}`).join('\n')}`;
+  }
+
   const prompt = `You are Bella. Follow the chosen move exactly.
 Max ${packet.style.maxSentences} sentences.
 No apology. No filler. No repetition.
@@ -2282,6 +2306,7 @@ Use these terms naturally: ${terms}
 React briefly to what they said, then deliver the move, then stop.
 Say numbers as words. No symbols, no markdown. ONLY SPOKEN WORDS.
 NEVER APOLOGISE — say "Good catch" or "Thanks for clarifying" instead.
+Do NOT add observations, questions, or topics beyond the chosen move.${channelConstraint}
 
 OBJECTIVE: ${packet.objective}
 
@@ -2290,7 +2315,7 @@ ${packet.chosenMove.text}
 
 CRITICAL FACTS:
 ${factsBlock}
-${roiBlock}
+${roiBlock}${memoryBlock}
 EXTRACT TARGETS: ${extractBlock}`;
 
   return prompt;
@@ -2347,7 +2372,7 @@ async function callDOSessionInit(
       log('DO_ERR', `session_init failed: status=${res.status} body=${errText}`);
       return false;
     }
-    log('DO_INIT', `session initialized for lid=${lid}`);
+    log('DO_INIT', `lid=${lid} ts=${new Date().toISOString()} has_consultant=${!!starterIntel?.consultant} has_deep=${!!(starterIntel as any)?.deep?.googleMaps} has_places=${!!(starterIntel as any)?.places} firstName=${starterIntel?.core_identity?.first_name ?? starterIntel?.firstName ?? 'none'} biz=${(starterIntel?.core_identity?.business_name ?? 'none').slice(0, 30)}`);
     return true;
   } catch (e: any) {
     log('DO_ERR', `session_init exception: ${e.message}`);
@@ -2589,7 +2614,7 @@ export default {
       } else {
         // Build tiny prompt from DO packet
         const tinyPrompt = buildTinyPrompt(doResult.packet);
-        log('DO_PROMPT', `stage=${doResult.stage} stall=${doResult.wowStall} move=${doResult.packet.chosenMove.id} chars=${tinyPrompt.length}`);
+        log('DO_PROMPT', `stage=${doResult.stage} stall=${doResult.wowStall} move=${doResult.packet.chosenMove.id} kind=${doResult.packet.chosenMove.kind} chars=${tinyPrompt.length} speak="${doResult.packet.chosenMove.text.slice(0, 100)}"`);
 
         // Assemble messages for Gemini
         const trimmed = trimHistory(messages);
@@ -2669,6 +2694,13 @@ export default {
     const _sf = intel.consultant?.scriptFills ?? {};
     const _sfKeys = Object.keys(_sf).filter(k => _sf[k]);
     log("SCRIPTFILLS", `lid=${lid} present=${_sfKeys.length > 0} keys=[${_sfKeys.join(',')}] bella_opener=${!!(intel.bella_opener)} hero_h2=${!!(intel.hero?.h2 || (intel as any).fast_intel?.hero?.h2)}`);
+
+    // DIAG: wow-stage verification fields
+    {
+      const _deep = (intel as any).intel?.deep ?? intel.deep ?? {};
+      const _cons = intel.consultant ?? {};
+      log("WOW_DIAG", `lid=${lid} ts=${new Date().toISOString()} googleMaps=${!!_deep.googleMaps} rating=${_deep.googleMaps?.rating ?? 'none'} consultant=${!!intel.consultant} icp_guess=${!!_sf.icp_guess} scrapedDataSummary=${!!_sf.scrapedDataSummary} mostImpressive=${_cons.mostImpressive?.length ?? 0}`);
+    }
 
     // ── DEDUP CHECK (BEFORE extraction to prevent stale utterance leaking into new stages) ──
     const utt = lastUser(messages);

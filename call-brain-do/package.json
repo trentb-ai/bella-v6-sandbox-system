@@ -1,15 +1,18 @@
 {
   "name": "call-brain-do",
-  "version": "2.0.0-do-alpha.1",
+  "version": "3.0.0-bella-v2",
   "private": true,
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "deploy:dry": "wrangler deploy --dry-run"
+    "deploy:dry": "wrangler deploy --dry-run",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250313.0",
     "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
     "wrangler": "^4.0.0"
   }
 }

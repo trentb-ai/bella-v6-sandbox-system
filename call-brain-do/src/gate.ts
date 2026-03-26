@@ -1,134 +1,290 @@
 /**
- * call-brain-do/src/gate.ts — v2.0.0-do-alpha.1
- * Stage gating, advancement, and queue building.
- * Ported from bridge lines ~396-565, tightened to 9-stall WOW.
+ * call-brain-do/src/gate.ts — v3.0.0-bella-v2
+ * V2 queue builder, eligibility engine, stage policies, and force-advance logic.
+ *
+ * Pure functions — no state mutation, no side effects.
+ * The controller (index.ts) handles all state writes.
  */
 
-import type { CallBrainState, Stage, ChannelStage } from './types';
+import type {
+  StageId,
+  CoreAgent,
+  ConversationState,
+  MergedIntel,
+  QueueItem,
+  EligibilityResult,
+  StagePolicy,
+} from './types';
 
-// ─── Gate: can the current stage advance? ────────────────────────────────────
+// ─── Stage Policies ─────────────────────────────────────────────────────────
 
-export function gateOpen(state: CallBrainState): boolean {
-  const { stage, extracted: e, wowStall, flags } = state;
-  switch (stage) {
-    case 'wow':              return wowStall >= 10; // 9 stalls, gate at 10
-    case 'anchor_acv':       return e.acv !== null;
-    case 'anchor_timeframe': return e.timeframe !== null;
-    case 'ch_website':       return e.web_leads !== null && e.web_conversions !== null;
-    case 'ch_ads':           return e.ads_leads !== null && e.ads_conversions !== null;
-    case 'ch_phone':         return e.phone_volume !== null && e.missed_call_handling !== null;
-    case 'ch_old_leads':     return e.old_leads !== null;
-    case 'ch_reviews':       return e.new_customers !== null && e.has_review_system !== null;
-    case 'roi_delivery':     return flags.roiDelivered;
-    case 'close':            return false; // terminal
-  }
+export const STAGE_POLICIES: Record<
+  Extract<StageId, 'ch_alex' | 'ch_chris' | 'ch_maddie' | 'ch_sarah' | 'ch_james'>,
+  StagePolicy
+> = {
+  ch_alex: {
+    stage: 'ch_alex',
+    requiredFields: ['acv', 'inboundLeads', 'inboundConversionsOrRate', 'responseSpeedBand'],
+    minFieldsForEstimate: ['acv', 'inboundLeads', 'inboundConversionsOrRate', 'responseSpeedBand'],
+    maxQuestions: 3,
+    forceAdvanceWhenSatisfied: true,
+    calculatorKey: 'alex_speed_to_lead',
+    fallbackPolicy: [
+      'Ask for rough conversion percentage once if raw conversions are missing.',
+      'Map vague response-time language to the nearest approved band.',
+      'If still incomplete after one clarification, use approved conservative fallback or skip.',
+    ],
+  },
+  ch_chris: {
+    stage: 'ch_chris',
+    requiredFields: ['acv', 'webLeads', 'webConversionsOrRate'],
+    minFieldsForEstimate: ['acv', 'webLeads', 'webConversionsOrRate'],
+    maxQuestions: 2,
+    forceAdvanceWhenSatisfied: true,
+    calculatorKey: 'chris_website_conversion',
+    fallbackPolicy: [
+      'Ask for rough conversion percentage once if raw conversions are missing.',
+      'If still incomplete after one clarification, use approved conservative fallback or skip.',
+    ],
+  },
+  ch_maddie: {
+    stage: 'ch_maddie',
+    requiredFields: ['phoneVolume', 'missedCallsOrRate'],
+    minFieldsForEstimate: ['phoneVolume', 'missedCallsOrRate'],
+    maxQuestions: 2,
+    forceAdvanceWhenSatisfied: true,
+    calculatorKey: 'maddie_missed_call_recovery',
+    fallbackPolicy: [
+      'Ask for rough missed-call percentage once if raw missed-call count is missing.',
+      'If still incomplete after one clarification, use approved conservative fallback or skip.',
+    ],
+  },
+  ch_sarah: {
+    stage: 'ch_sarah',
+    requiredFields: ['acv', 'oldLeads'],
+    minFieldsForEstimate: ['acv', 'oldLeads'],
+    maxQuestions: 2,
+    forceAdvanceWhenSatisfied: true,
+    calculatorKey: 'sarah_database_reactivation',
+    fallbackPolicy: [
+      'If prospect is unsure of exact number, accept a rough estimate ("a few hundred", "maybe a thousand").',
+      'If still incomplete after one clarification, skip with a note that Sarah ROI was not computed.',
+    ],
+  },
+  ch_james: {
+    stage: 'ch_james',
+    requiredFields: ['acv', 'newCustomersPerWeek', 'currentStars', 'hasReviewSystem'],
+    minFieldsForEstimate: ['acv', 'newCustomersPerWeek', 'currentStars', 'hasReviewSystem'],
+    maxQuestions: 2,
+    forceAdvanceWhenSatisfied: true,
+    calculatorKey: 'james_reputation_uplift',
+    fallbackPolicy: [
+      'If prospect is unsure about review system, assume they do not have one.',
+      'If still incomplete after one clarification, skip with a note that James ROI was not computed.',
+    ],
+  },
+};
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** Returns true if v is not null, not undefined, and not empty string. */
+export function hasValue(v: unknown): boolean {
+  return v !== null && v !== undefined && v !== '';
 }
 
-// ─── Advance: move to next stage ─────────────────────────────────────────────
+// ─── Minimum-Data Checks ────────────────────────────────────────────────────
 
-export function advance(state: CallBrainState): void {
-  state.completedStages.push(state.stage);
-  state.wowStall = 0;
-
-  // Just Demo — skip remaining channel stages, go to roi_delivery
-  if (state.flags.justDemo && (state.stage === 'anchor_timeframe' || state.stage.startsWith('ch_'))) {
-    state.stage = 'roi_delivery';
-    return;
-  }
-
-  const transitions: Partial<Record<Stage, Stage>> = {
-    wow: 'anchor_acv',
-    anchor_acv: 'anchor_timeframe',
-    roi_delivery: 'close',
-  };
-
-  state.stage = transitions[state.stage] ?? state.currentQueue.shift() ?? 'roi_delivery';
+export function hasAlexMinimumData(state: ConversationState): boolean {
+  const hasConv = hasValue(state.inboundConversions) || hasValue(state.inboundConversionRate);
+  return hasValue(state.acv) && hasValue(state.inboundLeads) && hasConv && hasValue(state.responseSpeedBand);
 }
 
-// ─── Advance if gate is open ─────────────────────────────────────────────────
+export function hasChrisMinimumData(state: ConversationState): boolean {
+  const hasConv = hasValue(state.webConversions) || hasValue(state.webConversionRate);
+  return hasValue(state.acv) && hasValue(state.webLeads) && hasConv;
+}
 
-export function advanceIfGateOpen(state: CallBrainState): boolean {
-  if (gateOpen(state)) {
-    advance(state);
-    return true;
-  }
+export function hasMaddieMinimumData(state: ConversationState): boolean {
+  const hasMissed = hasValue(state.missedCalls) || hasValue(state.missedCallRate);
+  return hasValue(state.acv) && hasValue(state.phoneVolume) && hasMissed;
+}
+
+export function hasSarahMinimumData(state: ConversationState): boolean {
+  return hasValue(state.acv) && hasValue(state.oldLeads);
+}
+
+export function hasJamesMinimumData(state: ConversationState): boolean {
+  return hasValue(state.acv) && hasValue(state.newCustomersPerWeek) && hasValue(state.currentStars) && state.hasReviewSystem !== undefined && state.hasReviewSystem !== null;
+}
+
+// ─── Force-Advance & Question Budget ────────────────────────────────────────
+
+/** Returns true if the channel stage has all minimum data to run its calculator. */
+export function shouldForceAdvance(stage: StageId, state: ConversationState): boolean {
+  if (stage === 'ch_alex') return hasAlexMinimumData(state);
+  if (stage === 'ch_chris') return hasChrisMinimumData(state);
+  if (stage === 'ch_maddie') return hasMaddieMinimumData(state);
+  if (stage === 'ch_sarah') return hasSarahMinimumData(state);
+  if (stage === 'ch_james') return hasJamesMinimumData(state);
   return false;
 }
 
-// ─── Queue building from intel signals ───────────────────────────────────────
-
-const AGENT_TO_CHANNEL: Record<string, ChannelStage> = {
-  alex: 'ch_ads',
-  chris: 'ch_website',
-  maddie: 'ch_phone',
-  sarah: 'ch_old_leads',
-  james: 'ch_reviews',
-};
-
-export interface QueueResult {
-  queue: Stage[];
-  tease: ChannelStage | null;
+/** Returns true if the question budget for this channel stage is exhausted. */
+export function maxQuestionsReached(stage: StageId, state: ConversationState): boolean {
+  if (stage === 'ch_alex') return state.questionCounts.ch_alex >= 3;
+  if (stage === 'ch_chris') return state.questionCounts.ch_chris >= 2;
+  if (stage === 'ch_maddie') return state.questionCounts.ch_maddie >= 2;
+  if (stage === 'ch_sarah') return state.questionCounts.ch_sarah >= 2;
+  if (stage === 'ch_james') return state.questionCounts.ch_james >= 2;
+  return false;
 }
 
-export function buildQueue(
-  flags: Record<string, unknown>,
-  intel: Record<string, unknown>,
-): QueueResult {
-  const deep = (intel as any).intel?.deep ?? (intel as any).deep ?? {};
-  const ts = (intel as any).tech_stack ?? {};
-  const routing = (intel as any).consultant?.routing ?? {};
+// ─── Eligibility ────────────────────────────────────────────────────────────
 
-  // Signal detection
-  const adsOrInbound = !!(
-    (flags as any).is_running_ads || (flags as any).has_fb_pixel || (flags as any).has_google_ads
-    || deep.ads?.is_running_google_ads
-    || (deep.ads?.google_ads_count ?? 0) > 0 || (deep.ads?.fb_ads_count ?? 0) > 0
-    || ts.is_running_ads || (intel as any).google_ads_running || (intel as any).facebook_ads_running
-    || (ts.social_channels?.length > 0) || ts.has_email_marketing
+/** Derive agent eligibility from intel signals and conversation state. */
+export function deriveEligibility(intel: MergedIntel, state: ConversationState): EligibilityResult {
+  const websiteSignals = !!(
+    intel.fast.websiteExists
+    || (intel.fast.websiteActions && intel.fast.websiteActions.length > 0)
+    || state.leadSourceDominant === 'website'
+    || state.leadSourceDominant === 'ads'
+    || state.websiteRelevant
   );
 
-  const cea = (intel as any).consultant?.conversionEventAnalysis ?? {};
-  const ctaType: string = cea.ctaType ?? '';
-  const phoneDominantCta = ctaType === 'call' || ctaType === 'phone'
-    || /\bcall\b/i.test(cea.primaryCTA ?? '');
+  const phoneSignals = !!(
+    intel.fast.phoneVisible
+    || (intel.fast.phoneSignals && intel.fast.phoneSignals.length > 0)
+    || state.leadSourceDominant === 'phone'
+    || state.phoneRelevant
+  );
 
-  let queue: Stage[];
-  let tease: ChannelStage | null;
+  const explicitNoInbound = state.leadSourceDominant === 'other'
+    && !websiteSignals && !phoneSignals && !state.adsConfirmed;
 
-  if (adsOrInbound) {
-    queue = ['ch_website', 'ch_ads'];
-    tease = 'ch_phone';
+  const alexEligible = !explicitNoInbound;
+
+  const chrisEligible = websiteSignals && (
+    state.leadSourceDominant === 'website'
+    || state.leadSourceDominant === 'ads'
+    || state.leadSourceDominant === 'organic'
+    || state.websiteRelevant
+  );
+
+  const maddieEligible = phoneSignals && (
+    state.leadSourceDominant === 'phone'
+    || state.phoneRelevant
+  );
+
+  const whyRecommended: string[] = [];
+  if (alexEligible) whyRecommended.push('Alex: inbound demand signals detected — speed-to-lead uplift likely.');
+  if (chrisEligible) whyRecommended.push('Chris: website actions or web-sourced leads — conversion uplift applies.');
+  if (maddieEligible) whyRecommended.push('Maddie: phone signals detected — missed call recovery opportunity.');
+
+  return { alexEligible, chrisEligible, maddieEligible, whyRecommended };
+}
+
+// ─── Top Agents (Alex-first rule) ───────────────────────────────────────────
+
+/**
+ * Derive ordered top agents from eligibility flags.
+ * Uses consultant routing.priority_agents when available, else Alex-first.
+ */
+export function deriveTopAgents(state: ConversationState): CoreAgent[] {
+  const { alexEligible, chrisEligible, maddieEligible } = state;
+
+  // Build eligible set
+  const eligible: CoreAgent[] = [];
+  if (alexEligible) eligible.push('alex');
+  if (chrisEligible) eligible.push('chris');
+  if (maddieEligible) eligible.push('maddie');
+
+  if (eligible.length === 0) return [];
+
+  // Apply consultant priority ordering if available
+  const consultantPriority = (
+    (state.intel.consultant as any)?.routing?.priority_agents ?? []
+  ) as string[];
+
+  if (consultantPriority.length > 0) {
+    eligible.sort((a, b) => {
+      const ai = consultantPriority.indexOf(a);
+      const bi = consultantPriority.indexOf(b);
+      // Agents not in priority list sort to end, preserving relative order
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    console.log(`[TOP_AGENTS] consultant_priority=[${consultantPriority.join(',')}] result=[${eligible.join(',')}]`);
   } else {
-    queue = ['ch_website'];
-    if (phoneDominantCta) {
-      queue.push('ch_phone');
-      tease = 'ch_ads';
-    } else {
-      queue.push('ch_ads');
-      tease = 'ch_phone';
-    }
+    console.log(`[TOP_AGENTS] no consultant priority — Alex-first default result=[${eligible.join(',')}]`);
   }
 
-  // Consultant swap: if top priority agent maps to slot 2, swap slots 1 & 2
-  const topAgent = ((routing.priority_agents?.[0] ?? '') as string).toLowerCase();
-  const topChannel = AGENT_TO_CHANNEL[topAgent];
-  if (topChannel && queue.length >= 2 && topChannel === queue[1]) {
-    [queue[0], queue[1]] = [queue[1], queue[0]];
+  return eligible;
+}
+
+// ─── Queue Builder ──────────────────────────────────────────────────────────
+
+/** Build the initial channel queue from topAgents. Sorted by priority ascending. */
+export function buildInitialQueue(state: ConversationState): QueueItem[] {
+  const queue: QueueItem[] = [];
+
+  if (state.topAgents.includes('alex')) {
+    queue.push({ stage: 'ch_alex', agent: 'alex', priority: 1, why: 'Alex leads whenever inbound demand likely exists.' });
+  }
+  if (state.topAgents.includes('chris')) {
+    queue.push({ stage: 'ch_chris', agent: 'chris', priority: 2, why: 'Chris follows when website actions matter.' });
+  }
+  if (state.topAgents.includes('maddie')) {
+    queue.push({ stage: 'ch_maddie', agent: 'maddie', priority: 3, why: 'Maddie is added when phone is commercially important.' });
   }
 
-  return { queue, tease };
+  queue.sort((a, b) => a.priority - b.priority);
+  return queue;
 }
 
-// ─── Rebuild future queue when late data arrives ─────────────────────────────
+// ─── Queue Rebuild on Late Intel ────────────────────────────────────────────
 
-export function rebuildFutureQueue(
-  state: CallBrainState,
-  flags: Record<string, unknown>,
-  intel: Record<string, unknown>,
-): void {
-  if (state.stage === 'roi_delivery' || state.stage === 'close') return;
+/**
+ * Rebuild the future queue when late-arriving intel changes eligibility.
+ * Derives fresh eligibility, recomputes topAgents, rebuilds queue,
+ * then filters out any stages already completed.
+ */
+export function rebuildFutureQueueOnLateLoad(
+  currentQueue: QueueItem[],
+  state: ConversationState,
+  intel: MergedIntel,
+): QueueItem[] {
+  const completedSet = new Set<StageId>(state.completedStages);
 
-  const { queue: newChannels } = buildQueue(flags, intel);
-  const locked = new Set<string>([...state.completedStages, state.stage]);
-  state.currentQueue = newChannels.filter(ch => !locked.has(ch)) as Stage[];
+  // Derive fresh eligibility from latest intel
+  const eligibility = deriveEligibility(intel, state);
+
+  // Build a temporary updated state with fresh eligibility
+  const updatedState: ConversationState = {
+    ...state,
+    alexEligible: eligibility.alexEligible,
+    chrisEligible: eligibility.chrisEligible,
+    maddieEligible: eligibility.maddieEligible,
+    whyRecommended: eligibility.whyRecommended,
+    topAgents: [], // placeholder — computed next
+  };
+
+  // Recompute topAgents from the updated eligibility
+  updatedState.topAgents = deriveTopAgents(updatedState);
+
+  // Build fresh queue from updated state
+  const freshQueue = buildInitialQueue(updatedState);
+
+  // Filter out already-completed stages
+  return freshQueue.filter((item) => !completedSet.has(item.stage));
 }
+
+// ─── Next Channel ───────────────────────────────────────────────────────────
+
+/** Returns the next channel stage from the queue, or 'roi_delivery' if exhausted. */
+export function nextChannelFromQueue(state: ConversationState): StageId {
+  const completedSet = new Set<StageId>(state.completedStages);
+  for (const item of state.currentQueue) {
+    if (!completedSet.has(item.stage)) return item.stage;
+  }
+  return 'roi_delivery';
+}
+

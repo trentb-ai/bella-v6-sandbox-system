@@ -36,7 +36,7 @@ import { Env, FastIntelResult, ConsultantPayload } from "./types";
 
 export { Env };
 
-const VERSION = "1.10.0"; // Phase D: DO brain event delivery (session_init + fast_intel_ready + consultant_ready)
+const VERSION = "1.11.0"; // Stub consultant fallback: attempt Gemini enrichment even when all scrapers fail
 // KV_TTL removed — data persists permanently
 
 const CORS = {
@@ -694,6 +694,17 @@ async function runFastIntel(
     // page content (e.g. "Trusted Financial Advisors" instead of "Leading Advice").
     consultant = fullResult ?? fastResult;
 
+    // When full consultant failed, fastResult has flat shape {correctedName, industry}
+    // — wrap it into the expected nested shape so name resolution works downstream
+    if (!fullResult && fastResult?.correctedName && !consultant?.businessIdentity) {
+      log("CONSULTANT_MERGE", `Full failed — wrapping fast name="${fastResult.correctedName}"`);
+      consultant = {
+        ...consultant,
+        businessIdentity: { correctedName: fastResult.correctedName, industry: fastResult.industry ?? "business" },
+        scriptFills: consultant?.scriptFills ?? {},
+      };
+    }
+
     // Preserve fast consultant's correctedName — it has dedicated name signals
     if (fastResult?.correctedName && consultant?.businessIdentity) {
       const fastName = fastResult.correctedName;
@@ -702,6 +713,48 @@ async function runFastIntel(
         log("CONSULTANT_MERGE", `Name mismatch: fast="${fastName}" full="${fullName}" — using fast`);
       }
       consultant.businessIdentity.correctedName = fastName;
+    }
+  }
+
+  // ── Stub consultant fallback ─────────────────────────────────────────────
+  // When all scrapers failed (fc=null), attempt consultant enrichment using
+  // domain name alone so Gemini can leverage its training knowledge.
+  // Failure falls through silently to existing pure-stub behavior.
+  if (!fc && !consultant) {
+    try {
+      log("CONSULTANT_STUB", `Attempting domain-only consultant for ${domain}`);
+      const stubPayload: ConsultantPayload = {
+        businessName:    bizNameTitle,
+        industry:        "business",
+        industryNiche:   null,
+        location:        "Australia",
+        yearsInBusiness: null,
+        targetAudience:  "clients",
+        salesTerm:       "appointments",
+        businessModel:   "B2C",
+        description:     "",
+        google:          { rating: null, reviewCount: 0, ownerResponseRate: null, openingHours: [] },
+        competitors:     [],
+        reviews:         [],
+        facebookAds:     { isRunning: false, adCount: 0, ctas: [], creatives: [] },
+        googleAds:       { isRunning: false, adCount: 0, headlines: [] },
+        campaignAnalysis: null,
+        techStack:       { hasCRM: false, hasChatWidget: false, hasBookingSystem: false, hasVoiceAI: false, techCount: 0, missingTech: [] },
+        landingPage:     { hasAboveFoldCTA: false, formFieldCount: 0, mobileOptimized: true, testimonialCount: 0, trustBadgeCount: 0, hasVideo: false, hasLiveChat: false, hasClickToCall: false, score: 0 },
+        aiExtracted:     { headline: "", subheadline: "", mainCTA: null, services: [], targetAudience: null },
+        scraped:         { services: [], ctas: [], testimonials: [], certifications: [], socialMedia: {}, valuePropositions: [] },
+        branding:        { tagline: "", heroH1: "", primaryColor: null },
+        websiteContent:  `Business domain: ${domain}. No website content was available. Use your knowledge of this business to provide industry, ICP, and routing analysis.`,
+        grades:          {},
+      };
+      consultant = await callConsultant(stubPayload, env);
+      if (consultant) {
+        log("CONSULTANT_STUB", `OK name=${consultant.businessIdentity?.correctedName ?? "?"} industry=${consultant.businessIdentity?.industry ?? "?"}`);
+      } else {
+        log("CONSULTANT_STUB", "Null — pure stub");
+      }
+    } catch (err) {
+      log("CONSULTANT_STUB", `Fail: ${err} — pure stub`);
     }
   }
 
@@ -1429,6 +1482,10 @@ export default {
       await writeFastIntelToKV(lid, firstName, websiteUrl, fastIntel, env);
 
       // Phase D: Deliver events to Call Brain DO (non-blocking)
+      const _places = (fastIntel as any).places ?? null;
+      const _fc = fastIntel.consultant as any ?? {};
+      const _sf = _fc?.scriptFills ?? {};
+      log("DO_EMIT", `lid=${lid} ts=${new Date().toISOString()} places=${!!_places} rating=${_places?.rating ?? 'none'} reviews=${_places?.review_count ?? 0} name=${(_places?.name ?? 'none').slice(0, 40)} consultant_ok=${!_fc?._fallback} icp="${(_sf?.icp_guess ?? 'none').slice(0, 40)}" mostImpressive=${_fc?.mostImpressive?.length ?? 0}`);
       ctx.waitUntil(
         deliverDOEvents(lid, {
           core_identity: fastIntel.core_identity,
@@ -1437,6 +1494,7 @@ export default {
           bella_opener: fastIntel.bella_opener,
           firstName: fastIntel.firstName,
           first_name: fastIntel.first_name,
+          places: _places,
         }, fastIntel.consultant ?? null, env)
       );
 

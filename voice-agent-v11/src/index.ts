@@ -6,7 +6,7 @@
 
 import { Agent, routeAgentRequest } from "agents";
 
-const VERSION = "4.0.3-SUPERGOD"; // Fix: capture URL params in fetch() before WebSocket upgrade
+const VERSION = "4.1.0-RECONNECT"; // Fix: auto-reconnect on DG close + browser notification
 const log = (tag: string, msg: string, t0?: number) => {
   const elapsed = t0 !== undefined ? ` [+${Date.now() - t0}ms]` : "";
   console.log(`[BellaV4 ${VERSION}] [${tag}]${elapsed} ${msg}`);
@@ -214,6 +214,8 @@ export class BellaAgent extends Agent<Env, BellaState> {
   private prospectFirstName: string = "";
   private prospectBusiness: string = "";
   private currentStage: Stage = "wow";  // SUPERGOD: Track for Flux Configure
+  private dgReconnectAttempts: number = 0;
+  private static readonly MAX_DG_RECONNECTS = 2;
 
   shouldSendProtocolMessages(): boolean { return false; }
 
@@ -673,6 +675,7 @@ VOICE CALL RULES:
 
     dgWs.addEventListener("open", () => {
       log("DG", "connected — sending Settings", t0);
+      this.dgReconnectAttempts = 0; // Reset on successful connect
 
       const settings: Record<string, any> = {
         type: "Settings",
@@ -810,12 +813,41 @@ VOICE CALL RULES:
 
     dgWs.addEventListener("error", (e: Event) => {
       log("DG-ERR", `WebSocket error: ${JSON.stringify(e)}`, t0);
+      if (this.browserConn) {
+        this.sendJSON(this.browserConn, { type: "error", message: "Voice connection error", code: "DG_ERROR" });
+      }
     });
 
     dgWs.addEventListener("close", (e: CloseEvent) => {
       log("DG", `closed: code=${e.code} reason="${e.reason}"`, t0);
       this.stopKeepAlive();
       this.dgSocket = null;
+
+      // Normal close (user-initiated or server-initiated graceful) — notify and stop
+      if (e.code === 1000 || e.code === 1001 || !this.browserConn) {
+        log("DG", "normal close — not reconnecting");
+        if (this.browserConn) {
+          this.sendJSON(this.browserConn, { type: "call_ended", reason: "normal_close" });
+        }
+        return;
+      }
+
+      // Unexpected close — attempt auto-reconnect
+      if (this.dgReconnectAttempts < BellaAgent.MAX_DG_RECONNECTS) {
+        this.dgReconnectAttempts++;
+        const delay = this.dgReconnectAttempts * 1000; // 1s, 2s backoff
+        log("DG", `unexpected close — reconnecting in ${delay}ms (attempt ${this.dgReconnectAttempts}/${BellaAgent.MAX_DG_RECONNECTS})`);
+        this.sendJSON(this.browserConn, { type: "reconnecting", attempt: this.dgReconnectAttempts });
+
+        setTimeout(() => {
+          if (!this.browserConn) return;
+          log("DG", `reconnecting attempt ${this.dgReconnectAttempts}...`);
+          this.openDGConnection(this.browserConn, "", Date.now());
+        }, delay);
+      } else {
+        log("DG", `max reconnect attempts (${BellaAgent.MAX_DG_RECONNECTS}) exhausted — call dead`);
+        this.sendJSON(this.browserConn, { type: "error", message: "Voice connection lost", code: "DG_CLOSE_FINAL" });
+      }
     });
   }
 

@@ -1,37 +1,499 @@
 /**
- * call-brain-do/src/index.ts — v2.4.0-watchdog
+ * call-brain-do/src/index.ts — v3.0.0-bella-v2
  * CallBrainDO: Durable Object HTTP handler.
  *
- * V2.1.0 fixes:
- *   - ensureSession: idempotent session init (FIX 1)
- *   - Turn dedup: cache by turnId + transcriptHash (FIX 2)
- *   - Version-guarded intel merge (FIX 3)
+ * V2 controller loop (stepBella pattern):
+ *   - Deterministic stage progression via buildStageDirective
+ *   - ROI calculators called by controller, not by directive builder
+ *   - Question budget tracking via questionCounts
+ *   - Force-advance via shouldForceAdvance / maxQuestionsReached
+ *   - WOW uses WowStepId enum, not numeric stalls
  *
  * Routes:
- *   POST /turn   — hot path: user_turn → extract → gate → NextTurnPacket
+ *   POST /turn   — hot path: extract → control → directive → response
  *   POST /event  — all other BrainEvents (session_init, intel, llm_reply_done, call_end)
+ *   POST /notes  — scribe note ingestion (background, inferred confidence)
  *   GET  /state  — debug/shadow-mode state snapshot
  */
 
-import type { Env, BrainEvent, NextTurnPacket, CallBrainState } from './types';
-import { initState, loadState, persistState } from './state';
-import { extractFromTranscript, applyExtraction } from './extract';
-import { advanceIfGateOpen, advance } from './gate';
-import { buildNextTurnPacket } from './moves';
-import { mergeIntel, initQueueFromIntel } from './intel';
-import { computeROI } from './roi';
+import type {
+  Env,
+  BrainEvent,
+  ConversationState,
+  StageId,
+  WowStepId,
+  StageDirective,
+  MergedIntel,
+  CoreAgent,
+  AnyAgent,
+  MemoryCategory,
+  MemoryNote,
+  TranscriptEntry,
+} from './types';
 
-// ─── SHA-256 helper for turn dedup ──────────────────────────────────────────
+import {
+  initState,
+  loadState,
+  persistState,
+  exportMemoryToKV,
+  importMemoryFromKV,
+  mergeImportedMemory,
+  exportCompatToKV,
+} from './state';
+import { extractFromTranscript, applyExtraction, appendTranscript, extractBellaMemoryNotes, commitmentKey, prescanForEarlyROI } from './extract';
+import { geminiExtract, geminiExtractHistory } from './gemini-extract';
+import { mergeIntel, initQueueFromIntel, deepMerge } from './intel';
+import { buildStageDirective } from './moves';
+import { deriveEligibility, maxQuestionsReached } from './gate';
+import {
+  processFlow,
+  tryRunCalculator,
+  buildMergedIntel,
+  resolveDeliveryCompleted,
+  resolveDeliveryBargedIn,
+  resolveDeliveryFailed,
+  resolveDeliveryTimeout,
+} from './flow';
+import { DELIVERY_TIMEOUT_MS } from './flow-constants';
+
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const VERSION = 'v5.6.0-s0-compat-exports';
+
+// ─── WOW step ordering ─────────────────────────────────────────────────────
+
+const WOW_STEP_ORDER: WowStepId[] = [
+  'wow_1_research_intro',
+  'wow_2_reputation_trial',
+  'wow_3_icp_problem_solution',
+  'wow_4_conversion_action',
+  'wow_5_alignment_bridge',
+  'wow_6_scraped_observation',
+  'wow_7_explore_or_recommend',
+  'wow_8_source_check',
+];
+
+function wowStepToNumber(step: WowStepId | null | undefined): number {
+  if (!step) return 0;
+  const idx = WOW_STEP_ORDER.indexOf(step);
+  return idx >= 0 ? idx + 1 : 0;
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 async function sha256Hex(input: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// ─── Version guard for intel events ─────────────────────────────────────────
-
 function shouldApplyVersion(next: number, current?: number): boolean {
   return current == null || next > current;
+}
+
+function json(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+// ─── V2 extraction targets per stage ────────────────────────────────────────
+
+function extractTargetsForStage(stage: StageId, wowStep?: WowStepId | null): string[] {
+  switch (stage) {
+    case 'greeting':              return [];
+    case 'wow': {
+      if (wowStep === 'wow_8_source_check') {
+        return ['leadSourceDominant', 'adsConfirmed', 'websiteRelevant', 'phoneRelevant', '_just_demo'];
+      }
+      return ['_just_demo'];
+    }
+    case 'recommendation':        return ['proceedToROI'];
+    case 'anchor_acv':            return ['acv'];
+    case 'ch_alex':               return ['inboundLeads', 'inboundConversions', 'inboundConversionRate', 'responseSpeedBand'];
+    case 'ch_chris':              return ['webLeads', 'webConversions', 'webConversionRate'];
+    case 'ch_maddie':             return ['phoneVolume', 'missedCalls', 'missedCallRate'];
+    case 'ch_sarah':              return ['oldLeads'];
+    case 'ch_james':              return ['newCustomersPerWeek', 'currentStars', 'hasReviewSystem'];
+    case 'roi_delivery':          return [];
+    case 'optional_side_agents':  return [];
+    case 'close':                 return ['closeDecision'];
+  }
+}
+
+// ─── Active Memory Context Builder ──────────────────────────────────────────
+
+/** Common leading filler words to strip from memory text before injection. */
+const FILLER_PREFIX = /^(yeah|yep|yes|yup|nah|no|um+|uh+|ah+|oh+|so|like|well|look|okay|ok|right|sure)[,.\s]+/i;
+
+/**
+ * Normalize raw memory note text for voice-safe prompt injection.
+ * Returns null if the cleaned text is too short to be useful (<8 chars).
+ */
+function normalizeMemoryLineText(text: string): string | null {
+  let s = text.trim();
+  // Strip leading filler (may need multiple passes for "yeah so like...")
+  for (let i = 0; i < 3; i++) {
+    const before = s;
+    s = s.replace(FILLER_PREFIX, '');
+    if (s === before) break;
+  }
+  // Collapse repeated whitespace
+  s = s.replace(/\s+/g, ' ').trim();
+  // Capitalise first letter after cleanup
+  if (s.length > 0) s = s.charAt(0).toUpperCase() + s.slice(1);
+  return s.length >= 8 ? s : null;
+}
+
+/**
+ * Truncate a string to maxLen on a word boundary.
+ * Appends "..." only if truncation occurred.
+ * Falls back to hard cut if no whitespace exists.
+ */
+function truncateOnWordBoundary(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  const cutRegion = text.slice(0, maxLen - 2); // leave room for "..."
+  const lastSpace = cutRegion.lastIndexOf(' ');
+  const breakAt = lastSpace > maxLen * 0.4 ? lastSpace : maxLen - 3;
+  return text.slice(0, breakAt).trimEnd() + '...';
+}
+
+/** Stage-aware category boosts: which memory categories matter most per stage. */
+const STAGE_BOOSTS: Partial<Record<StageId, MemoryCategory[]>> = {
+  ch_alex: ['roi_context', 'business_context'],
+  ch_chris: ['roi_context', 'business_context'],
+  ch_maddie: ['roi_context', 'business_context'],
+  close: ['objection', 'constraint'],
+  wow: ['personal', 'relationship'],
+};
+
+/**
+ * Select and format active memory notes for injection into the runtime prompt.
+ * Controller decides what's relevant — bridge only renders.
+ * Returns max 10 compact lines (each ≤80 chars).
+ *
+ * Hygiene gates:
+ *  - status === 'active' only
+ *  - category !== 'other' for facts (low-signal catch-all excluded)
+ *  - normalizeMemoryLineText must return non-null (≥8 chars after filler strip)
+ *  - truncation on word boundary (no mid-word cuts)
+ *
+ * Confidence ranking: stated notes outrank inferred at same salience.
+ * Inferred notes (salience 1) fill remaining slots after stated notes.
+ */
+function buildActiveMemoryContext(
+  state: ConversationState,
+  stage: StageId,
+): string[] {
+  const active = state.memoryNotes.filter(
+    n => n.status === 'active',
+  );
+  if (active.length === 0) return [];
+
+  // Split into commitments (always priority, stated only) and facts (exclude 'other' category)
+  const commitments: MemoryNote[] = [];
+  const facts: MemoryNote[] = [];
+  for (const note of active) {
+    if (note.category === 'commitment' && note.confidence === 'stated') {
+      commitments.push(note);
+    } else if (note.category !== 'other' && note.category !== 'commitment') {
+      facts.push(note);
+    }
+  }
+
+  // Sort commitments: most recent first
+  commitments.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  // Sort facts: confidence rank (stated=2, inferred=1), then salience desc, then recency desc
+  facts.sort((a, b) => {
+    const ca = a.confidence === 'stated' ? 2 : 1;
+    const cb = b.confidence === 'stated' ? 2 : 1;
+    if (cb !== ca) return cb - ca;
+    const sa = a.salience ?? 2;
+    const sb = b.salience ?? 2;
+    if (sb !== sa) return sb - sa;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+
+  // Stage-aware boost: move matching categories to front of facts
+  const boostSet = new Set(STAGE_BOOSTS[stage] ?? []);
+  if (boostSet.size > 0) {
+    const boosted: MemoryNote[] = [];
+    const rest: MemoryNote[] = [];
+    for (const f of facts) {
+      if (boostSet.has(f.category)) {
+        boosted.push(f);
+      } else {
+        rest.push(f);
+      }
+    }
+    facts.length = 0;
+    facts.push(...boosted, ...rest);
+  }
+
+  // Take up to 3 commitments + up to 7 facts = max 10
+  // Apply text normalization — skip notes that don't pass hygiene
+  const lines: string[] = [];
+
+  let commitSlots = 0;
+  for (const c of commitments) {
+    if (commitSlots >= 3) break;
+    const cleaned = normalizeMemoryLineText(c.text);
+    if (!cleaned) continue;
+    const line = `[BELLA COMMITTED] ${cleaned}`;
+    lines.push(truncateOnWordBoundary(line, 80));
+    commitSlots++;
+  }
+
+  let factSlots = 0;
+  let statedFacts = 0;
+  let inferredFacts = 0;
+  const maxFacts = 10 - commitSlots;
+  for (const f of facts) {
+    if (factSlots >= maxFacts) break;
+    const cleaned = normalizeMemoryLineText(f.text);
+    if (!cleaned) continue;
+    const label = f.category.toUpperCase().replace(/_/g, ' ');
+    const line = `[${label}] ${cleaned}`;
+    lines.push(truncateOnWordBoundary(line, 80));
+    factSlots++;
+    if (f.confidence === 'stated') statedFacts++;
+    else inferredFacts++;
+  }
+
+  if (inferredFacts > 0) {
+    console.log(`[ACTIVE_MEMORY] stage=${stage} commits=${commitSlots} stated=${statedFacts} inferred=${inferredFacts}`);
+  }
+
+  return lines;
+}
+
+// ─── Map StageDirective to bridge-compat packet ─────────────────────────────
+
+function directiveToPacket(
+  directive: StageDirective,
+  state: ConversationState,
+): Record<string, any> {
+  const coreAgents: CoreAgent[] = ['alex', 'chris', 'maddie'];
+  const coreResults = Object.entries(state.calculatorResults)
+    .filter(([k, v]) => v != null && coreAgents.includes(k as CoreAgent));
+
+  return {
+    stage: state.currentStage,
+    wowStall: state.currentStage === 'wow' ? wowStepToNumber(state.currentWowStep) : null,
+    objective: directive.objective,
+    chosenMove: {
+      id: `v2_${state.currentStage}${state.currentWowStep ? '_' + state.currentWowStep : ''}`,
+      kind: directive.ask ? 'question' : directive.calculatorKey ? 'roi' : 'bridge',
+      text: directive.speak,
+    },
+    criticalFacts: [],
+    extractTargets: directive.extract ?? [],
+    validation: {
+      mustCaptureAny: directive.extract ?? [],
+      advanceOnlyIf: directive.advanceOn ?? [],
+      doNotAdvanceIf: [],
+    },
+    style: {
+      tone: state.industryLanguage.tone,
+      industryTerms: state.industryLanguage.examples.slice(0, 3),
+      maxSentences: 3,
+      noApology: true,
+    },
+    ...(coreResults.length > 0 ? {
+      roi: {
+        agentValues: Object.fromEntries(coreResults.map(([k, v]) => [k, v!.weeklyValue])),
+        totalValue: coreResults.reduce((sum, [_, v]) => sum + v!.weeklyValue, 0),
+      },
+    } : {}),
+    activeMemory: buildActiveMemoryContext(state, state.currentStage),
+  };
+}
+
+// ─── Scribe note validation & dedup ──────────────────────────────────────────
+
+/** Allowed categories for scribe notes (excludes commitment, roi_context, other) */
+const SCRIBE_ALLOWED_CATEGORIES: Set<MemoryCategory> = new Set([
+  'preference', 'personal', 'business_context', 'objection',
+  'relationship', 'scheduling', 'communication_style', 'constraint',
+]);
+
+/** Closed tag allow-list per category */
+const SCRIBE_ALLOWED_TAGS: Record<string, Set<string>> = {
+  preference: new Set(['channel_preference', 'interest', 'preference']),
+  personal: new Set(['family', 'interest', 'sport', 'preference']),
+  business_context: new Set([
+    'hours', 'peak', 'scope', 'specialty', 'history', 'expansion', 'team_size',
+    'voicemail', 'follow_up_method', 'no_follow_up', 'manual_process', 'current_tool',
+    'competitor', 'marketing_spend', 'growth_intent',
+  ]),
+  objection: new Set([
+    'past_experience', 'past_failure', 'price', 'aversion', 'disinterest',
+    'concern', 'pain_point', 'past_vendor',
+  ]),
+  relationship: new Set(['staff', 'decision_maker', 'family_staff']),
+  scheduling: new Set(['day', 'peak', 'hours']),
+  communication_style: new Set(['channel_preference']),
+  constraint: new Set(['budget', 'limitation', 'availability', 'scheduling', 'timeline', 'decision_gate']),
+};
+
+/** PII patterns — reject notes containing these */
+const PII_PATTERN = /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b|\b04\d{2}[-.\s]?\d{3}[-.\s]?\d{3}\b|\b0\d{1}[-.\s]?\d{4}[-.\s]?\d{4}\b|\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z]{2,}\b|\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/i;
+
+/** Filler-only check for scribe notes */
+const SCRIBE_FILLER = /^((yeah|yep|yes|yup|sure|ok|okay|mm+h?m?|uh\s*huh|right|got\s*it|hmm+|ah+|oh+|cool|nice|alright|sounds?\s*good|go\s*ahead|for\s*sure|no\s*worries)\s*[.,!?]*\s*)+$/i;
+
+/** Common stop words for minimum-word-quality check */
+const STOP_WORDS = new Set([
+  'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'am',
+  'do', 'does', 'did', 'has', 'have', 'had', 'will', 'would', 'could',
+  'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for',
+  'on', 'with', 'at', 'by', 'from', 'as', 'into', 'about', 'up',
+  'out', 'if', 'or', 'and', 'but', 'not', 'no', 'so', 'yet',
+  'it', 'its', 'he', 'she', 'we', 'they', 'i', 'me', 'my', 'our',
+  'your', 'you', 'that', 'this', 'them', 'their',
+]);
+
+interface ValidatedNote {
+  text: string;
+  category: MemoryCategory;
+  tags: string[];
+}
+
+function validateScribeNote(raw: unknown): { rejected: boolean; reason?: string; note?: ValidatedNote } {
+  if (!raw || typeof raw !== 'object') return { rejected: true, reason: 'invalid_shape' };
+
+  const obj = raw as Record<string, unknown>;
+  const text = typeof obj.text === 'string' ? obj.text.trim() : '';
+  const category = typeof obj.category === 'string' ? obj.category : '';
+  const tags = Array.isArray(obj.tags) ? obj.tags.filter((t): t is string => typeof t === 'string') : [];
+
+  // Length check
+  if (text.length < 15) return { rejected: true, reason: 'too_short' };
+  if (text.length > 200) return { rejected: true, reason: 'too_long' };
+
+  // Word count check (≥2 words)
+  const words = text.split(/\s+/);
+  if (words.length < 2) return { rejected: true, reason: 'too_few_words' };
+
+  // Quality: at least 1 word ≥4 chars that's not a stop word
+  const hasSubstantiveWord = words.some(w => {
+    const clean = w.replace(/[^a-zA-Z]/g, '').toLowerCase();
+    return clean.length >= 4 && !STOP_WORDS.has(clean);
+  });
+  if (!hasSubstantiveWord) return { rejected: true, reason: 'no_substantive_word' };
+
+  // Filler check
+  if (SCRIBE_FILLER.test(text)) return { rejected: true, reason: 'filler' };
+
+  // PII check
+  if (PII_PATTERN.test(text)) return { rejected: true, reason: 'pii_detected' };
+
+  // Category check
+  if (!SCRIBE_ALLOWED_CATEGORIES.has(category as MemoryCategory)) {
+    return { rejected: true, reason: `disallowed_category:${category}` };
+  }
+
+  // Tag check — filter to allowed tags only (silently drop unknown tags)
+  const allowedTagSet = SCRIBE_ALLOWED_TAGS[category];
+  const validTags = allowedTagSet ? tags.filter(t => allowedTagSet.has(t)) : [];
+  if (validTags.length === 0 && tags.length > 0) {
+    return { rejected: true, reason: 'no_valid_tags' };
+  }
+
+  return {
+    rejected: false,
+    note: { text, category: category as MemoryCategory, tags: validTags.length > 0 ? validTags : tags },
+  };
+}
+
+/** Tokenize text into lowercase words for dedup comparison */
+function tokenize(text: string): string[] {
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 0);
+}
+
+/** Check if two arrays share 4+ consecutive words */
+function hasConsecutiveOverlap(a: string[], b: string[], minLen: number): boolean {
+  if (a.length < minLen || b.length < minLen) return false;
+  const bStr = ' ' + b.join(' ') + ' ';
+  for (let i = 0; i <= a.length - minLen; i++) {
+    const seq = ' ' + a.slice(i, i + minLen).join(' ') + ' ';
+    if (bStr.includes(seq)) return true;
+  }
+  return false;
+}
+
+/** Jaccard similarity of two word sets */
+function jaccard(a: string[], b: string[]): number {
+  const setA = new Set(a);
+  const setB = new Set(b);
+  let intersection = 0;
+  for (const w of setA) if (setB.has(w)) intersection++;
+  const union = setA.size + setB.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+/** Check if two tag arrays are identical sets */
+function identicalTags(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const setA = new Set(a);
+  return b.every(t => setA.has(t));
+}
+
+/**
+ * Find duplicate in existing notes. Returns reason string if dup found, null if clear.
+ * Primary: same category + overlapping tag + 4 consecutive shared words
+ * Secondary: same category + identical tag set + Jaccard > 0.8
+ */
+function findDuplicate(
+  incoming: ValidatedNote,
+  existing: MemoryNote[],
+): string | null {
+  const inTokens = tokenize(incoming.text);
+  const inTags = incoming.tags;
+
+  for (const ex of existing) {
+    if (ex.status !== 'active') continue;
+    if (ex.category !== incoming.category) continue;
+
+    const exTags = ex.tags ?? [];
+
+    // Primary: overlapping tag + 4 consecutive words
+    const sharedTag = inTags.some(t => exTags.includes(t));
+    if (sharedTag) {
+      const exTokens = tokenize(ex.text);
+      if (hasConsecutiveOverlap(inTokens, exTokens, 4)) {
+        return 'consecutive_words';
+      }
+    }
+
+    // Secondary: identical tags + Jaccard > 0.8
+    if (identicalTags(inTags, exTags)) {
+      const exTokens = tokenize(ex.text);
+      if (jaccard(inTokens, exTokens) > 0.8) {
+        return 'jaccard_overlap';
+      }
+    }
+  }
+
+  return null;
+}
+
+/** Scope assignment for scribe notes — mirrors extract.ts scopeForCategory */
+function scopeForCategory(category: MemoryCategory): 'session' | 'lead' | 'account' {
+  switch (category) {
+    case 'business_context': return 'account';
+    case 'constraint': return 'account';
+    case 'scheduling': return 'account';
+    case 'relationship': return 'account';
+    case 'personal': return 'lead';
+    case 'preference': return 'lead';
+    case 'communication_style': return 'lead';
+    case 'objection': return 'lead';
+    case 'commitment': return 'lead';
+    case 'roi_context': return 'session';
+    case 'other': return 'session';
+  }
 }
 
 // ─── Durable Object ─────────────────────────────────────────────────────────
@@ -39,6 +501,7 @@ function shouldApplyVersion(next: number, current?: number): boolean {
 export class CallBrainDO {
   private state: DurableObjectState;
   private env: Env;
+  private geminiKey: string | null = null;
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
@@ -46,6 +509,10 @@ export class CallBrainDO {
   }
 
   async fetch(request: Request): Promise<Response> {
+    // Secrets don't appear in DO env — worker injects via header
+    if (!this.geminiKey) {
+      this.geminiKey = request.headers.get('x-gemini-key') || this.env.GEMINI_API_KEY || null;
+    }
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -59,6 +526,12 @@ export class CallBrainDO {
       if (request.method === 'GET' && path === '/state') {
         return await this.handleGetState();
       }
+      if (request.method === 'POST' && path === '/notes') {
+        return await this.handleNotes(request);
+      }
+      if (request.method === 'GET' && path === '/debug') {
+        return await this.handleDebug(url);
+      }
 
       return json({ error: 'not_found', message: `Unknown route: ${request.method} ${path}` }, 404);
     } catch (err: any) {
@@ -67,40 +540,191 @@ export class CallBrainDO {
     }
   }
 
-  // ── FIX 1: Idempotent session creation ──────────────────────────────────────
+  // ── Idempotent session creation ────────────────────────────────────────────
 
   private async ensureSession(
     leadId: string,
     starterIntel?: Record<string, unknown>,
-  ): Promise<{ brain: CallBrainState; created: boolean }> {
-    let brain = await loadState(this.state.storage);
+  ): Promise<{ brain: ConversationState; created: boolean }> {
+    let brain = await loadState(this.state.storage) as ConversationState | null;
 
     if (!brain) {
-      // Fresh session
       brain = initState(this.state.id.toString(), leadId);
-      if (starterIntel) {
-        brain.intel.fast = starterIntel;
-        brain.intel.mergedVersion = 1;
-        initQueueFromIntel(brain);
+
+      // ── KV self-hydration: DO reads all intel sources on first session ────
+      // Parity with bridge loadMergedIntel() + loadCallBrief().
+      // Priority (lowest→highest): stub → deepIntel → deep_flags → intel → fast-intel → call_brief
+      // Late-arriving intel (deep-scrape mid-call) still arrives via /event.
+      // If KV is empty (scraping not done yet), DO starts with nothing and hydrates when /event fires.
+      let kvIntel: Record<string, any> | null = null;
+      if (!starterIntel && leadId && leadId !== 'unknown') {
+        try {
+          const [stubRaw, fastIntelRaw, deepIntelRaw, deepFlagsRaw, intelRaw, callBriefRaw] = await Promise.all([
+            this.env.LEADS_KV.get(`lead:${leadId}:stub`, 'json'),
+            this.env.LEADS_KV.get(`lead:${leadId}:fast-intel`, 'json'),
+            this.env.LEADS_KV.get(`lead:${leadId}:deepIntel`, 'json'),
+            this.env.LEADS_KV.get(`lead:${leadId}:deep_flags`, 'json'),
+            this.env.LEADS_KV.get(`lead:${leadId}:intel`, 'json'),
+            this.env.LEADS_KV.get(`lead:${leadId}:call_brief`, 'json'),
+          ]) as [Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null];
+
+          const hasSomething = stubRaw || fastIntelRaw || deepIntelRaw || deepFlagsRaw || intelRaw || callBriefRaw;
+          if (hasSomething) {
+            // Strip fast-intel placeholder deep field (matches bridge behavior)
+            if (fastIntelRaw?.deep && Object.keys(fastIntelRaw.deep).length === 1 && fastIntelRaw.deep.status === 'processing') {
+              delete fastIntelRaw.deep;
+            }
+
+            // deepMerge chain: stub (lowest) → deepIntel → deep_flags → intel → fast-intel (highest)
+            let merged: Record<string, any> = {};
+            if (stubRaw) merged = deepMerge(merged, stubRaw);
+            if (deepIntelRaw) merged = deepMerge(merged, deepIntelRaw);
+            if (deepFlagsRaw) merged = deepMerge(merged, deepFlagsRaw);
+            if (intelRaw) merged = deepMerge(merged, intelRaw);
+            if (fastIntelRaw) merged = deepMerge(merged, fastIntelRaw);
+
+            // Inject deep-scrape structured data at merged.deep (matches bridge deep_flags→intel.deep transform)
+            if (deepFlagsRaw && (deepFlagsRaw.google_rating !== undefined || deepFlagsRaw.google_maps || deepFlagsRaw.indeed_count || deepFlagsRaw.google_search_count || deepFlagsRaw.google_ads_transparency_count)) {
+              merged.deep = {
+                status: 'done',
+                googleMaps: {
+                  rating: deepFlagsRaw.google_rating ?? null,
+                  review_count: deepFlagsRaw.review_count ?? 0,
+                  address: deepFlagsRaw.address ?? '',
+                  categories: deepFlagsRaw.categories ?? [],
+                  reviews_sample: deepFlagsRaw.reviews_sample ?? [],
+                  opening_hours: deepFlagsRaw.opening_hours ?? null,
+                  phone: deepFlagsRaw.phone ?? null,
+                  listed_website: deepFlagsRaw.listed_website ?? null,
+                  photos_count: deepFlagsRaw.photos_count ?? 0,
+                },
+                ads: {
+                  fb_ads_count: deepFlagsRaw.fb_ads_count ?? 0,
+                  fb_ads_sample: deepFlagsRaw.fb_ads_sample ?? [],
+                  google_search_count: deepFlagsRaw.google_search_count ?? 0,
+                  google_search_results: deepFlagsRaw.google_search_results ?? [],
+                  google_ads_count: deepFlagsRaw.google_ads_transparency_count ?? 0,
+                  is_running_google_ads: deepFlagsRaw.is_running_google_ads ?? false,
+                  google_ads_sample: deepFlagsRaw.google_ads_sample ?? [],
+                },
+                hiring: {
+                  is_hiring: (deepFlagsRaw.indeed_count ?? 0) > 0 || (deepFlagsRaw.seek_count ?? 0) > 0,
+                  indeed_count: deepFlagsRaw.indeed_count ?? 0,
+                  jobs_sample: deepFlagsRaw.jobs_sample ?? [],
+                  seek_count: deepFlagsRaw.seek_count ?? 0,
+                  seek_sample: deepFlagsRaw.seek_sample ?? [],
+                  hiring_agent_matches: deepFlagsRaw.hiring_agent_matches ?? [],
+                  top_hiring_wedge: deepFlagsRaw.top_hiring_wedge ?? null,
+                },
+                linkedin: deepFlagsRaw.linkedin ?? {},
+                ad_landing_pages: deepFlagsRaw.ad_landing_pages ?? [],
+              };
+            } else if (deepIntelRaw && (deepIntelRaw.googleMaps || deepIntelRaw.linkedin || deepIntelRaw.hiring)) {
+              merged.deep = { status: 'done', ...deepIntelRaw };
+            }
+
+            // call_brief takes highest precedence when it has a valid status field
+            if (callBriefRaw && callBriefRaw.status) {
+              merged = deepMerge(merged, callBriefRaw);
+              console.log(`[KV_HYDRATE_BRIEF] lid=${leadId} status=${callBriefRaw.status} keys=${Object.keys(callBriefRaw).length}`);
+            }
+
+            kvIntel = merged;
+            const sources = [
+              stubRaw ? 'stub' : null, fastIntelRaw ? 'fast-intel' : null,
+              deepIntelRaw ? 'deepIntel' : null, deepFlagsRaw ? 'deep_flags' : null,
+              intelRaw ? 'intel' : null, callBriefRaw ? 'call_brief' : null,
+            ].filter(Boolean);
+            console.log(`[KV_HYDRATE] lid=${leadId} sources=[${sources.join(',')}] consultant=${!!kvIntel.consultant} biz=${(kvIntel.business_name ?? 'none').slice(0, 30)}`);
+          } else {
+            console.log(`[KV_HYDRATE] lid=${leadId} no intel in KV yet`);
+          }
+        } catch (err: any) {
+          console.error(`[KV_HYDRATE_ERR] lid=${leadId} error=${err.message}`);
+        }
       }
+
+      const intelSource = starterIntel ?? kvIntel;
+      if (intelSource) {
+        const src = intelSource as any;
+
+        // Fast intel: the envelope root IS the fast intel blob
+        brain.intel.fast = src;
+
+        // Consultant intel: top-level `consultant` key in the envelope
+        if (src.consultant) brain.intel.consultant = src.consultant;
+
+        // Deep intel: top-level `deep` or nested `intel.deep`
+        const deepBlob = src.deep ?? src.intel?.deep;
+        if (deepBlob) brain.intel.deep = deepBlob;
+
+        brain.intel.mergedVersion = 1;
+
+        // Identity — try every known path in the KV envelope
+        const ci = src.core_identity ?? {};
+        brain.firstName = src.first_name ?? src.firstName ?? ci.first_name ?? brain.firstName;
+        brain.business = src.business_name ?? ci.business_name ?? brain.business;
+        brain.industry = ci.industry ?? src.industry ?? brain.industry;
+
+        // Eligibility signals from tech_stack and flags
+        const ts = src.tech_stack ?? {};
+        const flags = src.flags ?? {};
+        if (src.websiteExists || ts.has_chat !== undefined || ts.has_booking !== undefined) brain.websiteRelevant = true;
+        if (src.phoneVisible) brain.phoneRelevant = true;
+        if (flags.is_running_ads || ts.is_running_ads) brain.adsConfirmed = true;
+
+        // Seed Places into deep.googleMaps for wow_2 reputation step
+        const gm = src.deep?.googleMaps ?? src.places;
+        if (gm?.rating) {
+          if (!brain.intel.deep) brain.intel.deep = {};
+          if (!(brain.intel.deep as any).googleMaps) {
+            (brain.intel.deep as any).googleMaps = { rating: gm.rating, review_count: gm.review_count, name: gm.name };
+            console.log(`[KV_HYDRATE_PLACES] rating=${gm.rating} reviews=${gm.review_count}`);
+          }
+        }
+
+        // Build IndustryLanguagePack + eligibility + queue from hydrated intel
+        initQueueFromIntel(brain);
+
+        console.log(`[KV_HYDRATE_DONE] source=${starterIntel ? 'caller' : 'kv'} name=${brain.firstName ?? 'none'} biz=${(brain.business ?? 'none').slice(0, 30)} industry=${brain.industry ?? 'none'} consultant=${!!brain.intel.consultant} deep=${!!brain.intel.deep} queue=${brain.currentQueue.length}`);
+      }
+
+      // Import cross-call memory from prior sessions (new session only)
+      if (leadId && leadId !== 'unknown') {
+        try {
+          const priorMemory = await importMemoryFromKV(this.env.LEADS_KV, leadId);
+          if (priorMemory.length > 0) {
+            brain.memoryNotes = mergeImportedMemory(brain.memoryNotes, priorMemory);
+            console.log(`[MEMORY_IMPORT] loaded ${priorMemory.length} notes for leadId=${leadId}`);
+          }
+        } catch (err: any) {
+          console.error(`[MEMORY_IMPORT_ERR] leadId=${leadId} error=${err.message}`);
+        }
+      }
+
       await persistState(this.state.storage, brain);
       await this.scheduleNextAlarm(brain);
-      console.log(`[INIT] callId=${this.state.id.toString()} leadId=${leadId} queue=[${brain.currentQueue.join(',')}]`);
+      console.log(`[INIT] callId=${this.state.id.toString()} leadId=${leadId} stage=${brain.currentStage} ts=${new Date().toISOString()} name=${brain.firstName ?? 'none'} biz=${(brain.business ?? 'none').slice(0, 30)} industry=${brain.industry ?? 'none'}`);
       return { brain, created: true };
     }
 
-    // State exists — merge intel ONLY if missing, never reset
+    // Defensive: ensure transcriptLog and memoryNotes exist on loaded state (upgrade guard)
+    if (!brain.transcriptLog) brain.transcriptLog = [];
+    if (!brain.memoryNotes) brain.memoryNotes = [];
+    if (!brain.spoken) brain.spoken = { moveIds: [], factsUsed: [] };
+    if (!brain.scribeProcessed) brain.scribeProcessed = {};
+
     if (!brain.leadId) brain.leadId = leadId;
     if (starterIntel && !brain.intel.fast) {
       brain.intel.fast = starterIntel;
       brain.intel.mergedVersion = Math.max(brain.intel.mergedVersion, 1);
     }
-    await persistState(this.state.storage, brain);
-    console.log(`[ENSURE] existing session — stage=${brain.stage} stall=${brain.wowStall} (not reset)`);
+    await persistState(this.state.storage, brain as any);
+    console.log(`[ENSURE] existing session — stage=${brain.currentStage} wowStep=${brain.currentWowStep} name=${brain.firstName ?? 'none'} biz=${(brain.business ?? 'none').slice(0, 30)}`);
     return { brain, created: false };
   }
 
-  // ── POST /turn — hot path with dedup (FIX 2) ───────────────────────────────
+  // ── POST /turn — V2 control loop ──────────────────────────────────────────
 
   private async handleTurn(request: Request): Promise<Response> {
     const body = await request.json<{
@@ -108,17 +732,78 @@ export class CallBrainDO {
       transcript: string;
       turnId: string;
       ts?: string;
+      identity?: {
+        firstName?: string;
+        businessName?: string;
+        industry?: string;
+        supplement?: {
+          rating?: number | null;
+          reviewCount?: number;
+          consultant?: Record<string, any> | null;
+        };
+      };
     }>();
 
     const { transcript, turnId, leadId } = body;
-
-    // Self-heal: ensure session exists (lazy init on /turn)
     const { brain } = await this.ensureSession(leadId ?? 'unknown');
 
-    // ── FIX 2: Dedup by turnId + transcript hash ──
+    // Populate identity from bridge-forwarded fields (bridge loads KV before /turn)
+    if (body.identity) {
+      const id = body.identity;
+      if (id.firstName && !brain.firstName) brain.firstName = id.firstName;
+      if (id.businessName && !brain.business) brain.business = id.businessName;
+      if (id.industry && !brain.industry) brain.industry = id.industry;
+
+      // Late-bind supplement: bridge provides merged KV data that may not have arrived via DO events
+      if (id.supplement) {
+        const s = id.supplement;
+        // Rating seed for wow_2 — bridge reads star_rating from :intel (big scraper)
+        if (s.rating && !(brain.intel.deep as any)?.googleMaps?.rating) {
+          if (!brain.intel.deep) brain.intel.deep = {};
+          (brain.intel.deep as any).googleMaps = {
+            rating: s.rating,
+            review_count: s.reviewCount ?? 0,
+          };
+          console.log(`[SUPPLEMENT_SEED] rating=${s.rating} reviews=${s.reviewCount ?? 0} source=bridge`);
+        }
+        // Consultant seed — full merge: bridge sends entire consultant object from KV.
+        // Write each top-level key only if missing in existing data.
+        // Previous version cherry-picked scriptFills/routing/etc but MISSED
+        // conversionEventAnalysis (wow_4) and icpAnalysis (wow_3).
+        if (s.consultant && typeof s.consultant === 'object' && Object.keys(s.consultant).length > 0) {
+          if (!brain.intel.consultant) brain.intel.consultant = {};
+          const existing = brain.intel.consultant as any;
+          let seeded = 0;
+
+          for (const [key, val] of Object.entries(s.consultant as Record<string, any>)) {
+            if (val == null) continue;
+            if (key === 'scriptFills' && typeof val === 'object') {
+              // Merge scriptFills granularly — new fills fill gaps, don't overwrite
+              if (!existing.scriptFills) existing.scriptFills = {};
+              for (const [fk, fv] of Object.entries(val)) {
+                if (fv != null && existing.scriptFills[fk] == null) {
+                  existing.scriptFills[fk] = fv;
+                  seeded++;
+                }
+              }
+            } else if (existing[key] == null) {
+              existing[key] = val;
+              seeded++;
+            }
+          }
+
+          if (seeded > 0) {
+            brain.intel.mergedVersion++;
+            const keys = Object.keys(s.consultant).filter(k => (s.consultant as any)[k] != null);
+            console.log(`[SUPPLEMENT_SEED] consultant seeded=${seeded} keys=[${keys.join(',')}] source=bridge`);
+          }
+        }
+      }
+    }
+
+    // ── Dedup by turnId (catches near-duplicate transcripts from voice retries) ──
     const cleanTranscript = (transcript || '').trim();
-    const hash = await sha256Hex(cleanTranscript);
-    const cacheKey = `turn:${turnId}:${hash}`;
+    const cacheKey = `turn:${turnId}`;
 
     const cached = await this.state.storage.get<any>(cacheKey);
     if (cached) {
@@ -126,117 +811,216 @@ export class CallBrainDO {
       return json({ ...cached, dedup: true });
     }
 
-    // 1. Extract values from transcript
-    const targets = extractTargetsForCurrentStage(brain);
-    const result = extractFromTranscript(transcript, targets, brain.stage, brain.intel.industryLanguage?.industryLabel, brain.extracted);
+    // ── 1. Extract from transcript — Gemini primary, regex fallback ──
+    const v2Targets = extractTargetsForStage(brain.currentStage, brain.currentWowStep);
+
+    // Gemini key: prefer env, fall back to header injected by fetch handler
+    const geminiKey = this.geminiKey;
+
+    // Try Gemini first (structured output, handles spoken numbers natively)
+    let geminiResult: Awaited<ReturnType<typeof geminiExtract>> = null;
+    if (geminiKey && cleanTranscript.length > 2) {
+      try {
+        geminiResult = await geminiExtract(cleanTranscript, brain.currentStage, brain.currentWowStep, geminiKey);
+      } catch (err: any) {
+        console.warn(`[GEMINI_EXTRACT_CATCH] ${err.message}`);
+      }
+    }
+
+    // Regex runs always — provides memory notes + fallback fields
+    const regexResult = extractFromTranscript(cleanTranscript, v2Targets, brain.currentStage, brain.industryLanguage?.industryLabel, brain);
+
+    // Build final result: Gemini fields WIN over regex, regex provides memory notes
+    const result = regexResult;
+    if (geminiResult && Object.keys(geminiResult.fields).length > 0) {
+      // Gemini is primary — its fields REPLACE regex fields entirely
+      // Tag which fields came from Gemini so applyExtraction can trust them
+      const geminiFieldFlags: Record<string, boolean> = {};
+      for (const k of Object.keys(geminiResult.fields)) geminiFieldFlags[k] = true;
+      result.fields = { ...regexResult.fields, ...geminiResult.fields, _geminiFields: geminiFieldFlags };
+      if (geminiResult.correctionDetected) result.correctionDetected = true;
+      console.log(`[EXTRACT] source=gemini stage=${brain.currentStage} fields=[${Object.keys(geminiResult.fields).join(',')}] ms=${geminiResult.latencyMs}`);
+    } else {
+      console.log(`[EXTRACT] source=regex stage=${brain.currentStage} gemini=${geminiResult === null ? 'skipped' : 'empty'} fields=[${Object.keys(regexResult.fields).filter(k => !k.startsWith('_')).join(',')}]`);
+    }
+
     const applied = applyExtraction(brain, result);
 
-    console.log(`[TURN] turnId=${turnId} stage=${brain.stage} stall=${brain.wowStall} extracted=[${applied.join(',')}]`);
+    // ── 1b. Log transcript ──
+    appendTranscript(brain, {
+      role: 'user',
+      text: cleanTranscript,
+      turnId,
+      ts: new Date().toISOString(),
+    });
 
-    // 2. Gate check + advance
-    let advanced = advanceIfGateOpen(brain);
-    if (advanced) {
-      console.log(`[ADVANCE] → ${brain.stage}`);
-    }
+    console.log(`[TURN] turnId=${turnId} stage=${brain.currentStage} wowStep=${brain.currentWowStep} extracted=[${applied.join(',')}]`);
 
-    // 2b. Watchdog: force ROI delivery if alarm flagged it
-    if (brain.watchdog?.mustDeliverRoiNext
-        && !brain.flags.roiDelivered
-        && brain.stage !== 'roi_delivery'
-        && brain.stage !== 'close'
-        && brain.stage !== 'wow') {
-      console.log(`[WATCHDOG] mustDeliverRoiNext — forcing advance to roi_delivery from ${brain.stage}`);
-      if (!brain.flags.roiComputed) computeROI(brain);
-      brain.stage = 'roi_delivery';
-      brain.watchdog.mustDeliverRoiNext = false;
-      advanced = true;
-    }
+    // ── 2. Refresh eligibility ──
+    const intel = buildMergedIntel(brain);
+    const eligibility = deriveEligibility(intel, brain);
+    brain.alexEligible = eligibility.alexEligible;
+    brain.chrisEligible = eligibility.chrisEligible;
+    brain.maddieEligible = eligibility.maddieEligible;
+    brain.whyRecommended = eligibility.whyRecommended;
 
-    // 3. Build packet BEFORE stall increment (reads current stall)
-    const packet = buildNextTurnPacket(brain);
+    // ── 3. FLOW HARNESS ──
+    const flowResult = processFlow(brain, intel, cleanTranscript, turnId, Date.now());
+    const advanced = flowResult.advanced;
+    let directive = flowResult.directive;
 
-    // 4. THEN increment stall for NEXT turn
-    //    - Question moves: only advance on substantive response (not filler)
-    //    - Statement/bridge moves: always advance (flow naturally)
-    if (!advanced && brain.stage === 'wow') {
-      const isQuestionMove = packet.chosenMove.kind === 'question';
-      const trimmed = cleanTranscript.trim();
-      const isFillerOnly = trimmed.length < 30 && /^((yeah|yep|yes|yup|sure|ok|okay|mm+h?m?|uh\s*huh|right|got\s*it|hmm+|ah+|oh+|cool|nice|alright|sounds?\s*good|go\s*ahead|go\s*for\s*it|sure\s*thing|for\s*sure|that's?\s*fine|no\s*worries)\s*[.,!?]*\s*)+$/i.test(trimmed);
+    // ── 3b. POST-ADVANCE RE-EXTRACTION ────────────────────────────────────
+    // When processFlow advances into a channel stage, re-extract from recent
+    // user transcript history with the NEW stage's targets. Only targets the
+    // PRIMARY field for each channel (lead volume, not conversions) to avoid
+    // spurious matches from historical context.
+    if (advanced && ['ch_alex', 'ch_chris', 'ch_maddie', 'ch_sarah', 'ch_james'].includes(brain.currentStage)) {
+      const userTurns = (brain.transcriptLog || [])
+        .filter((t: TranscriptEntry) => t.role === 'user')
+        .slice(-8);
+      // Drop the LAST user turn — it triggered the advance and was already processed
+      // by the previous stage. Including it causes ACV answers to be captured as leads.
+      if (userTurns.length > 1) userTurns.pop();
+      const historicalText = userTurns.map((t: TranscriptEntry) => t.text).join('. ');
 
-      if (isQuestionMove && isFillerOnly) {
-        console.log(`[STALL_HOLD] stall=${brain.wowStall} — filler response to question, not advancing`);
-      } else {
-        brain.wowStall = Math.min(brain.wowStall + 1, 10);
-      }
-    }
+      if (historicalText.length > 5) {
+        // 1. GEMINI PRIMARY — all-fields schema on historical text
+        let historyGemini: Awaited<ReturnType<typeof geminiExtractHistory>> = null;
+        if (geminiKey) {
+          try {
+            historyGemini = await geminiExtractHistory(historicalText, geminiKey);
+          } catch (err: any) {
+            console.warn(`[RE_EXTRACT_GEMINI_ERR] ${err.message}`);
+          }
+        }
 
-    // 4b. Channel stage escape hatch: force-advance after 5 loops
-    if (!advanced && brain.stage.startsWith('ch_') && brain.retry.stageLoops >= 5) {
-      console.log(`[ESCAPE] force-advancing from ${brain.stage} after ${brain.retry.stageLoops} stalls`);
-      advanceIfGateOpen(brain);
-      if (brain.stage.startsWith('ch_')) {
-        advance(brain);
-        advanced = true;
-        console.log(`[ADVANCE] → ${brain.stage} (escape)`);
-      }
-    }
+        // 2. REGEX FALLBACK — primary targets only (existing, with ACV guards)
+        const primaryTargets: Record<string, string[]> = {
+          ch_alex: ['inboundLeads'],
+          ch_chris: ['webLeads'],
+          ch_maddie: ['phoneVolume'],
+          ch_sarah: ['oldLeads'],
+          ch_james: ['newCustomersPerWeek'],
+        };
+        const reTargets = primaryTargets[brain.currentStage] ?? extractTargetsForStage(brain.currentStage, brain.currentWowStep);
+        const regexResult = extractFromTranscript(
+          historicalText, reTargets, brain.currentStage,
+          brain.industryLanguage?.industryLabel, brain,
+        );
 
-    // 5. Track retry misses
-    if (!advanced && targets.length > 0) {
-      brain.retry.stageLoops++;
-      if (applied.length === 0) {
-        for (const t of targets) {
-          brain.retry.extractionMisses[t] = (brain.retry.extractionMisses[t] ?? 0) + 1;
+        // 3. PRESCAN REGEX FALLBACK — keyword-aware cross-stage patterns
+        //    (absorbed from flow.ts prescanForEarlyROI calls)
+        const prescanFields = prescanForEarlyROI(brain);
+
+        // 4. MERGE — Gemini wins, then regex fills gaps
+        //    prescanFields already wrote directly to state (write-once to null fields)
+        const captured: string[] = [...prescanFields];
+
+        // Apply Gemini fields to null state fields (Gemini is primary)
+        if (historyGemini && Object.keys(historyGemini.fields).length > 0) {
+          for (const [k, v] of Object.entries(historyGemini.fields)) {
+            if (v != null && (brain as any)[k] == null) {
+              (brain as any)[k] = v;
+              captured.push(`${k}=${v}`);
+            }
+          }
+          console.log(`[RE_EXTRACT] source=gemini fields=[${Object.keys(historyGemini.fields).filter(k => historyGemini!.fields[k] != null).join(',')}] ms=${historyGemini.latencyMs}`);
+        }
+
+        // Apply regex fields to remaining null fields (fallback)
+        for (const [k, v] of Object.entries(regexResult.fields)) {
+          if (k.startsWith('_')) continue;
+          if (v != null && (brain as any)[k] == null) {
+            (brain as any)[k] = v;
+            captured.push(`${k}=${v}`);
+          }
+        }
+
+        if (captured.length > 0) {
+          console.log(`[RE_EXTRACT] post-advance to ${brain.currentStage} captured=[${captured.join(',')}]`);
+          // Rebuild directive with captured data so Bella asks the NEXT question
+          directive = buildStageDirective({
+            stage: brain.currentStage,
+            wowStep: brain.currentWowStep,
+            intel,
+            state: brain,
+          });
+          // Update pending delivery to match rebuilt directive
+          if (brain.pendingDelivery) {
+            brain.pendingDelivery.waitForUser = directive.waitForUser;
+          }
         }
       }
-    } else if (advanced) {
-      brain.retry.stageLoops = 0;
     }
 
-    // 6. Update watchdog lastTurnAt
-    if (!brain.watchdog) {
-      (brain as any).watchdog = { mustDeliverRoiNext: false, deepIntelMissingEscalation: false, lastTurnAt: null, nextChecks: [] };
+    // ── 4. Handle channel stage question counting ──
+    // Must happen AFTER flow harness but BEFORE building packet
+    // Only count if we're still in a channel stage and about to ask a question
+    const isChannelStage = brain.currentStage === 'ch_alex' || brain.currentStage === 'ch_chris' || brain.currentStage === 'ch_maddie' || brain.currentStage === 'ch_sarah' || brain.currentStage === 'ch_james';
+    if (isChannelStage && directive.ask && !advanced) {
+      const qKey = brain.currentStage as keyof typeof brain.questionCounts;
+      if (qKey in brain.questionCounts) {
+        brain.questionCounts[qKey]++;
+        console.log(`[QCOUNT] ${qKey}=${brain.questionCounts[qKey]}/${directive.maxQuestions ?? '?'}`);
+      }
     }
+
+    // DIAG: log every directive before it becomes the packet
+    console.log(`[DIRECTIVE] ts=${new Date().toISOString()} stage=${brain.currentStage} wowStep=${brain.currentWowStep ?? 'none'} ask=${directive.ask} canSkip=${directive.canSkip} waitForUser=${directive.waitForUser} speak="${directive.speak.slice(0, 100)}"`);
+
+    // ── 5. Build bridge-compat response ──
+    const packet = directiveToPacket(directive, brain);
+
+    // ── 7. Update watchdog ──
     brain.watchdog.lastTurnAt = new Date().toISOString();
 
-    // 7. Persist state + cache turn result
+    // ── 8. Persist + cache ──
     const responseBody = {
       packet,
       extraction: {
         applied,
         confidence: result.confidence,
         normalized: result.normalized,
+        _gemini: geminiResult ? { fields: geminiResult.fields, latencyMs: geminiResult.latencyMs, source: geminiResult.source } : null,
       },
-      extractedState: brain.extracted,
+      extractedState: brain,
       advanced,
-      stage: brain.stage,
-      wowStall: brain.wowStall,
+      stage: brain.currentStage,
+      wowStall: brain.currentStage === 'wow' ? wowStepToNumber(brain.currentWowStep) : null,
     };
 
-    await persistState(this.state.storage, brain);
+    await persistState(this.state.storage, brain as any);
     await this.state.storage.put(cacheKey, responseBody);
     await this.scheduleNextAlarm(brain);
+
+    // Compatibility export: mirror DO state → legacy KV keys (non-blocking, non-fatal)
+    exportCompatToKV(this.env.LEADS_KV, brain).catch(() => {});
 
     return json({ ...responseBody, dedup: false });
   }
 
-  // ── POST /event — all other events ─────────────────────────────────────────
+  // ── POST /event — all other events ────────────────────────────────────────
 
   private async handleEvent(request: Request): Promise<Response> {
     const event = await request.json<BrainEvent>();
 
     switch (event.type) {
       case 'session_init': {
-        // Route through ensureSession — idempotent
         const { brain, created } = await this.ensureSession(event.leadId, event.starterIntel);
-        const packet = buildNextTurnPacket(brain);
+        const directive = buildStageDirective({
+          stage: brain.currentStage,
+          wowStep: brain.currentWowStep,
+          intel: buildMergedIntel(brain),
+          state: brain,
+        });
+        const packet = directiveToPacket(directive, brain);
         return json({
           status: created ? 'initialized' : 'existing',
           callId: this.state.id.toString(),
           leadId: event.leadId,
           packet,
-          stage: brain.stage,
-          wowStall: brain.wowStall,
+          stage: brain.currentStage,
+          wowStall: wowStepToNumber(brain.currentWowStep),
         });
       }
 
@@ -251,6 +1035,37 @@ export class CallBrainDO {
       case 'llm_reply_done':
         return await this.handleLlmReplyDone(event);
 
+      case 'delivery_barged_in': {
+        const brain = await loadState(this.state.storage) as ConversationState | null;
+        if (!brain) return json({ error: 'no_session' }, 400);
+
+        const resolved = resolveDeliveryBargedIn(
+          brain,
+          event.deliveryId,
+          event.moveId,
+        );
+
+        await persistState(this.state.storage, brain as any);
+        await this.scheduleNextAlarm(brain);
+        return json({ status: resolved ? 'resolved' : 'stale', resolution: 'barged_in' });
+      }
+
+      case 'delivery_failed': {
+        const brain = await loadState(this.state.storage) as ConversationState | null;
+        if (!brain) return json({ error: 'no_session' }, 400);
+
+        const resolved = resolveDeliveryFailed(
+          brain,
+          event.deliveryId,
+          event.moveId,
+          event.errorCode,
+        );
+
+        await persistState(this.state.storage, brain as any);
+        await this.scheduleNextAlarm(brain);
+        return json({ status: resolved ? 'resolved' : 'stale', resolution: 'failed' });
+      }
+
       case 'call_end':
         return await this.handleCallEnd(event);
 
@@ -259,16 +1074,14 @@ export class CallBrainDO {
     }
   }
 
-  // ── Intel events with version guard (FIX 3) ────────────────────────────────
+  // ── Intel events with version guard ───────────────────────────────────────
 
   private async handleIntelEvent(
     event: Extract<BrainEvent, { type: 'fast_intel_ready' | 'consultant_ready' | 'deep_ready' }>,
   ): Promise<Response> {
-    // Intel can arrive BEFORE first /turn — ensureSession creates session if needed
     const callId = this.state.id.toString();
     const { brain } = await this.ensureSession(callId);
 
-    // Version guard: only apply if version > last applied
     const intelType = event.type === 'fast_intel_ready' ? 'fast'
       : event.type === 'consultant_ready' ? 'consultant'
       : 'deep';
@@ -289,18 +1102,49 @@ export class CallBrainDO {
       });
     }
 
-    // Version accepted — merge
     brain.intelVersions[intelType] = event.version;
+
     mergeIntel(brain, event);
 
-    // Re-init queue if this is the first intel and queue is empty
-    if (brain.currentQueue.length === 0 && brain.stage === 'wow') {
+    // Re-init queue if first intel and queue is empty
+    if (brain.currentQueue.length === 0 && (brain.currentStage === 'wow' || brain.currentStage === 'greeting')) {
       initQueueFromIntel(brain);
+    }
+
+    // Populate identity fields from fast intel
+    if (event.type === 'fast_intel_ready') {
+      const ci = (event.payload as any)?.core_identity;
+      if (ci?.first_name && !brain.firstName) brain.firstName = ci.first_name;
+      if (ci?.business_name && !brain.business) brain.business = ci.business_name;
+      if (ci?.industry && !brain.industry) brain.industry = ci.industry;
+
+      // Seed early Places data into deep.googleMaps (wow_2 reads it there)
+      const places = (event.payload as any)?.places;
+      const hasDeepGM = !!(brain.intel.deep as any)?.googleMaps;
+      if (places?.rating && !hasDeepGM) {
+        if (!brain.intel.deep) brain.intel.deep = {};
+        (brain.intel.deep as any).googleMaps = {
+          rating: places.rating,
+          review_count: places.review_count,
+          name: places.name,
+        };
+        console.log(`[PLACES_SEED] lid=${callId} ts=${new Date().toISOString()} action=SEEDED rating=${places.rating} reviews=${places.review_count} name=${(places.name ?? '').slice(0, 40)}`);
+      } else {
+        console.log(`[PLACES_SEED] lid=${callId} ts=${new Date().toISOString()} action=SKIP places_in_event=${!!places?.rating} deep_gm_exists=${hasDeepGM}`);
+      }
     }
 
     console.log(`[INTEL_RECV] eventId=${eventId} type=${event.type} version=${event.version} mergedVersion=${brain.intel.mergedVersion} source=${source} sentAt=${sentAt} receivedAt=${receivedAt}`);
 
-    await persistState(this.state.storage, brain);
+    // DIAG: wow-relevant field inventory after merge
+    {
+      const _c = (brain.intel.consultant as any) ?? {};
+      const _d = (brain.intel.deep as any) ?? {};
+      const _sf = _c.scriptFills ?? {};
+      console.log(`[WOW_FIELDS] lid=${callId} ts=${new Date().toISOString()} type=${event.type} googleMaps=${!!_d.googleMaps} rating=${_d.googleMaps?.rating ?? 'none'} consultant=${!!brain.intel.consultant} icp_guess=${!!_sf.icp_guess} scrapedDataSummary=${!!_sf.scrapedDataSummary} mostImpressive=${_c.mostImpressive?.length ?? 0}`);
+    }
+
+    await persistState(this.state.storage, brain as any);
     await this.scheduleNextAlarm(brain);
 
     return json({
@@ -311,70 +1155,254 @@ export class CallBrainDO {
     });
   }
 
-  // ── llm_reply_done ─────────────────────────────────────────────────────────
+  // ── llm_reply_done ────────────────────────────────────────────────────────
 
   private async handleLlmReplyDone(
     event: Extract<BrainEvent, { type: 'llm_reply_done' }>,
   ): Promise<Response> {
-    const brain = await loadState(this.state.storage);
+    const brain = await loadState(this.state.storage) as ConversationState | null;
     if (!brain) {
       return json({ error: 'no_session', message: 'No active session' }, 400);
     }
 
+    // ── Flow Harness: resolve delivery ──
+    if (event.deliveryId && brain.pendingDelivery) {
+      // Prefer deliveryId match (Chunk 4+ bridges send deliveryId)
+      resolveDeliveryCompleted(brain, event.deliveryId, event.moveId ?? '');
+    } else if (event.moveId && brain.pendingDelivery?.status === 'pending' && brain.pendingDelivery?.moveId === event.moveId) {
+      // Backward compat: bridge may not send deliveryId yet (pre-Chunk 4)
+      // Match on moveId as fallback — audit when fallback matching is used
+      console.log(`[DELIVERY_COMPAT] llm_reply_done matched on moveId=${event.moveId} (no deliveryId)`);
+      resolveDeliveryCompleted(brain, brain.pendingDelivery.deliveryId, event.moveId);
+    }
+
+    // Track spoken move IDs
     if (event.moveId && !brain.spoken.moveIds.includes(event.moveId)) {
       brain.spoken.moveIds.push(event.moveId);
     }
 
-    if (event.moveId === 'roi_delivery_total') {
-      brain.flags.roiDelivered = true;
-      advanceIfGateOpen(brain);
-    }
+    // Log Bella transcript (non-empty, dedup by turnId-like moveId)
+    const spokenText = (event.spokenText ?? '').trim();
+    if (spokenText.length > 0) {
+      const lastEntry = brain.transcriptLog[brain.transcriptLog.length - 1];
+      const isDupe = lastEntry?.role === 'bella' && lastEntry?.text === spokenText;
+      if (!isDupe) {
+        appendTranscript(brain, {
+          role: 'bella',
+          text: spokenText,
+          turnId: event.moveId,
+          ts: event.ts,
+        });
 
-    if (event.moveId?.endsWith('_roi')) {
-      const agentName = event.moveId.replace('ch_', '').replace('_roi', '');
-      if (!brain.spoken.agentPitchesGiven.includes(agentName)) {
-        brain.spoken.agentPitchesGiven.push(agentName);
+        // Extract Bella commitments from spoken text
+        const turnIndex = brain.transcriptLog.length - 1;
+        const bellaMemory = extractBellaMemoryNotes(spokenText, turnIndex);
+        if (bellaMemory.length > 0) {
+          const now = new Date().toISOString();
+          const toAppend: typeof bellaMemory = [];
+
+          // Existing active Bella commitments for comparison
+          const activeCommitments = brain.memoryNotes.filter(
+            n => n.category === 'commitment' && n.source === 'bella' && n.status === 'active',
+          );
+
+          for (const newNote of bellaMemory) {
+            const newKey = commitmentKey(newNote.text);
+            const match = activeCommitments.find(e => commitmentKey(e.text) === newKey);
+
+            if (match) {
+              // Same commitment repeated — refresh existing, do not append
+              match.updatedAt = now;
+              match.salience = Math.max(match.salience ?? 2, newNote.salience ?? 2) as 1 | 2 | 3;
+              console.log(`[BELLA_DEDUP] refreshed existing id=${match.id} text="${match.text.slice(0, 50)}"`);
+            } else {
+              // Different commitment — append as a separate active note
+              toAppend.push(newNote);
+            }
+          }
+
+          if (toAppend.length > 0) {
+            brain.memoryNotes.push(...toAppend);
+            // Enforce 100-entry cap
+            if (brain.memoryNotes.length > 100) {
+              brain.memoryNotes = brain.memoryNotes.slice(-100);
+            }
+            console.log(`[BELLA_MEMORY] appended=${toAppend.length} ids=[${toAppend.map(n => n.id).join(',')}]`);
+          }
+        }
       }
-      advanceIfGateOpen(brain);
     }
 
-    await persistState(this.state.storage, brain);
+    await persistState(this.state.storage, brain as any);
     await this.scheduleNextAlarm(brain);
+
+    // Export cross-call memory (idempotent — whichever of llm_reply_done / call_end runs last wins)
+    if (brain.leadId && brain.leadId !== 'unknown') {
+      try {
+        await exportMemoryToKV(this.env.LEADS_KV, brain.leadId, brain.memoryNotes);
+      } catch (err: any) {
+        console.error(`[MEMORY_EXPORT_LLM_REPLY_ERR] leadId=${brain.leadId} error=${err.message}`);
+      }
+    }
 
     return json({
       status: 'recorded',
       moveId: event.moveId,
-      stage: brain.stage,
+      stage: brain.currentStage,
     });
   }
 
-  // ── call_end ───────────────────────────────────────────────────────────────
+  // ── call_end ──────────────────────────────────────────────────────────────
 
   private async handleCallEnd(
     event: Extract<BrainEvent, { type: 'call_end' }>,
   ): Promise<Response> {
-    const brain = await loadState(this.state.storage);
+    const brain = await loadState(this.state.storage) as ConversationState | null;
     if (!brain) {
       return json({ status: 'no_session' });
     }
 
-    if (!brain.flags.roiComputed) {
-      computeROI(brain);
+    // Run any pending calculators for final state
+    const channelStages: StageId[] = ['ch_alex', 'ch_chris', 'ch_maddie'];
+    for (const stage of channelStages) {
+      if (!brain.calculatorResults[stage === 'ch_alex' ? 'alex' : stage === 'ch_chris' ? 'chris' : 'maddie']) {
+        tryRunCalculator(stage, brain);
+      }
     }
 
-    await persistState(this.state.storage, brain);
+    await persistState(this.state.storage, brain as any);
 
-    console.log(`[CALL_END] reason=${event.reason} stage=${brain.stage} roi=${brain.roi.totalValue}`);
+    // Export cross-call memory to KV (non-fatal)
+    try {
+      await exportMemoryToKV(this.env.LEADS_KV, brain.leadId, brain.memoryNotes);
+    } catch (err: any) {
+      console.error(`[MEMORY_EXPORT_ERR] leadId=${brain.leadId} error=${err.message}`);
+    }
+
+    // Final compatibility export: mirror DO state → legacy KV keys (awaited at call_end)
+    await exportCompatToKV(this.env.LEADS_KV, brain).catch((err: any) => {
+      console.error(`[COMPAT_EXPORT_FINAL_ERR] leadId=${brain.leadId} error=${err.message}`);
+    });
+
+    const coreAgents: CoreAgent[] = ['alex', 'chris', 'maddie'];
+    const totalValue = coreAgents.reduce((sum, a) => sum + (brain.calculatorResults[a]?.weeklyValue ?? 0), 0);
+
+    console.log(`[CALL_END] reason=${event.reason} stage=${brain.currentStage} totalROI=$${totalValue}/wk`);
 
     return json({
       status: 'ended',
-      finalStage: brain.stage,
+      finalStage: brain.currentStage,
       completedStages: brain.completedStages,
-      roi: brain.roi,
+      calculatorResults: brain.calculatorResults,
+      totalWeeklyValue: totalValue,
     });
   }
 
-  // ── GET /state ─────────────────────────────────────────────────────────────
+  // ── POST /notes — scribe note ingestion ──────────────────────────────────
+
+  private async handleNotes(request: Request): Promise<Response> {
+    const body = await request.json<{
+      callId?: string;
+      turnIndex?: number;
+      notes?: unknown[];
+    }>();
+
+    const callId = body.callId;
+    if (!callId) return json({ error: 'missing_call_id' }, 400);
+
+    const turnIndex = body.turnIndex;
+    if (turnIndex == null || typeof turnIndex !== 'number' || turnIndex < 0) {
+      return json({ error: 'invalid_turn_index' }, 400);
+    }
+
+    const rawNotes = body.notes;
+    if (!Array.isArray(rawNotes) || rawNotes.length === 0) {
+      return json({ error: 'empty_notes' }, 400);
+    }
+    if (rawNotes.length > 5) {
+      return json({ error: 'too_many_notes', message: 'Max 5 notes per request' }, 400);
+    }
+
+    const { brain } = await this.ensureSession(callId);
+
+    // Per-turnIndex cap: max 5 accepted notes across all requests
+    if (!brain.scribeProcessed) brain.scribeProcessed = {};
+    const priorAccepted = brain.scribeProcessed[turnIndex] ?? [];
+    const remainingSlots = 5 - priorAccepted.length;
+    if (remainingSlots <= 0) {
+      console.log(`[SCRIBE_NOOP] turnIndex=${turnIndex} reason=turn_cap_reached`);
+      return json({ accepted: 0, rejected: rawNotes.length, results: rawNotes.map(() => ({ status: 'rejected', reason: 'turn_cap_reached' })) });
+    }
+
+    const results: { status: string; reason?: string; id?: string }[] = [];
+    let acceptedCount = 0;
+
+    for (const raw of rawNotes) {
+      if (acceptedCount >= remainingSlots) {
+        results.push({ status: 'rejected', reason: 'turn_cap_reached' });
+        continue;
+      }
+
+      const v = validateScribeNote(raw);
+      if (v.rejected) {
+        console.log(`[SCRIBE_REJECT] turnIndex=${turnIndex} reason=${v.reason}`);
+        results.push({ status: 'rejected', reason: v.reason });
+        continue;
+      }
+      const note = v.note!;
+
+      // ID-level dedup: already accepted this exact note id for this turn
+      const noteId = `scribe-${note.category}-${turnIndex}-${acceptedCount}`;
+      if (priorAccepted.includes(noteId)) {
+        results.push({ status: 'rejected', reason: 'already_accepted' });
+        continue;
+      }
+
+      // Content dedup against existing memoryNotes
+      const dupReason = findDuplicate(note, brain.memoryNotes);
+      if (dupReason) {
+        console.log(`[SCRIBE_REJECT] turnIndex=${turnIndex} reason=dedup:${dupReason}`);
+        results.push({ status: 'rejected', reason: `dedup:${dupReason}` });
+        continue;
+      }
+
+      // Priority: inferred never supersedes stated or other inferred
+      // (no supersession logic — scribe notes are additive only)
+
+      // Build final MemoryNote with DO-owned fields
+      const finalNote: MemoryNote = {
+        id: noteId,
+        text: note.text,
+        category: note.category,
+        tags: note.tags,
+        source: 'user',
+        sourceTurnIndex: turnIndex,
+        confidence: 'inferred',
+        createdAt: new Date().toISOString(),
+        status: 'active',
+        scope: scopeForCategory(note.category),
+        salience: 1,
+      };
+
+      // Cap memoryNotes at 100 — FIFO eviction
+      if (brain.memoryNotes.length >= 100) {
+        brain.memoryNotes.shift();
+      }
+      brain.memoryNotes.push(finalNote);
+      priorAccepted.push(noteId);
+      acceptedCount++;
+
+      console.log(`[SCRIBE_ACCEPT] turnIndex=${turnIndex} id=${noteId} cat=${note.category} tags=[${(note.tags ?? []).join(',')}]`);
+      results.push({ status: 'accepted', id: noteId });
+    }
+
+    brain.scribeProcessed[turnIndex] = priorAccepted;
+    await persistState(this.state.storage, brain as any);
+
+    return json({ accepted: acceptedCount, rejected: rawNotes.length - acceptedCount, results });
+  }
+
+  // ── GET /state ────────────────────────────────────────────────────────────
 
   private async handleGetState(): Promise<Response> {
     const brain = await loadState(this.state.storage);
@@ -384,35 +1412,68 @@ export class CallBrainDO {
     return json(brain);
   }
 
+  // ── GET /debug — flow harness inspection ──────────────────────────────────
+
+  private async handleDebug(url: URL): Promise<Response> {
+    const brain = await loadState(this.state.storage) as ConversationState | null;
+    if (!brain) return json({ error: 'no_session' }, 404);
+
+    const action = url.searchParams.get('action');
+    const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '200', 10) || 200, 500);
+
+    let filteredLog = brain.flowLog;
+    if (action) {
+      filteredLog = filteredLog.filter(e => e.action === action);
+    }
+    filteredLog = filteredLog.slice(-limit);
+
+    return json({
+      version: VERSION,
+      callId: brain.callId,
+      currentStage: brain.currentStage,
+      currentWowStep: brain.currentWowStep ?? null,
+      pendingDelivery: brain.pendingDelivery,
+      consecutiveTimeouts: brain.consecutiveTimeouts,
+      completedStages: brain.completedStages,
+      completedWowSteps: brain.completedWowSteps,
+      spoken: brain.spoken,
+      flowLogCount: brain.flowLog.length,
+      flowLog: filteredLog,
+      questionCounts: brain.questionCounts,
+      calculatorResults: brain.calculatorResults,
+    });
+  }
+
   // ── Watchdog alarm ────────────────────────────────────────────────────────
 
   async alarm(): Promise<void> {
-    const brain = await loadState(this.state.storage);
+    const brain = await loadState(this.state.storage) as ConversationState | null;
     if (!brain) return;
 
-    // Backfill watchdog for sessions created before this deploy
-    if (!brain.watchdog) {
-      (brain as any).watchdog = {
-        mustDeliverRoiNext: false,
-        deepIntelMissingEscalation: false,
-        lastTurnAt: null,
-        nextChecks: [],
-      };
+    const now = Date.now();
+
+    // ── Delivery timeout check (takes priority over watchdog) ──
+    if (brain.pendingDelivery && brain.pendingDelivery.status === 'pending') {
+      const elapsed = now - brain.pendingDelivery.issuedAt;
+      if (elapsed >= DELIVERY_TIMEOUT_MS) {
+        const { reissue } = resolveDeliveryTimeout(brain);
+
+        await persistState(this.state.storage, brain as any);
+        // Schedule next alarm (covers both delivery reissue timeout and watchdog)
+        await this.scheduleNextAlarm(brain);
+        return; // Handled — don't fall through to watchdog this cycle
+      }
     }
 
-    const now = Date.now();
+    // ── Watchdog alarm logic (existing) ──
     const lastTurnMs = brain.watchdog.lastTurnAt
       ? new Date(brain.watchdog.lastTurnAt).getTime()
       : null;
 
-    // ── ROI pending: computed but not delivered ──
-    if (brain.flags.roiComputed && !brain.flags.roiDelivered) {
-      brain.watchdog.mustDeliverRoiNext = true;
-      console.log(`[ALARM] ROI pending — mustDeliverRoiNext=true callId=${brain.callId}`);
-    }
-
-    // ── Deep intel missing: apifyDone still false ──
-    if (!brain.flags.apifyDone && !brain.watchdog.deepIntelMissingEscalation) {
+    // ── Deep intel missing ──
+    const deepStatus = (brain.intel.deep as any)?.status;
+    const apifyDone = deepStatus === 'done';
+    if (!apifyDone && !brain.watchdog.deepIntelMissingEscalation) {
       brain.watchdog.deepIntelMissingEscalation = true;
       console.log(`[ALARM] Deep intel missing — escalation flagged callId=${brain.callId}`);
     }
@@ -420,32 +1481,42 @@ export class CallBrainDO {
     // ── Call stale: no /turn for 120s ──
     if (lastTurnMs && now - lastTurnMs > 120_000) {
       console.log(`[ALARM] Call stale — no turn for ${Math.round((now - lastTurnMs) / 1000)}s callId=${brain.callId}`);
-      if (!brain.flags.roiComputed) {
-        computeROI(brain);
+      // Run pending calculators on stale call
+      const channelStages: StageId[] = ['ch_alex', 'ch_chris', 'ch_maddie'];
+      for (const stage of channelStages) {
+        const agent: CoreAgent = stage === 'ch_alex' ? 'alex' : stage === 'ch_chris' ? 'chris' : 'maddie';
+        if (!brain.calculatorResults[agent]) {
+          tryRunCalculator(stage, brain);
+        }
       }
     }
 
-    // ── Stage loop: same stage 5+ times ──
-    if (brain.retry.stageLoops >= 5 && !brain.flags.questionBudgetTight) {
-      brain.flags.questionBudgetTight = true;
-      console.log(`[ALARM] Stage loop detected — questionBudgetTight=true stage=${brain.stage} loops=${brain.retry.stageLoops}`);
+    // ── Question budget tight ──
+    const isChannelStage = brain.currentStage === 'ch_alex' || brain.currentStage === 'ch_chris' || brain.currentStage === 'ch_maddie' || brain.currentStage === 'ch_sarah' || brain.currentStage === 'ch_james';
+    if (isChannelStage && maxQuestionsReached(brain.currentStage, brain) && !brain.questionBudgetTight) {
+      brain.questionBudgetTight = true;
+      console.log(`[ALARM] Question budget tight — stage=${brain.currentStage}`);
     }
 
-    await persistState(this.state.storage, brain);
+    await persistState(this.state.storage, brain as any);
     await this.scheduleNextAlarm(brain);
   }
 
-  private async scheduleNextAlarm(brain: CallBrainState): Promise<void> {
+  private async scheduleNextAlarm(brain: ConversationState): Promise<void> {
     const now = Date.now();
     const times: number[] = [];
 
-    // ROI computed but not delivered — check in 15s
-    if (brain.flags.roiComputed && !brain.flags.roiDelivered) {
-      times.push(now + 15_000);
+    // Delivery timeout — pending delivery needs alarm at issuedAt + DELIVERY_TIMEOUT_MS
+    if (brain.pendingDelivery && brain.pendingDelivery.status === 'pending') {
+      const timeoutAt = brain.pendingDelivery.issuedAt + DELIVERY_TIMEOUT_MS;
+      // If already past, fire soon (100ms buffer)
+      times.push(Math.max(timeoutAt, now + 100));
     }
 
     // Deep intel still missing — check in 20s
-    if (!brain.flags.apifyDone && !brain.watchdog.deepIntelMissingEscalation) {
+    const deepStatus = (brain.intel.deep as any)?.status;
+    const apifyDone = deepStatus === 'done';
+    if (!apifyDone && !brain.watchdog.deepIntelMissingEscalation) {
       times.push(now + 20_000);
     }
 
@@ -466,30 +1537,6 @@ export class CallBrainDO {
   }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function extractTargetsForCurrentStage(state: CallBrainState): string[] {
-  switch (state.stage) {
-    case 'wow': return ['_just_demo'];
-    case 'anchor_acv': return ['acv', 'timeframe'];
-    case 'anchor_timeframe': return ['timeframe'];
-    case 'ch_website': return ['web_leads', 'web_conversions', 'web_followup_speed'];
-    case 'ch_ads': return ['ads_leads', 'ads_conversions', 'ads_followup_speed'];
-    case 'ch_phone': return ['phone_volume', 'missed_call_handling', 'missed_call_callback_speed'];
-    case 'ch_old_leads': return ['old_leads'];
-    case 'ch_reviews': return ['new_customers', 'has_review_system'];
-    case 'roi_delivery': return [];
-    case 'close': return [];
-  }
-}
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
-
 // ─── Worker entrypoint ──────────────────────────────────────────────────────
 
 export default {
@@ -497,7 +1544,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/health') {
-      return json({ status: 'ok', version: '2.4.0-watchdog', worker: 'call-brain-do' });
+      return json({ status: 'ok', version: VERSION, worker: 'call-brain-do' });
     }
 
     const callId = request.headers.get('x-call-id') ?? url.searchParams.get('callId');
@@ -508,6 +1555,14 @@ export default {
     const doId = env.CALL_BRAIN.idFromName(callId);
     const stub = env.CALL_BRAIN.get(doId);
 
-    return stub.fetch(request);
+    // Secrets don't propagate to DO env automatically — inject via header
+    const doRequest = new Request(request, {
+      headers: new Headers(request.headers),
+    });
+    if (env.GEMINI_API_KEY) {
+      doRequest.headers.set('x-gemini-key', env.GEMINI_API_KEY);
+    }
+
+    return stub.fetch(doRequest);
   },
 };

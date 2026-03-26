@@ -139,18 +139,10 @@ function buildFallback(p) {
       skip_agents: [],
       reasoning: {}
     },
-    leadRecommendation: { agent: "Chris", whyNow: "Default — every website needs an AI agent", urgency: "medium", proofPoints: [] },
     secondaryRecommendations: [
       { agent: "Alex", whySecond: "Default follow-up agent" },
       { agent: "Maddie", whyNotFirst: "Default — assess phone needs on call" }
     ],
-    agentScorecard: {
-      Chris: { urgency_now: 7, evidence_confidence: 3, speed_to_roi: 7, ease_of_explaining: 9, wedge_strength: 7 },
-      Alex: { urgency_now: 5, evidence_confidence: 3, speed_to_roi: 6, ease_of_explaining: 8, wedge_strength: 5 },
-      Maddie: { urgency_now: 5, evidence_confidence: 3, speed_to_roi: 6, ease_of_explaining: 8, wedge_strength: 5 },
-      Sarah: { urgency_now: 3, evidence_confidence: 2, speed_to_roi: 4, ease_of_explaining: 7, wedge_strength: 3 },
-      James: { urgency_now: 3, evidence_confidence: 2, speed_to_roi: 4, ease_of_explaining: 7, wedge_strength: 3 }
-    },
     landingPageVerdict: { verdictLine: null, verdictLine2: null },
     websiteCompliments: [],
     mostImpressive: [],
@@ -166,18 +158,16 @@ function buildFallback(p) {
 
 
 // ── Model config ─────────────────────────────────────────────────────────────
+// Switched to OpenAI-compatible endpoint for faster responses + clean JSON
+// reasoning_effort: 'low' gives bounded thinking for strategic insight
+// Dead gemini-2.0-flash fallback removed (returns 404 since Jan 2026)
+const OPENAI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const MODELS = [
   {
     name:     "gemini-2.5-flash",
-    endpoint: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+    endpoint: OPENAI_ENDPOINT,
     temp:     0.7,
-    maxTokens: 4000,
-  },
-  {
-    name:     "gemini-2.0-flash",
-    endpoint: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-    temp:     0.6,
-    maxTokens: 4000,
+    maxTokens: 8000,
   },
 ];
 
@@ -220,40 +210,52 @@ INSTRUCTIONS:
   "website_insight": "One specific STRATEGIC observation about their business that shows genuine understanding. NOT a compliment. An INSIGHT about their approach, their market strategy, or something specific from their copy that reveals how they think about their business. This must make the owner think 'they actually get us'."
 }`;
 
-  const model = MODELS[0]; // Gemini 2.5 Flash
   try {
-    const resp = await fetch(
-      `${model.endpoint}?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.5,
-            maxOutputTokens: 800,
-            responseMimeType: "application/json",
-            ...(model.name.includes("2.5") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
-          },
-        }),
-      }
-    );
+    const t0 = Date.now();
+
+    const resp = await fetch(OPENAI_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gemini-2.5-flash",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 800,
+        temperature: 0.5,
+        reasoning_effort: "none",
+      }),
+    });
+
+    const elapsed = Date.now() - t0;
     if (!resp.ok) {
-      console.error(`[Consultant /fast] HTTP ${resp.status}`);
+      const body = await resp.text().catch(() => "");
+      console.error(`[Consultant /fast] HTTP ${resp.status} (${elapsed}ms) ${body.substring(0, 200)}`);
       return { correctedName: payload.businessName, industry: "business", error: `HTTP ${resp.status}` };
     }
     const data = await resp.json();
-    const parts = data?.candidates?.[0]?.content?.parts || [];
-    const textPart = parts.filter(p => p.text !== undefined).pop();
-    const text = textPart?.text || "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error(`[Consultant /fast] no JSON in response`);
-      return { correctedName: payload.businessName, industry: "business", error: "no JSON" };
+    const text = data?.choices?.[0]?.message?.content || "";
+    if (!text) {
+      console.error(`[Consultant /fast] empty content (${elapsed}ms)`);
+      return { correctedName: payload.businessName, industry: "business", error: "empty" };
     }
-    const result = JSON.parse(jsonMatch[0]);
-    result._model = model.name;
+    let result;
+    try {
+      result = JSON.parse(text);
+    } catch (parseErr) {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error(`[Consultant /fast] no JSON (${text.length} chars, ${elapsed}ms)`);
+        return { correctedName: payload.businessName, industry: "business", error: "no JSON" };
+      }
+      result = JSON.parse(jsonMatch[0]);
+    }
+    result._model = "gemini-2.5-flash";
     result._fast = true;
+    result._latency = elapsed;
+    console.log(`[Consultant /fast] done in ${elapsed}ms`);
     return result;
   } catch (e) {
     console.error(`[Consultant /fast] error: ${e.message}`);
@@ -282,78 +284,142 @@ async function runConsultant(payload, env) {
 async function tryModel(model, prompt, apiKey, p) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const body = {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: model.temp,
-          maxOutputTokens: model.maxTokens,
-          responseMimeType: "application/json",
-        },
-      };
-      // Gemini 2.5+ has thinking enabled by default — disable it for structured JSON output
-      if (model.name.includes("2.5")) {
-        body.generationConfig.thinkingConfig = { thinkingBudget: 0 };
-      }
+      const t0 = Date.now();
 
-      const resp = await fetch(
-        `${model.endpoint}?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        }
-      );
+      const resp = await fetch(model.endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: model.name,
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" },
+          max_tokens: model.maxTokens,
+          temperature: model.temp,
+          reasoning_effort: "none",
+        }),
+      });
+
+      const elapsed = Date.now() - t0;
 
       if (resp.status === 503 && attempt < 1) {
-        console.log(`[Consultant] ${model.name} 503, retry ${attempt + 1}`);
-        await new Promise(r => setTimeout(r, 2000));
+        console.log(`[Consultant] ${model.name} 503 (${elapsed}ms), retry ${attempt + 1}`);
+        await new Promise(r => setTimeout(r, 1000));
         continue;
       }
 
-      // 429 rate limit or 404 model not found — skip to fallback model immediately
       if (resp.status === 429 || resp.status === 404) {
-        console.log(`[Consultant] ${model.name} HTTP ${resp.status} — skipping model`);
+        console.log(`[Consultant] ${model.name} HTTP ${resp.status} (${elapsed}ms) — skipping`);
         return null;
       }
 
       if (!resp.ok) {
-        console.error(`[Consultant] ${model.name} HTTP ${resp.status}`);
+        const body = await resp.text().catch(() => "");
+        console.error(`[Consultant] ${model.name} HTTP ${resp.status} (${elapsed}ms) ${body.substring(0, 200)}`);
         return null;
       }
 
       const data = await resp.json();
-      // Extract text from the last non-thinking part (thinking parts come first in 2.5+)
-      const parts = data?.candidates?.[0]?.content?.parts || [];
-      const textPart = parts.filter(p => p.text !== undefined).pop();
-      const text = textPart?.text || "";
+      const text = data?.choices?.[0]?.message?.content || "";
 
       if (!text) {
-        console.error(`[Consultant] ${model.name} empty text in response, parts=${parts.length}`);
-        return null;
-      }
-
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        console.error(`[Consultant] ${model.name} no JSON in response (${text.length} chars)`);
+        console.error(`[Consultant] ${model.name} empty content (${elapsed}ms)`);
         return null;
       }
 
       let result;
       try {
-        result = JSON.parse(jsonMatch[0]);
+        result = JSON.parse(text);
       } catch (parseErr) {
-        // Try fixing common JSON issues: trailing commas
-        const cleaned = jsonMatch[0].replace(/,\s*([\]}])/g, '$1');
-        console.log(`[Consultant] ${model.name} JSON repair attempt (${parseErr.message})`);
-        result = JSON.parse(cleaned);
+        // response_format should ensure clean JSON, but Gemini 2.5 Flash can produce
+        // malformed output on large prompts. Try multiple repair strategies.
+        console.warn(`[Consultant] ${model.name} JSON parse failed (${parseErr.message}, ${text.length} chars, ${elapsed}ms) — repairing`);
+
+        // Strategy 1: extract outermost { ... } and fix trailing commas
+        const outerMatch = text.match(/\{[\s\S]*\}/);
+        if (outerMatch) {
+          try {
+            const cleaned = outerMatch[0].replace(/,\s*([\]}])/g, '$1');
+            result = JSON.parse(cleaned);
+            console.log(`[Consultant] ${model.name} JSON repair strategy 1 OK (trailing comma fix)`);
+          } catch (_) { /* try next */ }
+        }
+
+        // Strategy 2: truncation recovery — close unclosed brackets (string-aware counting)
+        if (!result) {
+          try {
+            let s = text.substring(text.indexOf("{"));
+            // Remove trailing commas
+            s = s.replace(/,\s*([\]}])/g, '$1');
+            // Strip trailing partial key:value
+            s = s.replace(/,\s*"[^"]*"?\s*:?\s*"?[^"]*$/, "");
+            s = s.replace(/,\s*$/, "");
+            // String-aware bracket counting: skip chars inside "..."
+            let depth = 0, bracketDepth = 0, inString = false, escaped = false;
+            for (let i = 0; i < s.length; i++) {
+              const c = s[i];
+              if (escaped) { escaped = false; continue; }
+              if (c === "\\") { escaped = true; continue; }
+              if (c === '"') { inString = !inString; continue; }
+              if (inString) continue;
+              if (c === "{") depth++;
+              else if (c === "}") depth--;
+              else if (c === "[") bracketDepth++;
+              else if (c === "]") bracketDepth--;
+            }
+            s += "]".repeat(Math.max(0, bracketDepth));
+            s += "}".repeat(Math.max(0, depth));
+            console.log(`[Consultant] ${model.name} JSON repair strategy 2 (close brackets: {${depth} [${bracketDepth})`);
+            result = JSON.parse(s);
+          } catch (_) { /* try next */ }
+        }
+
+        // Strategy 3: truncate at error position — salvage everything before the corruption
+        if (!result) {
+          const posMatch = parseErr.message.match(/position (\d+)/);
+          if (posMatch) {
+            try {
+              const errorPos = parseInt(posMatch[1]);
+              let truncated = text.substring(text.indexOf("{"), errorPos);
+              truncated = truncated.replace(/,?\s*"[^"]*"?\s*$/, "");  // strip partial key/value
+              truncated = truncated.replace(/,\s*$/, "");
+              // String-aware bracket closing
+              let depth = 0, bd = 0, inStr = false, esc = false;
+              for (let i = 0; i < truncated.length; i++) {
+                const c = truncated[i];
+                if (esc) { esc = false; continue; }
+                if (c === "\\") { esc = true; continue; }
+                if (c === '"') { inStr = !inStr; continue; }
+                if (inStr) continue;
+                if (c === "{") depth++; else if (c === "}") depth--;
+                if (c === "[") bd++; else if (c === "]") bd--;
+              }
+              truncated += "]".repeat(Math.max(0, bd));
+              truncated += "}".repeat(Math.max(0, depth));
+              result = JSON.parse(truncated);
+              result._partial = true;
+              console.log(`[Consultant] ${model.name} JSON repair strategy 3 OK (truncated at pos ${errorPos}/${text.length}, saved ${Math.round(errorPos/text.length*100)}%)`);
+            } catch (_) { /* fall through to retry */ }
+          }
+        }
+
+        // All repair strategies failed — retry if attempts remain
+        if (!result) {
+          console.warn(`[Consultant] ${model.name} JSON repair FAILED (${text.length} chars, ${elapsed}ms) — ${attempt < 1 ? "retrying" : "giving up"}`);
+          if (attempt < 1) { await new Promise(r => setTimeout(r, 1000)); continue; }
+          return null;
+        }
       }
 
       result._model = model.name;
       result._attempt = attempt;
-      console.log(`[Consultant] Success with ${model.name}`);
+      result._latency = elapsed;
+      console.log(`[Consultant] Success with ${model.name} in ${elapsed}ms attempt=${attempt}`);
       return result;
     } catch (e) {
-      if (attempt < 1) { await new Promise(r => setTimeout(r, 2000)); continue; }
+      if (attempt < 1) { await new Promise(r => setTimeout(r, 1000)); continue; }
       console.error(`[Consultant] ${model.name} exception:`, e);
       return null;
     }
@@ -382,6 +448,7 @@ Your payload may have null/empty fields. This does NOT mean negative evidence. I
 - google.rating = null → DO NOT say "no reviews" or "reviewCount is 0". Say "Google data not yet loaded — Bella should ask about their online reputation. James opportunity to explore."
 - facebookAds/googleAds = null or false → DO NOT say "not running ads". Say "No ad pixels detected on-site — Bella should ask about their lead sources and any paid campaigns. Potential Alex opportunity."
 - No phone number visible → DO NOT say "no phone channel". Say "Phone not prominent on site — Bella should ask about inbound call volume. Potential Maddie opportunity."
+- Phone number visible ANYWHERE on the site (header, footer, contact page, click-to-call button) → This IS a CTA. It MUST appear in ctaBreakdown with type "call" and agent "Maddie". Maddie MUST appear in priority_agents top 3. Set ctaType to "call" if the phone number is the primary conversion action. Phone numbers on service business sites (trades, medical, legal, accounting, real estate) are almost always the #1 conversion channel even if there's also a form.
 - No CRM detected → DO NOT say "no database". Say "No CRM detected — they may have customer records in spreadsheets, email, or accounting software. Sarah opportunity to explore."
 - The ONLY time you say an agent is NOT relevant is when you have POSITIVE EVIDENCE they're unneeded (e.g. confirmed sophisticated AI chat already deployed for Chris, confirmed 24/7 call centre for Maddie).
 
@@ -420,8 +487,10 @@ CRITICAL: Don't just list the CTA text — explain what each conversion event ME
 - For a law firm: "schedule a consultation" = how they win new matters
 - For SaaS: "start free trial" / "book a demo" = their pipeline
 - Downloads (guides, whitepapers, checklists) = pipeline builders, lead magnets that need follow-up
-- Phone numbers / click-to-call = high-intent prospects who want to talk NOW
-- Contact forms / "get in touch" = warm leads that need FAST follow-up before they go cold
+- Phone numbers / click-to-call = high-intent prospects who want to talk NOW → agent: Maddie, type: "call"
+- Contact forms / "get in touch" = warm leads that need FAST follow-up before they go cold → agent: Alex, type: "form"
+
+MADDIE RULE: If you find ANY phone number on the site (even in the footer or contact page), it MUST appear in ctaBreakdown as type "call" with agent "Maddie". For service businesses (trades, medical, legal, accounting, real estate, agencies), phone is almost always a primary conversion channel. Maddie handles inbound calls, after-hours calls, and missed call follow-up. Do NOT omit phone numbers just because they're not styled as a button.
 
 The more specific you are about their conversion events and what they mean commercially, the more powerful Bella's pitch becomes when she says "we've trained your agents to drive more of THESE exact actions."
 
@@ -524,6 +593,7 @@ Missing data does NOT mean the opportunity doesn't exist. It means Bella needs t
 {
   "businessIdentity": {
     "correctedName": "The REAL business name — natural, conversational. Use ogTitle and domain as primary hints, verify in page content. Strip city names and legal suffixes (Pty Ltd, Inc). e.g. 'Pitcher Partners' not 'Pitcher Partners Sydney Pty Ltd'. NEVER output placeholders like 'Business Name Pending' — if unsure, clean up the domain name.",
+    "spokenName": "REQUIRED. The SHORT name a person would naturally say in conversation. This is what Bella says on the call — it must sound natural when spoken aloud. Rules: 1) Strip city/country/legal suffixes. 2) If the brand has a well-known short form, use it. 3) Max 2-3 words. Examples: 'Penguin Random House Australia' → 'Penguin', 'Pitcher Partners Melbourne' → 'Pitcher Partners', 'KPMG' → 'KPMG', 'Commonwealth Bank of Australia' → 'CommBank', 'McDonald's Australia Pty Ltd' → 'Macca's' or 'McDonald's', 'The Smith Family Foundation' → 'The Smith Family'. If unsure, use the first distinctive word(s) of the brand.",
     "industry": "The CORRECT industry based on what the business actually does — read their services, about page, and copy. e.g. 'accounting and advisory', 'plumbing', 'dental', 'legal'. Be specific. Do NOT guess from the <title> tag.",
     "businessModel": "B2B or B2C or Both — based on who their customers are from the copy",
     "serviceArea": "Where they operate — national, state-wide, or local. Infer from copy, office locations, service area mentions."
@@ -550,10 +620,12 @@ Missing data does NOT mean the opportunity doesn't exist. It means Bella needs t
     "whoTheyTarget": "Specific description of apparent ICP drawn from the copy",
     "howTheyKnow": "Evidence from the copy — specific phrases, problems referenced, language used",
     "icpConfidenceLevel": "high / medium / low — how clearly defined is the ICP on the site?",
-    "icpProblems": ["SPECIFIC problem from the copy using THEIR language — NOT generic industry filler. Quote or closely paraphrase what the site actually says.", "Problem 2 — again, specific to THIS site's copy", "Problem 3"],
-    "icpSolutions": ["SPECIFIC solution from the copy — how THIS business addresses the problem, in THEIR words. e.g. 'partner-led advisory that goes beyond compliance' not 'providing professional services'", "Solution 2", "Solution 3"],
+    "icpProblems": ["REQUIRED — MUST provide at least 2. SPECIFIC problem from the copy using THEIR language — NOT generic industry filler. Quote or closely paraphrase what the site actually says.", "REQUIRED — Problem 2, specific to THIS site's copy"],
+    "icpSolutions": ["REQUIRED — MUST provide at least 2. SPECIFIC solution from the copy — how THIS business addresses the problem, in THEIR words. e.g. 'partner-led advisory that goes beyond compliance' not 'providing professional services'", "REQUIRED — Solution 2, in THEIR words"],
     "problemSolutionMapping": "Brief statement connecting problems to solutions — e.g. 'They help business owners who struggle with X by providing Y'",
-    "bellaCheckLine": "The exact question Bella asks to CONFIRM this with the prospect — e.g. 'We noticed your site speaks very directly to trade business owners — is that mainly who you're working with?'"
+    "bellaCheckLine": "The exact question Bella asks to CONFIRM this with the prospect — e.g. 'We noticed your site speaks very directly to trade business owners — is that mainly who you're working with?'",
+    "marketPositionNarrative": "REQUIRED — MUST NOT be null or empty. A 1-2 sentence spoken summary of how this business positions itself in the market — their differentiator, their angle, what makes them different from competitors. Use THEIR language from the site. Bella will say this verbatim. Example for accounting: 'You've positioned Pitcher Partners as the advisory firm that goes beyond just compliance — you're really speaking to business owners who've outgrown their bookkeeper and need strategic-level support to scale.' Example for trades: 'You've positioned yourself as the go-to emergency plumber in the eastern suburbs — fast response, upfront pricing, no call-out fee. That's a strong market position.'",
+    "icpNarrative": "REQUIRED — MUST NOT be null or empty. A 2-3 sentence spoken summary that weaves together who they target, their 2 key client problems, and how they solve them. Bella will say this verbatim at a critical moment in the call. Use the prospect's industry language, not corporate speak. Must end with a confirmation question. Example for accounting: 'It looks like you mainly work with growing businesses that have outgrown their bookkeeper and need proper advisory support, and business owners who are spending too much time on compliance when they should be focused on growth. You solve that through partner-led advisory and proactive tax planning. Does that sound about right?' Example for trades: 'It looks like your main customers are homeowners dealing with ageing hot water systems and businesses that cant afford downtime when their plumbing fails. You solve that with same-day emergency callouts and upfront fixed pricing. Is that a fair summary?'"
   },
   "valuePropAnalysis": {
     "statedBenefits": ["List of specific outcome/benefit claims from the copy — not service names, real outcomes"],
@@ -563,7 +635,7 @@ Missing data does NOT mean the opportunity doesn't exist. It means Bella needs t
   },
   "conversionEventAnalysis": {
     "primaryCTA": "The main conversion action the site is driving — exact CTA text if visible",
-    "ctaType": "book_call / fill_form / call_number / buy_online / get_quote / download / other",
+    "ctaType": "book_call / fill_form / call / buy_online / get_quote / download / other (USE 'call' for any phone number, click-to-call, or call-oriented CTA)",
     "ctaClarity": "Is it obvious what to do next? Single CTA or multiple competing?",
     "frictionPoints": ["Specific things that could reduce conversions — frame each as an opportunity for our agents"],
     "conversionStrength": "strong / moderate / weak — overall assessment with brief reason",
@@ -579,9 +651,9 @@ Missing data does NOT mean the opportunity doesn't exist. It means Bella needs t
         "reason": "Brief explanation — e.g. 'Contact form submissions need fast follow-up → Alex'"
       }
     ],
-    "conversionNarrative": "A 2-3 sentence spoken summary explaining the full conversion funnel in the prospect's industry language. Bella will say this verbatim. Example for accounting: 'Your site is driving people to book a free initial consultation — that's your primary new client acquisition channel. You've also got a tax planning guide download which builds your pipeline, and a phone number for prospects who want to talk now. Those are exactly the kind of conversion events we've trained your AI agents to focus on.' Example for trades: 'Your site is set up to drive quote requests — that's the start of every new job. You've also got a phone number for urgent callouts. We've trained your agents to convert more of both, on autopilot.'",
-    "agentTrainingLine": "A single sentence Bella can say that references ALL the conversion events and connects them to agent training. Format: 'I can see your main call to action is [PRIMARY CTA], and you're also driving [SECONDARY, TERTIARY] — those are exactly the kind of conversion events we've trained your AI agents to focus on driving more of, on autopilot.' MUST mention ALL events found. Use natural spoken language. If only one CTA, say: 'I can see your main call to action is [CTA] — that's exactly the kind of conversion we train our AI agents to drive more of, on autopilot.'",
-    "ctaAgentMapping": "A single sentence mapping CTAs to agents for Bella to say. E.g. 'I'd say Chris to maximise those booking conversions on your site, Alex to follow up the form submissions, and Maddie to handle the inbound calls'. Only include agents that map to actual CTAs found. If all CTAs are the same type, recommend 2 agents. If mixed types (forms + calls + website), recommend 3."
+    "conversionNarrative": "REQUIRED — MUST NOT be null or empty. A 2-3 sentence spoken summary explaining the full conversion funnel in the prospect's industry language. Bella will say this verbatim. Example for accounting: 'Your site is driving people to book a free initial consultation — that's your primary new client acquisition channel. You've also got a tax planning guide download which builds your pipeline, and a phone number for prospects who want to talk now. Those are exactly the kind of conversion events we've trained your AI agents to focus on.' Example for trades: 'Your site is set up to drive quote requests — that's the start of every new job. You've also got a phone number for urgent callouts. We've trained your agents to convert more of both, on autopilot.'",
+    "agentTrainingLine": "REQUIRED — MUST NOT be null or empty. A single sentence Bella can say that references ALL the conversion events and connects them to agent training. Format: 'I can see your main call to action is [PRIMARY CTA], and you're also driving [SECONDARY, TERTIARY] — those are exactly the kind of conversion events we've trained your AI agents to focus on driving more of, on autopilot.' MUST mention ALL events found. Use natural spoken language. If only one CTA, say: 'I can see your main call to action is [CTA] — that's exactly the kind of conversion we train our AI agents to drive more of, on autopilot.'",
+    "ctaAgentMapping": "REQUIRED — MUST NOT be null or empty. A single sentence mapping CTAs to agents for Bella to say. E.g. 'I'd say Chris to maximise those booking conversions on your site, Alex to follow up the form submissions, and Maddie to handle the inbound calls'. Only include agents that map to actual CTAs found. If all CTAs are the same type, recommend 2 agents. If mixed types (forms + calls + website), recommend 3."
   },
   "routing": {
     "priority_agents": ["Rank agents by URGENCY and ACTIVE REVENUE LEAK, not theoretical opportunity. Core revenue agents (Chris, Alex, Maddie) should almost always be top 3 unless strong evidence says otherwise. Format: ordered array of agent names."],
@@ -590,18 +662,12 @@ Missing data does NOT mean the opportunity doesn't exist. It means Bella needs t
     "reasoning": {
       "chris": "COMMERCIAL ASSESSMENT — not feature-checking. What's the active revenue leak Chris fixes? Evidence from scrape. Why now?",
       "alex": "COMMERCIAL ASSESSMENT — what leads are going cold? What's the follow-up gap? Evidence. Why now?",
-      "maddie": "COMMERCIAL ASSESSMENT — are calls being missed? Evidence of phone reliance. Why now?",
+      "maddie": "COMMERCIAL ASSESSMENT — is there a phone number on the site? Is this a service business where phone is a meaningful channel (trades, medical, legal, accounting, real estate, agencies)? If yes, Maddie is relevant — inbound calls need answering, after-hours calls get missed, and every missed call is lost revenue. Evidence of phone reliance. Why now?",
       "sarah": "HONEST ASSESSMENT — is there real database opportunity or are we just assuming? If latent, say so. Don't inflate.",
       "james": "HONEST ASSESSMENT — is review management a real wedge or a nice-to-have? If latent, say so."
     },
     "questions_to_prioritise": ["Which 2-3 questions Bella should ask to CONFIRM the lead recommendation — not generic discovery, targeted confirmation"],
     "questions_to_brush_over": ["Which topics to mention briefly — usually Sarah and James value-adds"]
-  },
-  "leadRecommendation": {
-    "agent": "The #1 agent to lead with — usually Chris or Alex",
-    "whyNow": "One sentence: what is costing them money RIGHT NOW that this agent fixes. Evidence-backed, urgent, specific.",
-    "urgency": "high / medium / low",
-    "proofPoints": ["Up to 3 specific evidence points from the scrape that support this recommendation"]
   },
   "secondaryRecommendations": [
     {
@@ -613,19 +679,11 @@ Missing data does NOT mean the opportunity doesn't exist. It means Bella needs t
       "whyNotFirst": "One sentence: why this is valuable but not the lead — explicitly state what makes it less urgent"
     }
   ],
-  "agentScorecard": {
-    "Chris":  { "urgency_now": 0, "evidence_confidence": 0, "speed_to_roi": 0, "ease_of_explaining": 0, "wedge_strength": 0 },
-    "Alex":   { "urgency_now": 0, "evidence_confidence": 0, "speed_to_roi": 0, "ease_of_explaining": 0, "wedge_strength": 0 },
-    "Maddie": { "urgency_now": 0, "evidence_confidence": 0, "speed_to_roi": 0, "ease_of_explaining": 0, "wedge_strength": 0 },
-    "Sarah":  { "urgency_now": 0, "evidence_confidence": 0, "speed_to_roi": 0, "ease_of_explaining": 0, "wedge_strength": 0 },
-    "James":  { "urgency_now": 0, "evidence_confidence": 0, "speed_to_roi": 0, "ease_of_explaining": 0, "wedge_strength": 0 }
-  },
   "hiringAnalysis": {
     "matchedRoles": [
       { "jobTitle": "The exact job title from the payload", "ourAgent": "Which agent replaces this role", "salary": "Salary if available from payload", "wedge": "One-sentence replacement pitch for Bella to say on the call", "urgency": "high/medium — how directly does our agent replace this?" }
     ],
-    "topHiringWedge": "The single most powerful hiring replacement line for Bella — e.g. 'You're hiring a receptionist for sixty K — Maddie does the same job starting today for pennies'. Say salary as words. null if no hiring data.",
-    "hiringROIFrame": "Frame the total hiring spend against our agents — e.g. 'Between the SDR and receptionist roles you're looking at a hundred and thirty K minimum — our agents deliver both outcomes for a fraction'. null if no hiring data."
+    "topHiringWedge": "The single most powerful hiring replacement line for Bella — e.g. 'You're hiring a receptionist for sixty K — Maddie does the same job starting today for pennies'. Say salary as words. null if no hiring data."
   },
   "websiteCompliments": [
     { "what": "Something genuinely specific and impressive from the COPY", "evidence": "Verbatim quote or specific data point", "bellaLine": "Natural sentence Bella can say" },
@@ -656,5 +714,49 @@ Missing data does NOT mean the opportunity doesn't exist. It means Bella needs t
     "verdictLine": "One punchy sentence summarising landing page quality — lead with what's working",
     "verdictLine2": "The biggest opportunity for improvement — frame as what our agents can fix"
   }
-}`;
+}
+
+MANDATORY FIELDS CHECKLIST — Before returning your response, verify EVERY field below is populated (not null, not empty string, not empty array). If any are missing, go back and fill them in:
+1. icpAnalysis.icpProblems — array with at least 2 SPECIFIC problems from the site copy
+2. icpAnalysis.icpSolutions — array with at least 2 SPECIFIC solutions from the site copy
+3. conversionEventAnalysis.conversionNarrative — 2-3 sentence spoken summary of conversion funnel
+4. conversionEventAnalysis.agentTrainingLine — single sentence connecting ALL CTAs to agent training
+5. conversionEventAnalysis.ctaAgentMapping — single sentence mapping CTAs to agents
+6. conversionEventAnalysis.allConversionEvents — array of EVERY CTA found on the site
+7. conversionEventAnalysis.ctaBreakdown — array with breakdown of each CTA
+8. hiringAnalysis.matchedRoles — array (use payload hiring data if available, otherwise empty array)
+9. icpAnalysis.marketPositionNarrative — 1-2 sentence spoken summary of market positioning
+10. icpAnalysis.icpNarrative — 2-3 sentence spoken summary weaving ICP + problems + solutions, ending with confirmation question
+These fields are CRITICAL to Bella's call performance. Omitting them degrades the live sales call.
+
+REPETITION REVIEW — MANDATORY FINAL PASS (DO THIS LAST, BEFORE RETURNING)
+Bella speaks these fields SEQUENTIALLY on a live voice call. If two fields say the same thing in different words, the prospect hears a broken record and loses trust. You MUST review and rewrite for variety.
+
+Review these groups together — each field within a group MUST make a DIFFERENT point using DIFFERENT phrasing and a DIFFERENT angle:
+
+GROUP A (ICP-adjacent — highest repetition risk):
+- scriptFills.icp_guess
+- icpAnalysis.bellaCheckLine
+- icpAnalysis.icpNarrative
+- icpAnalysis.marketPositionNarrative
+- copyAnalysis.bellaLine
+- scriptFills.website_positive_comment
+Rule: icp_guess states WHO they serve. bellaCheckLine CONFIRMS it as a question. icpNarrative weaves in their PROBLEMS and SOLUTIONS (not who they serve again). marketPositionNarrative covers their DIFFERENTIATOR vs competitors. copyAnalysis.bellaLine compliments a specific PHRASE or DESIGN CHOICE. website_positive_comment makes a STRATEGIC observation about their approach. Six different angles — never the same sentence reworded.
+
+GROUP B (CTA/conversion-adjacent):
+- conversionEventAnalysis.bellaLine
+- conversionEventAnalysis.agentTrainingLine
+- conversionEventAnalysis.ctaAgentMapping
+- conversionEventAnalysis.conversionNarrative
+Rule: bellaLine observes the conversion SETUP. agentTrainingLine connects CTAs to agent TRAINING. ctaAgentMapping maps SPECIFIC CTAs to SPECIFIC agents by name. conversionNarrative explains the full FUNNEL in industry language. Four different angles — no overlap.
+
+GROUP C (Compliments/observations):
+- websiteCompliments[0].bellaLine
+- websiteCompliments[1].bellaLine
+- mostImpressive[0].bellaLine
+- mostImpressive[1].bellaLine
+- valuePropAnalysis.bellaLine
+Rule: Each must reference a DIFFERENT finding. No two should mention the same service, feature, or positioning point.
+
+If you find repetition in ANY group: REWRITE the repeated field to contribute something genuinely new. Use a different data point from the website content, a different angle, or a different insight entirely. Variety is more important than comprehensiveness — one fresh insight beats three reworded versions of the same observation.`;
 }

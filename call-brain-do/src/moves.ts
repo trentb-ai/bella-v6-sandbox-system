@@ -1,64 +1,102 @@
 /**
- * call-brain-do/src/moves.ts — v2.0.0-do-alpha.1
- * THE BIG ONE: buildNextTurnPacket replaces buildStageDirective.
- * Returns structured NextTurnPacket for each stage/stall.
+ * call-brain-do/src/moves.ts — v4.0.0-final-script-aligned
+ * V2 directive builder: buildStageDirective.
+ *
+ * Chunk 4A: greeting, wow (8 WowStepId steps), recommendation (4 variants), anchor_acv.
+ * Chunk 4B: ch_alex, ch_chris, ch_maddie, roi_delivery, optional_side_agents, close.
+ *
+ * No V1 compat — all consumers migrated to buildStageDirective.
  */
 
-import type { CallBrainState, NextTurnPacket, IndustryLanguagePack, Stage } from './types';
-import { runCalcs, calcAgentROI, roiDeliveryCheck, computeROI } from './roi';
+import type {
+  ConversationState,
+  StageId,
+  WowStepId,
+  CoreAgent,
+  StageDirective,
+  StageDirectiveInput,
+  MergedIntel,
+  IndustryLanguagePack,
+  StagePolicy,
+  AgentRoiResult,
+} from './types';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+import { GENERIC_INDUSTRY_PACK } from './state';
+import { STAGE_POLICIES, shouldForceAdvance, maxQuestionsReached } from './gate';
 
-function lp(state: CallBrainState): IndustryLanguagePack {
-  return state.intel.industryLanguage ?? {
-    industryLabel: 'business', singularOutcome: 'client', pluralOutcome: 'clients',
-    leadNoun: 'lead', conversionVerb: 'convert', revenueEvent: 'new client',
-    kpiLabel: 'client value', missedOpportunity: 'missed opportunity',
-    tone: 'practical', examples: [],
-  };
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** Resolve industry language pack from state. */
+function lp(state: ConversationState): IndustryLanguagePack {
+  if (state.industryLanguage && state.industryLanguage.industryLabel !== 'business') {
+    return state.industryLanguage;
+  }
+  if (state.intel.industryLanguagePack && state.intel.industryLanguagePack.industryLabel !== 'business') {
+    return state.intel.industryLanguagePack;
+  }
+  return GENERIC_INDUSTRY_PACK;
 }
 
-function shortBiz(state: CallBrainState): string {
-  const full = (state.intel.fast as any)?.core_identity?.business_name
-    ?? (state.intel.consultant as any)?.businessIdentity?.correctedName
-    ?? '';
-  if (!full) return 'your business';
+/** Resolve prospect first name. */
+function fn(state: ConversationState): string {
+  if (state.firstName) return state.firstName;
+  const fast = state.intel.fast as any;
+  return fast?.core_identity?.first_name ?? fast?.firstName ?? '';
+}
+
+/** Resolve full business name. */
+function biz(state: ConversationState): string {
+  if (state.business) return state.business;
+  const fast = state.intel.fast as any;
+  const cons = (state.intel.consultant as any) ?? {};
+  return fast?.core_identity?.business_name
+    ?? cons?.businessIdentity?.correctedName
+    ?? 'your business';
+}
+
+/** Short business name — strip stop words, take first 3 meaningful words. */
+function shortBiz(state: ConversationState): string {
+  const full = biz(state);
+  if (full === 'your business') return full;
   const words = full.split(/\s+/);
-  const stopWords = new Set(['the', 'a', 'an', 'and', 'of', 'in', 'for', 'by', 'at', 'to', 'pty', 'ltd', 'inc', 'llc', 'co', 'group', 'services', 'solutions', 'australia', 'sydney', 'melbourne', 'brisbane', 'perth', 'adelaide']);
+  const stopWords = new Set([
+    'the', 'a', 'an', 'and', 'of', 'in', 'for', 'by', 'at', 'to',
+    'pty', 'ltd', 'inc', 'llc', 'co', 'group', 'services', 'solutions',
+    'australia', 'sydney', 'melbourne', 'brisbane', 'perth', 'adelaide',
+  ]);
   const meaningful = words.filter((w: string) => !stopWords.has(w.toLowerCase()) && w.length > 1);
   return meaningful.slice(0, 3).join(' ') || full.slice(0, 30);
 }
 
-function firstName(state: CallBrainState): string {
-  return (state.intel.fast as any)?.core_identity?.first_name
-    ?? (state.intel.fast as any)?.firstName
-    ?? '';
-}
-
-function bizName(state: CallBrainState): string {
-  return (state.intel.fast as any)?.core_identity?.business_name
-    ?? (state.intel.consultant as any)?.businessIdentity?.correctedName
-    ?? shortBiz(state);
-}
-
-function tf(state: CallBrainState): string {
-  return state.extracted.timeframe === 'weekly' ? 'week' : 'month';
-}
-
-function deep(state: CallBrainState): Record<string, any> {
-  return (state.intel.deep as any) ?? {};
-}
-
-function consultant(state: CallBrainState): Record<string, any> {
+/** Consultant intel blob. */
+function consultant(state: ConversationState): Record<string, any> {
   return (state.intel.consultant as any) ?? {};
 }
 
-function sf(state: CallBrainState): Record<string, any> {
+/** Script fills from consultant. */
+function sf(state: ConversationState): Record<string, any> {
   return consultant(state).scriptFills ?? {};
 }
 
-// ─── Critical facts sanitizer ────────────────────────────────────────────────
+/** Deep intel blob. */
+function deep(state: ConversationState): Record<string, any> {
+  return (state.intel.deep as any) ?? {};
+}
 
+/** Map responseSpeedBand to a natural spoken label. */
+function bandToSpokenLabel(band: string | null | undefined): string {
+  switch (band) {
+    case 'under_30_seconds':      return 'under thirty seconds';
+    case 'under_5_minutes':       return 'under five minutes';
+    case '5_to_30_minutes':       return 'five to thirty minutes';
+    case '30_minutes_to_2_hours': return 'thirty minutes to two hours';
+    case '2_to_24_hours':         return 'two to twenty-four hours';
+    case 'next_day_plus':         return 'next day or longer';
+    default:                      return 'your current response time';
+  }
+}
+
+/** Clean a single fact string — strip quotes, JSON fragments, short noise. */
 function cleanFact(input: unknown): string | null {
   if (typeof input !== 'string') return null;
   let s = input.trim();
@@ -69,688 +107,1029 @@ function cleanFact(input: unknown): string | null {
   return s;
 }
 
+/** Clean an array of facts. */
 function cleanFacts(inputs: unknown[]): string[] {
   return inputs.map(cleanFact).filter((x): x is string => Boolean(x)).slice(0, 5);
 }
 
-// ─── Extract targets per stage ───────────────────────────────────────────────
+// ─── CTA Type Classification ─────────────────────────────────────────────────
 
-function extractTargetsForStage(stage: Stage): string[] {
-  switch (stage) {
-    case 'wow': return [];
-    case 'anchor_acv': return ['acv'];
-    case 'anchor_timeframe': return ['timeframe'];
-    case 'ch_website': return ['web_leads', 'web_conversions', 'web_followup_speed'];
-    case 'ch_ads': return ['ads_leads', 'ads_conversions', 'ads_followup_speed'];
-    case 'ch_phone': return ['phone_volume', 'missed_call_handling', 'missed_call_callback_speed'];
-    case 'ch_old_leads': return ['old_leads'];
-    case 'ch_reviews': return ['new_customers', 'has_review_system'];
-    case 'roi_delivery': return [];
-    case 'close': return [];
-  }
+/**
+ * Classify CTA type from consultant's ctaType field into spoken-friendly labels.
+ * Falls back to pattern matching on primaryCTA text if ctaType is missing.
+ */
+function classifyCTAType(ctaType: string, primaryCTA: string): string {
+  // Direct match from consultant ctaType enum
+  if (ctaType === 'book_call' || ctaType === 'booking') return 'booking';
+  if (ctaType === 'fill_form') return 'form';
+  if (ctaType === 'call_number') return 'phone';
+  if (ctaType === 'get_quote') return 'quote';
+  if (ctaType === 'buy_online') return 'purchase';
+  if (ctaType === 'download') return 'download';
+
+  // Fallback: pattern match on CTA text
+  const lower = primaryCTA.toLowerCase();
+  if (/\b(book|schedule|appointment|consult)\b/.test(lower)) return 'booking';
+  if (/\b(call|phone|ring|1300|1800|0[2-9]\d{2})\b/.test(lower)) return 'phone';
+  if (/\b(quote|estimate|pricing)\b/.test(lower)) return 'quote';
+  if (/\b(buy|purchase|order|shop|cart|checkout)\b/.test(lower)) return 'purchase';
+  if (/\b(download|guide|ebook|whitepaper)\b/.test(lower)) return 'download';
+  if (/\b(form|enquir|inquir|submit|register|sign\s*up)\b/.test(lower)) return 'form';
+
+  return 'generic';
 }
 
-// ─── Style defaults ──────────────────────────────────────────────────────────
+// ─── WOW Step Builders ──────────────────────────────────────────────────────
 
-function baseStyle(state: CallBrainState): NextTurnPacket['style'] {
-  const pack = lp(state);
-  return {
-    tone: pack.tone,
-    industryTerms: pack.examples.slice(0, 3),
-    maxSentences: 3,
-    noApology: true,
-  };
-}
-
-// ─── Build critical facts from intel ─────────────────────────────────────────
-
-function buildCriticalFacts(state: CallBrainState, max: number = 5): string[] {
-  const facts: string[] = [];
-  const fn = firstName(state);
-  const biz = bizName(state);
-  const pack = lp(state);
+function buildWowDirective(
+  wowStep: WowStepId | null | undefined,
+  state: ConversationState,
+): StageDirective {
+  const name = fn(state);
+  const business = biz(state);
+  const lang = lp(state);
   const d = deep(state);
   const c = consultant(state);
+  const fills = sf(state);
 
-  if (fn) facts.push(`Prospect name: ${fn}`);
-  if (biz) facts.push(`Business: ${biz}`);
-  if (pack.industryLabel !== 'business') facts.push(`Industry: ${pack.industryLabel}`);
+  switch (wowStep) {
+    case 'wow_1_research_intro':
+      console.log(`[WOW1_RESOLVE] ts=${new Date().toISOString()} name=${name} biz=${business.slice(0, 30)} industry=${lang.industryLabel}`);
+      return {
+        objective: 'Demo frame + research intro, get permission to continue.',
+        allowedMoves: ['advance:wow_2_reputation_trial'],
+        requiredData: ['firstName', 'business', 'industry'],
+        speak: `So ${name}, your pre-trained agents are ready to go. You can play a prospective ${shortBiz(state)} ${lang.singularOutcome}, and they'll engage like they've worked for ${business} for years — answering questions, qualifying the opportunity, and moving people toward your key conversion point on autopilot. Now ${name}, I think you'll be impressed. We've researched ${business}, and we use that to pre-train your agents around your ${lang.pluralOutcome}, your industry, and how you win business. Before we begin, can I confirm a couple of findings so your agents are dialled in and aimed at the highest-value opportunities?`,
+        ask: true,
+        waitForUser: true,
+        canSkip: false,
+        extract: ['research_permission'],
+        advanceOn: ['wow_2_reputation_trial'],
+      };
 
-  const rating = d.googleMaps?.rating;
-  if (rating) facts.push(`Google rating: ${rating} stars (${d.googleMaps?.review_count ?? 0} reviews)`);
+    case 'wow_2_reputation_trial': {
+      const googleRating = d.googleMaps?.rating ?? null;
+      const googleReviews = d.googleMaps?.review_count ?? 0;
 
-  const routing = c.routing;
-  if (routing?.priority_agents?.length) {
-    facts.push(`Priority agents: ${routing.priority_agents.slice(0, 2).join(', ')}`);
+      if (!googleRating || googleRating < 3) {
+        console.log(`[WOW2_RESOLVE] ts=${new Date().toISOString()} branch=SKIP rating=${googleRating} reviews=${googleReviews} biz=${business.slice(0, 30)}`);
+        return {
+          objective: 'Skip — no credible reputation data.',
+          allowedMoves: ['advance:wow_3_icp_problem_solution'],
+          requiredData: [],
+          speak: '',
+          ask: false,
+          waitForUser: false,
+          canSkip: true,
+          skipReason: 'No Google rating or rating below 3.',
+          advanceOn: ['wow_3_icp_problem_solution'],
+        };
+      }
+
+      console.log(`[WOW2_RESOLVE] ts=${new Date().toISOString()} branch=FIRE rating=${googleRating} reviews=${googleReviews} biz=${business.slice(0, 30)}`);
+      return {
+        objective: 'Leverage reputation for free trial mention.',
+        allowedMoves: ['advance:wow_3_icp_problem_solution'],
+        requiredData: [],
+        speak: `And just before we start, I noticed ${business} has a ${googleRating}-star rating from ${googleReviews} reviews — that's strong. Businesses already delivering good outcomes are exactly the kind we like to put through our free trial, so if you'd like, I can set that up for you at any point during this demo.`,
+        ask: false,
+        waitForUser: false,
+        canSkip: false,
+        advanceOn: ['wow_3_icp_problem_solution'],
+      };
+    }
+
+    case 'wow_3_icp_problem_solution': {
+      const rawIcpGuess = (fills.icp_guess ?? '').trim();
+      let icpGuess = rawIcpGuess;
+      if (icpGuess) {
+        // Consultant may return full sentence: "it looks like you mainly work with X, is that right?"
+        // Strip wrapping — we only need the audience phrase for "It looks like you mainly serve {X}."
+        icpGuess = icpGuess
+          .replace(/^it\s+looks\s+like\s+/i, '')
+          .replace(/^(you|they)\s+(mainly|primarily|mostly)\s+(serve|work\s+with)\s+/i, '')
+          .replace(/^[\w\s]+?\s+(mainly|primarily|mostly)\s+(serve|work\s+with)\s+/i, '')
+          .replace(/[,.]?\s*(is\s+that\s+right|does\s+that\s+sound\s+right|would\s+you\s+agree).*$/i, '')
+          .replace(/[.!?]+$/, '')
+          .trim();
+      }
+      const icpProblems: unknown[] = c.icpAnalysis?.icpProblems ?? [];
+      const icpSolutions: unknown[] = c.icpAnalysis?.icpSolutions ?? [];
+      const referenceOffer = fills.reference_offer ?? '';
+      const cleanProblems = cleanFacts(icpProblems);
+      const cleanSolutions = cleanFacts(icpSolutions);
+
+      let insightText: string;
+      let wow3Branch: string;
+      if (icpGuess && cleanProblems.length >= 2 && cleanSolutions.length >= 2) {
+        wow3Branch = 'ICP_FULL';
+        insightText = `It looks like you mainly serve ${icpGuess}. The main problems they come to you with are ${cleanProblems[0]} and ${cleanProblems[1]}, and you solve those through ${cleanSolutions[0]} and ${cleanSolutions[1]}. Does that sound right?`;
+      } else if (referenceOffer) {
+        wow3Branch = 'REF_OFFER';
+        const industryAudience = icpGuess || lang.pluralOutcome;
+        insightText = `From your website, it looks like your positioning is centred around ${referenceOffer}, and it seems like you're speaking mainly to ${industryAudience}. Does that sound right?`;
+      } else {
+        wow3Branch = 'GENERIC';
+        insightText = `The site does a strong job of positioning what ${shortBiz(state)} does. Does that sound right?`;
+      }
+
+      console.log(`[WOW3_RESOLVE] ts=${new Date().toISOString()} branch=${wow3Branch} raw_icp="${rawIcpGuess.slice(0, 60)}" cleaned_icp="${icpGuess.slice(0, 40)}" problems=${cleanProblems.length} solutions=${cleanSolutions.length} refOffer=${!!referenceOffer}`);
+
+      return {
+        objective: 'Confirm ICP, problems, and solutions.',
+        allowedMoves: ['advance:wow_4_conversion_action'],
+        requiredData: [],
+        speak: insightText,
+        ask: true,
+        waitForUser: true,
+        canSkip: false,
+        extract: ['icp_confirmed', 'icp_corrections'],
+        advanceOn: ['wow_4_conversion_action'],
+      };
+    }
+
+    case 'wow_4_conversion_action': {
+      const cea = c.conversionEventAnalysis ?? {};
+      const primaryCTA = cea.primaryCTA ?? fills.primaryCTA ?? '';
+      const ctaType = (cea.ctaType ?? '').toLowerCase().trim();
+      const agentTrainingLine = (cea.agentTrainingLine ?? '').trim();
+      const ceaBellaLine = (cea.bellaLine ?? '').trim();
+
+      // Classify CTA type for type-specific speech
+      const ctaTypeLabel = classifyCTAType(ctaType, primaryCTA);
+
+      let conversionLine: string;
+      let wow4Branch: string;
+
+      if (agentTrainingLine && agentTrainingLine.length > 30) {
+        // Best path: consultant produced a Bella-ready line referencing all CTAs
+        wow4Branch = 'TRAINING_LINE';
+        conversionLine = `${agentTrainingLine} Is that the right focus?`;
+      } else if (ceaBellaLine && ceaBellaLine.length > 20) {
+        // Good path: consultant's bellaLine about conversion setup
+        wow4Branch = 'BELLA_LINE';
+        conversionLine = `${ceaBellaLine} Is that the right focus?`;
+      } else if (primaryCTA && ctaTypeLabel !== 'generic') {
+        // Type-aware path: we know what kind of CTA it is
+        wow4Branch = `CTA_TYPED_${ctaTypeLabel}`;
+        const typePhrase = ctaTypeLabel === 'booking' ? 'a booking action'
+          : ctaTypeLabel === 'phone' ? 'an inbound call'
+          : ctaTypeLabel === 'form' ? 'a contact form'
+          : ctaTypeLabel === 'quote' ? 'a quote request'
+          : ctaTypeLabel === 'purchase' ? 'an online purchase'
+          : ctaTypeLabel === 'download' ? 'a content download'
+          : primaryCTA;
+        conversionLine = `And it looks like your main conversion action is ${typePhrase} — ${primaryCTA}. That's exactly the kind of conversion we train your AI agents to drive more of. Is that the right focus?`;
+      } else if (primaryCTA) {
+        // Text-only path: we have CTA text but no type classification
+        wow4Branch = 'CTA_TEXT';
+        conversionLine = `And it looks like your main conversion action is ${primaryCTA}. That's the key action your agents should be driving more often. Is that the right focus?`;
+      } else {
+        wow4Branch = 'GENERIC';
+        conversionLine = `And looking at how your site is set up to convert visitors into ${lang.pluralOutcome}, that's exactly the kind of action we train your AI agents to drive more of. Is that the right focus?`;
+      }
+      console.log(`[WOW4_RESOLVE] ts=${new Date().toISOString()} branch=${wow4Branch} ctaType="${ctaType || 'none'}" ctaLabel=${ctaTypeLabel} cta="${(primaryCTA || 'none').slice(0, 40)}" hasTrainingLine=${!!agentTrainingLine} hasBellaLine=${!!ceaBellaLine}`);
+
+      return {
+        objective: 'Align conversion events with agent capabilities.',
+        allowedMoves: ['advance:wow_5_alignment_bridge'],
+        requiredData: [],
+        speak: conversionLine,
+        ask: true,
+        waitForUser: true,
+        canSkip: false,
+        extract: ['conversion_confirmed', 'conversion_corrections'],
+        advanceOn: ['wow_5_alignment_bridge'],
+      };
+    }
+
+    case 'wow_5_alignment_bridge':
+      return {
+        objective: 'Confirm agents are dialled in.',
+        allowedMoves: ['advance:wow_6_scraped_observation'],
+        requiredData: [],
+        speak: `Great — that helps confirm your agents are dialled in around the highest-value opportunities.`,
+        ask: false,
+        waitForUser: false,
+        canSkip: false,
+        advanceOn: ['wow_6_scraped_observation'],
+      };
+
+    case 'wow_6_scraped_observation': {
+      const scrapedSummary = fills.scrapedDataSummary ?? '';
+      const mostImpressiveLine = (c.mostImpressive?.[0]?.bellaLine ?? '').trim();
+
+      let observationLine: string;
+      let wow6Source: string;
+      if (scrapedSummary) {
+        wow6Source = 'SCRAPED_SUMMARY';
+        observationLine = `Also ${name}, we noticed ${scrapedSummary}. That helps show where the biggest upside from automation could be for ${business}.`;
+      } else if (mostImpressiveLine) {
+        wow6Source = 'MOST_IMPRESSIVE';
+        const cleaned = mostImpressiveLine.replace(/[.!]+$/, '');
+        observationLine = `Also ${name}, ${cleaned} — and that tells us there's a real opportunity for automation to drive even more value for ${business}.`;
+      } else {
+        wow6Source = 'GENERIC';
+        observationLine = `Also ${name}, from what we can already see on your site, there looks to be a clear opportunity to improve how inbound demand gets captured and converted.`;
+      }
+
+      console.log(`[WOW6_RESOLVE] ts=${new Date().toISOString()} source=${wow6Source} scrapedSummary=${!!scrapedSummary} mostImpressive="${mostImpressiveLine.slice(0, 60)}" speak_preview="${observationLine.slice(0, 80)}"`);
+
+      return {
+        objective: 'Connect scraped observation to automation upside.',
+        allowedMoves: ['advance:wow_7_explore_or_recommend'],
+        requiredData: [],
+        speak: observationLine,
+        ask: false,
+        waitForUser: false,
+        canSkip: false,
+        advanceOn: ['wow_7_explore_or_recommend'],
+      };
+    }
+
+    case 'wow_7_explore_or_recommend':
+      console.log(`[WOW7_RESOLVE] ts=${new Date().toISOString()} biz=${business.slice(0, 30)}`);
+      return {
+        objective: 'Offer prospect choice: explore or recommend.',
+        allowedMoves: ['advance:wow_8_source_check'],
+        requiredData: [],
+        speak: `You can explore the agents yourself, or I can recommend the highest-value ones for ${business} and bring the first one on live so you can hear how they'd handle your prospects. Sound good?`,
+        ask: true,
+        waitForUser: true,
+        canSkip: false,
+        extract: ['explorePreference'],
+        advanceOn: ['wow_8_source_check'],
+      };
+
+    case 'wow_8_source_check': {
+      const adsOn = !!(
+        (state.intel.fast as any)?.flags?.is_running_ads
+        || d.ads?.is_running_google_ads
+        || (d.ads?.google_ads_count ?? 0) > 0
+        || (d.ads?.fb_ads_count ?? 0) > 0
+      );
+
+      if (state.leadSourceDominant && state.routingConfidence === 'high') {
+        console.log(`[WOW8_RESOLVE] ts=${new Date().toISOString()} branch=SKIP_KNOWN source=${state.leadSourceDominant}`);
+        return {
+          objective: 'Source already identified — skip to recommendation.',
+          allowedMoves: ['advance:recommendation'],
+          requiredData: [],
+          speak: '',
+          ask: false,
+          waitForUser: false,
+          canSkip: true,
+          skipReason: `Lead source already identified as ${state.leadSourceDominant} with high confidence.`,
+          advanceOn: ['recommendation'],
+        };
+      }
+
+      let sourceQuestion: string;
+      if (adsOn) {
+        sourceQuestion = `Apart from referrals, are paid ads your main source of new ${lang.pluralOutcome}, or is another channel doing a lot of the work as well?`;
+      } else {
+        sourceQuestion = `Apart from referrals, where does most new business come from right now — your website, paid ads, phone calls, organic, or something else?`;
+      }
+      console.log(`[WOW8_RESOLVE] ts=${new Date().toISOString()} branch=${adsOn ? 'ADS_ON' : 'NO_ADS'}`);
+
+      return {
+        objective: 'Identify dominant lead acquisition path.',
+        allowedMoves: ['advance:recommendation'],
+        requiredData: [],
+        speak: sourceQuestion,
+        ask: true,
+        waitForUser: true,
+        canSkip: false,
+        extract: ['leadSourceDominant', 'leadSourceSecondary', 'adsConfirmed', 'websiteRelevant', 'phoneRelevant'],
+        advanceOn: ['recommendation'],
+        notes: [
+          `If prospect gives vague reply, follow up: "Got it — and do you see more new business coming through ${fills.cta1 ?? 'your website'}, ${fills.cta2 ?? 'ads'}, or phone calls?"`,
+        ],
+      };
+    }
+
+    default:
+      console.warn(`[MOVES] unknown wowStep: ${wowStep} — defaulting to wow_1_research_intro`);
+      return buildWowDirective('wow_1_research_intro', state);
   }
-
-  return facts.slice(0, max);
 }
 
-// ─── WOW stall builders (9 stalls) ──────────────────────────────────────────
+// ─── Recommendation Builder (4 variants) ────────────────────────────────────
 
-function buildWowPacket(state: CallBrainState): NextTurnPacket {
-  const fn = firstName(state);
-  const biz = bizName(state);
-  const pack = lp(state);
-  const d = deep(state);
+function buildRecommendationDirective(state: ConversationState): StageDirective {
+  const business = biz(state);
+  const { alexEligible, chrisEligible, maddieEligible } = state;
   const c = consultant(state);
-  const s = sf(state);
-
-  const deepMissing = !!(state.watchdog?.deepIntelMissingEscalation);
-  if (deepMissing && state.wowStall <= 2) {
-    console.log(`[WATCHDOG] deep intel missing — using fast-intel-only fallback for stall ${state.wowStall}`);
-  }
-  const googleRating = d.googleMaps?.rating ?? null;
-  const googleReviews = d.googleMaps?.review_count ?? 0;
-  const icpGuess = s.icp_guess ?? '';
-  const icpProblems = c.icpAnalysis?.icpProblems ?? [];
-  const icpSolutions = c.icpAnalysis?.icpSolutions ?? [];
-  const referenceOffer = s.reference_offer ?? '';
-  const websitePositive = s.website_positive_comment ?? '';
-  const heroQuote = s.hero_header_quote ?? '';
   const cea = c.conversionEventAnalysis ?? {};
-  const primaryCTA = cea.primaryCTA ?? s.top_2_website_ctas ?? '';
-  const hiringData = d.hiring ?? {};
-  const hiringMatches = hiringData.hiring_agent_matches ?? [];
-  const isHiring = !!(hiringData.is_hiring || hiringMatches.length > 0);
-  const routing = c.routing ?? {};
-  const priorityAgents: string[] = (routing.priority_agents ?? []).map((a: string) =>
-    a.charAt(0).toUpperCase() + a.slice(1).toLowerCase());
+  const fills = sf(state);
+  const rawCTA = cea.primaryCTA ?? fills.primaryCTA ?? '';
+  const ctaTypeLabel = classifyCTAType((cea.ctaType ?? '').toLowerCase().trim(), rawCTA);
+  const primaryCTAShort = rawCTA
+    || (ctaTypeLabel !== 'generic' ? `${ctaTypeLabel === 'booking' ? 'bookings' : ctaTypeLabel === 'phone' ? 'inbound calls' : ctaTypeLabel === 'quote' ? 'quote requests' : ctaTypeLabel === 'form' ? 'enquiry forms' : 'conversions'}` : 'your key conversion actions');
 
-  const adsOn = !!(
-    (state.intel.fast as any)?.flags?.is_running_ads
-    || d.ads?.is_running_google_ads
-    || (d.ads?.google_ads_count ?? 0) > 0
-    || (d.ads?.fb_ads_count ?? 0) > 0
+  let recLine: string;
+
+  if (alexEligible && chrisEligible && maddieEligible) {
+    recLine = `Based on what we've found, Alex looks like the biggest opportunity first, and then Chris and Maddie both look relevant. Alex tightens lead follow-up, Chris drives more website actions, and Maddie captures call opportunities that might otherwise be lost. If you want, I can work out which of those is likely to create the most extra revenue.`;
+  } else if (alexEligible && chrisEligible) {
+    recLine = `Based on what we've found, Alex looks like the biggest opportunity first, because faster follow-up usually creates the strongest lift once interest is already there. Then Chris looks highly relevant as well, because your website is clearly driving actions like ${primaryCTAShort}. If you want, I can work out what that could be worth.`;
+  } else if (alexEligible && maddieEligible) {
+    recLine = `Based on what we've found, Alex looks like the biggest opportunity first, because lead follow-up usually gives the fastest uplift where demand already exists. Then Maddie looks highly relevant too, because phone calls are clearly a major path to new business. If you want, I can work out what that could be worth.`;
+  } else if (maddieEligible && !alexEligible) {
+    recLine = `Based on what you've said, Maddie looks like the strongest fit first, because phone is where the real opportunity sits for ${business}. If you want, I can work out what that could be worth.`;
+  } else {
+    recLine = `Based on what we've found so far, there are a few agents that could add real value for ${business}. If you want, I can work out what that could be worth.`;
+  }
+
+  return {
+    objective: 'Recommend agents and bridge to ROI calculation.',
+    allowedMoves: ['advance:anchor_acv'],
+    requiredData: [],
+    speak: recLine,
+    ask: true,
+    waitForUser: true,
+    canSkip: false,
+    extract: ['proceedToROI'],
+    advanceOn: ['user_agrees', 'user_unclear'],
+  };
+}
+
+// ─── Channel Stage Builders (Chunk 4B) ──────────────────────────────────────
+
+/**
+ * Alex directive: speed-to-lead.
+ * Two variants: generic (follow-up process first) or ads (ad volume first).
+ */
+function buildAlexDirective(intel: MergedIntel, state: ConversationState): StageDirective {
+  const lang = lp(state);
+  const policy = STAGE_POLICIES.ch_alex;
+  const forceAdvance = shouldForceAdvance('ch_alex', state);
+  const budgetExhausted = maxQuestionsReached('ch_alex', state);
+
+  // ── Deliver ROI mode ──
+  if (forceAdvance || budgetExhausted) {
+    const result = state.calculatorResults.alex;
+
+    if (result) {
+      // ROI already computed by controller — deliver it
+      return {
+        objective: 'Deliver Alex speed-to-lead ROI.',
+        allowedMoves: ['advance:next_channel'],
+        requiredData: [],
+        speak: `So with an average ${lang.singularOutcome} value of ${state.acv} dollars, around ${state.inboundLeads} inbound leads a week, and a response time of ${bandToSpokenLabel(state.responseSpeedBand)}, Alex could conservatively add around ${result.weeklyValue.toLocaleString()} dollars a week just by tightening speed-to-lead and follow-up consistency. Does that make sense?`,
+        ask: true,
+        waitForUser: true,
+        canSkip: false,
+        advanceOn: ['user_replied'],
+        calculatorKey: policy.calculatorKey,
+      };
+    }
+
+    if (forceAdvance) {
+      // Minimum data present but controller hasn't run calculator yet — signal it
+      return {
+        objective: 'Signal controller to compute Alex ROI.',
+        allowedMoves: ['compute:alex', 'advance:next_channel'],
+        requiredData: [],
+        speak: `Let me size Alex based on that.`,
+        ask: false,
+        waitForUser: false,
+        canSkip: false,
+        calculatorKey: policy.calculatorKey,
+      };
+    }
+
+    // Budget exhausted but insufficient data — skip with fallback
+    return {
+      objective: 'Alex question budget exhausted — insufficient data, skip.',
+      allowedMoves: ['advance:next_channel'],
+      requiredData: [],
+      speak: '',
+      ask: false,
+      waitForUser: false,
+      canSkip: true,
+      skipReason: 'Question budget exhausted without sufficient data for Alex calculation.',
+      notes: policy.fallbackPolicy,
+    };
+  }
+
+  // ── Collect inputs mode ──
+  // Channel-scoped question routing: Alex owns ads + website/online ONLY.
+  // Phone/direct is Maddie's domain — Alex never asks phone-scoped questions.
+  const adsPath = state.adsConfirmed || state.leadSourceDominant === 'ads';
+  const websitePath = !adsPath && (
+    state.websiteRelevant
+    || state.leadSourceDominant === 'website'
+    || state.leadSourceDominant === 'organic'
+  );
+  // No phonePath for Alex — phone belongs to Maddie.
+  // If phone-dominant with no ads/website signal, Alex falls to aggregate-online.
+
+  let questionText: string;
+  let extractFields: string[];
+  let channelScope: string;
+
+  if (adsPath) {
+    // Ads-scoped — ask about ad/campaign lead volume
+    channelScope = 'ads/campaign';
+    if (state.inboundLeads == null) {
+      questionText = `Roughly how many leads are your ads generating in a typical week?`;
+      extractFields = ['inboundLeads'];
+    } else if (state.inboundConversions == null && state.inboundConversionRate == null) {
+      questionText = `And how many of those are turning into paying ${lang.pluralOutcome}?`;
+      extractFields = ['inboundConversions', 'inboundConversionRate'];
+    } else {
+      questionText = `When those ad leads come in, how quickly is your team usually following up?`;
+      extractFields = ['responseSpeedBand'];
+    }
+  } else if (websitePath) {
+    // Website-scoped — ask about website/online enquiry volume
+    channelScope = 'website/online';
+    if (state.inboundLeads == null) {
+      questionText = `Roughly how many enquiries are coming through your website in a typical week?`;
+      extractFields = ['inboundLeads'];
+    } else if (state.inboundConversions == null && state.inboundConversionRate == null) {
+      questionText = `And how many of those are turning into paying ${lang.pluralOutcome}?`;
+      extractFields = ['inboundConversions', 'inboundConversionRate'];
+    } else {
+      questionText = `How quickly are those website enquiries usually followed up?`;
+      extractFields = ['responseSpeedBand'];
+    }
+  } else {
+    // Aggregate-online fallback: no ads or website signal distinguished.
+    // Still scoped to online/inbound — never phone.
+    channelScope = 'aggregate-online';
+    if (state.inboundLeads == null) {
+      questionText = `Roughly how many online enquiries or leads need follow-up in a typical week?`;
+      extractFields = ['inboundLeads'];
+    } else if (state.inboundConversions == null && state.inboundConversionRate == null) {
+      questionText = `And how many of those are turning into paying ${lang.pluralOutcome}?`;
+      extractFields = ['inboundConversions', 'inboundConversionRate'];
+    } else {
+      questionText = `How quickly are those usually followed up?`;
+      extractFields = ['responseSpeedBand'];
+    }
+  }
+
+  console.log(`[ALEX_SCOPE] channelScope=${channelScope} adsPath=${adsPath} websitePath=${websitePath} source=${state.leadSourceDominant} webRelevant=${state.websiteRelevant} phoneRelevant=${state.phoneRelevant}`);
+
+  return {
+    objective: `Capture Alex speed-to-lead inputs (${channelScope} channel scope).`,
+    allowedMoves: ['extract:alexInputs'],
+    requiredData: policy.requiredFields,
+    speak: questionText,
+    ask: true,
+    waitForUser: true,
+    canSkip: false,
+    extract: extractFields,
+    maxQuestions: policy.maxQuestions,
+    forceAdvanceWhenSatisfied: policy.forceAdvanceWhenSatisfied,
+    calculatorKey: policy.calculatorKey,
+    notes: policy.fallbackPolicy,
+  };
+}
+
+/**
+ * Chris directive: website conversion uplift.
+ */
+function buildChrisDirective(state: ConversationState): StageDirective {
+  const lang = lp(state);
+  const policy = STAGE_POLICIES.ch_chris;
+  const forceAdvance = shouldForceAdvance('ch_chris', state);
+  const budgetExhausted = maxQuestionsReached('ch_chris', state);
+
+  // ── Deliver ROI mode ──
+  if (forceAdvance || budgetExhausted) {
+    const result = state.calculatorResults.chris;
+
+    if (result) {
+      const conversionDesc = state.webConversions != null
+        ? `converting about ${state.webConversions}`
+        : state.webConversionRate != null
+          ? `converting at about ${Math.round(state.webConversionRate * 100)}%`
+          : 'converting a portion';
+
+      return {
+        objective: 'Deliver Chris website conversion ROI.',
+        allowedMoves: ['advance:next_channel'],
+        requiredData: [],
+        speak: `So you're getting around ${state.webLeads} website leads a week and ${conversionDesc}. Chris typically lifts conversion by engaging people in real time, and at an average value of ${state.acv} dollars that could mean roughly ${result.weeklyValue.toLocaleString()} dollars a week in extra revenue. Does that sound reasonable?`,
+        ask: true,
+        waitForUser: true,
+        canSkip: false,
+        advanceOn: ['user_replied'],
+        calculatorKey: policy.calculatorKey,
+      };
+    }
+
+    if (forceAdvance) {
+      return {
+        objective: 'Signal controller to compute Chris ROI.',
+        allowedMoves: ['compute:chris', 'advance:next_channel'],
+        requiredData: [],
+        speak: `Let me size Chris based on that.`,
+        ask: false,
+        waitForUser: false,
+        canSkip: false,
+        calculatorKey: policy.calculatorKey,
+      };
+    }
+
+    return {
+      objective: 'Chris question budget exhausted — insufficient data, skip.',
+      allowedMoves: ['advance:next_channel'],
+      requiredData: [],
+      speak: '',
+      ask: false,
+      waitForUser: false,
+      canSkip: true,
+      skipReason: 'Question budget exhausted without sufficient data for Chris calculation.',
+      notes: policy.fallbackPolicy,
+    };
+  }
+
+  // ── Collect inputs mode ──
+  let questionText: string;
+  let extractFields: string[];
+
+  // Chris needs only 2 inputs: webLeads + webConversions/Rate.
+  // No follow-up-speed question — Chris uplift is conversion-rate-based, not speed-based.
+  if (state.webLeads == null) {
+    questionText = `Roughly how many website enquiries are you getting in a typical week?`;
+    extractFields = ['webLeads'];
+  } else {
+    questionText = `And how many of those turn into paying ${lang.pluralOutcome}?`;
+    extractFields = ['webConversions', 'webConversionRate'];
+  }
+
+  return {
+    objective: 'Capture Chris website conversion inputs (website channel scope).',
+    allowedMoves: ['extract:chrisInputs'],
+    requiredData: policy.requiredFields,
+    speak: questionText,
+    ask: true,
+    waitForUser: true,
+    canSkip: false,
+    extract: extractFields,
+    maxQuestions: policy.maxQuestions,
+    forceAdvanceWhenSatisfied: policy.forceAdvanceWhenSatisfied,
+    calculatorKey: policy.calculatorKey,
+    notes: policy.fallbackPolicy,
+  };
+}
+
+/**
+ * Maddie directive: missed call recovery.
+ */
+function buildMaddieDirective(state: ConversationState): StageDirective {
+  const lang = lp(state);
+  const policy = STAGE_POLICIES.ch_maddie;
+  const forceAdvance = shouldForceAdvance('ch_maddie', state);
+  const budgetExhausted = maxQuestionsReached('ch_maddie', state);
+
+  // ── Deliver ROI mode ──
+  if (forceAdvance || budgetExhausted) {
+    const result = state.calculatorResults.maddie;
+
+    if (result) {
+      const missedDesc = state.missedCalls != null
+        ? `missing about ${state.missedCalls}`
+        : state.missedCallRate != null
+          ? `missing about ${Math.round(state.missedCallRate * 100)}%`
+          : 'missing some';
+
+      return {
+        objective: 'Deliver Maddie missed call recovery ROI.',
+        allowedMoves: ['advance:next_channel'],
+        requiredData: [],
+        speak: `So if you're getting around ${state.phoneVolume} inbound calls a week and ${missedDesc}, that's a meaningful number of live opportunities at risk. When people hit voicemail, a lot of them just try the next option. That's why Maddie is so valuable — she captures and qualifies more of those calls before they disappear. Conservatively, that could mean around ${result.weeklyValue.toLocaleString()} dollars a week in recovered revenue. Does that track?`,
+        ask: true,
+        waitForUser: true,
+        canSkip: false,
+        advanceOn: ['user_replied'],
+        calculatorKey: policy.calculatorKey,
+      };
+    }
+
+    if (forceAdvance) {
+      return {
+        objective: 'Signal controller to compute Maddie ROI.',
+        allowedMoves: ['compute:maddie', 'advance:next_channel'],
+        requiredData: [],
+        speak: `Let me size Maddie based on that.`,
+        ask: false,
+        waitForUser: false,
+        canSkip: false,
+        calculatorKey: policy.calculatorKey,
+      };
+    }
+
+    return {
+      objective: 'Maddie question budget exhausted — insufficient data, skip.',
+      allowedMoves: ['advance:next_channel'],
+      requiredData: [],
+      speak: '',
+      ask: false,
+      waitForUser: false,
+      canSkip: true,
+      skipReason: 'Question budget exhausted without sufficient data for Maddie calculation.',
+      notes: policy.fallbackPolicy,
+    };
+  }
+
+  // ── Collect inputs mode ──
+  let questionText: string;
+  let extractFields: string[];
+
+  if (state.phoneVolume == null) {
+    questionText = `Roughly how many inbound calls do you get in a typical week?`;
+    extractFields = ['phoneVolume'];
+  } else {
+    questionText = `And roughly how many of those get missed?`;
+    extractFields = ['missedCalls', 'missedCallRate'];
+  }
+
+  return {
+    objective: 'Capture Maddie missed call recovery inputs (phone channel scope).',
+    allowedMoves: ['extract:maddieInputs'],
+    requiredData: policy.requiredFields,
+    speak: questionText,
+    ask: true,
+    waitForUser: true,
+    canSkip: false,
+    extract: extractFields,
+    maxQuestions: policy.maxQuestions,
+    forceAdvanceWhenSatisfied: policy.forceAdvanceWhenSatisfied,
+    calculatorKey: policy.calculatorKey,
+    notes: policy.fallbackPolicy,
+  };
+}
+
+// ─── Combined ROI Delivery ──────────────────────────────────────────────────
+
+function buildCombinedRoiDirective(state: ConversationState): StageDirective {
+  const name = fn(state);
+  const coreAgents: CoreAgent[] = ['alex', 'chris', 'maddie'];
+  const orderedAgents = (state.topAgents as CoreAgent[]).filter(
+    (a) => coreAgents.includes(a) && state.calculatorResults[a] != null,
   );
 
-  const stall = state.wowStall;
-  const style = { ...baseStyle(state), maxSentences: 3 };
-
-  // Stall 1: Research intro + permission
-  if (stall === 1) {
+  // No results yet — signal controller
+  if (orderedAgents.length === 0) {
     return {
-      stage: 'wow', wowStall: 1,
-      objective: 'Establish credibility with research intro, get permission to continue',
-      chosenMove: {
-        id: 'wow_s1_research',
-        kind: 'insight',
-        text: `Now ${fn}, I think you'll be impressed. We've done some research on ${biz}, and we use that to pre-train your agents so they understand your ${pack.pluralOutcome}, your industry, and how you win business. Can I quickly confirm a couple of our findings with you, just to make sure your agents are dialled in?`,
-      },
-      criticalFacts: buildCriticalFacts(state, 3),
-      extractTargets: [],
-      validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-      style,
+      objective: 'No ROI results available — signal controller to compute.',
+      allowedMoves: ['compute:combined'],
+      requiredData: [],
+      speak: `Let me add all of that up for you.`,
+      ask: false,
+      waitForUser: false,
+      canSkip: false,
     };
   }
 
-  // Stall 2: Reputation + free trial (skip if no rating >= 3)
-  if (stall === 2) {
-    if (googleRating && googleRating >= 3) {
-      state.flags.trialMentioned = true;
+  // Build agent-by-agent summary
+  let totalWeeklyValue = 0;
+  const agentClauses: string[] = [];
+  for (const agent of orderedAgents) {
+    const result = state.calculatorResults[agent]!;
+    totalWeeklyValue += result.weeklyValue;
+    agentClauses.push(`${agent.charAt(0).toUpperCase() + agent.slice(1)} at about ${result.weeklyValue.toLocaleString()} dollars a week`);
+  }
+
+  let agentSummary: string;
+  if (agentClauses.length === 1) {
+    agentSummary = agentClauses[0];
+  } else if (agentClauses.length === 2) {
+    agentSummary = `${agentClauses[0]} and ${agentClauses[1]}`;
+  } else {
+    agentSummary = `${agentClauses.slice(0, -1).join(', ')}, and ${agentClauses[agentClauses.length - 1]}`;
+  }
+
+  return {
+    objective: 'Deliver combined ROI total — conservative, core agents only.',
+    allowedMoves: ['advance:optional_side_agents', 'advance:close'],
+    requiredData: [],
+    speak: `So ${name}, if we add that up, we've got ${agentSummary}. That's a combined total of roughly ${totalWeeklyValue.toLocaleString()} dollars a week in additional revenue, and those are conservative numbers. Does that all make sense?`,
+    ask: true,
+    waitForUser: true,
+    canSkip: false,
+    extract: ['roiConfirmed'],
+    advanceOn: ['user_replied'],
+  };
+}
+
+// ─── Sarah — Database Reactivation ──────────────────────────────────────────
+
+/**
+ * Sarah collects one input: oldLeads (dormant leads in their database).
+ * ACV is already captured at anchor_acv.
+ * ROI: oldLeads × 5% reactivation rate × ACV.
+ */
+function buildSarahDirective(state: ConversationState): StageDirective {
+  const lang = lp(state);
+  const policy = STAGE_POLICIES.ch_sarah;
+  const forceAdvance = shouldForceAdvance('ch_sarah', state);
+  const budgetExhausted = maxQuestionsReached('ch_sarah', state);
+
+  // ── Deliver ROI mode ──
+  if (forceAdvance || budgetExhausted) {
+    const result = state.calculatorResults.sarah;
+
+    if (result) {
       return {
-        stage: 'wow', wowStall: 2,
-        objective: 'Leverage reputation for free trial mention',
-        chosenMove: {
-          id: 'wow_s2_reputation',
-          kind: 'question',
-          text: `Oh ${fn}, I noticed ${biz} has a ${googleRating}-star reputation from ${googleReviews} reviews — that's strong. That actually qualifies you for a free trial of the AI team — no card required. I can set that up at any point during this demo. Sound good?`,
-        },
-        criticalFacts: buildCriticalFacts(state, 3),
-        extractTargets: [],
-        validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-        style,
+        objective: 'Deliver Sarah database reactivation ROI.',
+        allowedMoves: ['advance:next_channel'],
+        requiredData: [],
+        speak: `So you've got around ${state.oldLeads} old leads sitting in your database. Even at a conservative five percent reactivation rate, Sarah could bring back around ${result.weeklyValue.toLocaleString()} dollars a week in found revenue — and these are people who already know ${state.business || 'your business'}. Does that make sense?`,
+        ask: true,
+        waitForUser: true,
+        canSkip: false,
+        advanceOn: ['user_replied'],
+        calculatorKey: policy.calculatorKey,
       };
     }
-    // No reviews → still mention trial without reputation reference
-    state.flags.trialMentioned = true;
-    return {
-      stage: 'wow', wowStall: 2,
-      objective: 'Mention free trial',
-      chosenMove: {
-        id: 'wow_s2_trial',
-        kind: 'question',
-        text: `Just so you know ${fn}, ${shortBiz(state)} qualifies for a free trial of the AI team. No card required, and I can set that up at any point during this demo. Sound good?`,
-      },
-      criticalFacts: buildCriticalFacts(state, 3),
-      extractTargets: [],
-      validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-      style,
-    };
-  }
 
-  // Stall 3: ICP + problems + solutions (combined per Perplexity spec)
-  if (stall === 3) {
-    const cleanIcp = icpGuess
-      ? icpGuess.replace(/^it\s+(looks|seems)\s+like\s+/i, '').replace(/[,;—–-]+\s*(is that right|right|yeah)\??\s*$/i, '').replace(/\?+$/, '').trim()
-      : '';
-    const bellaCheck = c.icpAnalysis?.bellaCheckLine ?? '';
-    // Strip surrounding quotes so Gemini doesn't read them aloud
-    const cleanProblems = cleanFacts(icpProblems);
-    const cleanSolutions = cleanFacts(icpSolutions);
-    let insightText = '';
-
-    // PRIMARY: ICP + problems + solutions when data is rich
-    if (cleanIcp && cleanProblems.length >= 2 && cleanSolutions.length >= 2) {
-      insightText = `It looks like you're primarily targeting ${cleanIcp}. The typical challenges your ${pack.pluralOutcome} face are ${cleanProblems[0]} and ${cleanProblems[1]}, and you solve those through ${cleanSolutions[0]} and ${cleanSolutions[1]}. Does that sound right?`;
-    }
-    // FALLBACK: positioning from referenceOffer
-    else if (referenceOffer && cleanIcp) {
-      const industryAudience = cleanIcp || pack.pluralOutcome;
-      insightText = `From your website, it looks like your positioning is really centred around ${referenceOffer}, and the way you present it suggests you're speaking to ${industryAudience}. Does that sound right?`;
-    }
-    // LAST RESORT: bellaCheckLine or generic
-    else if (bellaCheck) {
-      insightText = bellaCheck;
-    } else {
-      insightText = `The site does a strong job of positioning what ${shortBiz(state)} does. Does that sound right?`;
-    }
-
-    return {
-      stage: 'wow', wowStall: 3,
-      objective: 'Confirm ICP, problems, and solutions',
-      chosenMove: { id: 'wow_s3_icp', kind: 'question', text: insightText },
-      criticalFacts: buildCriticalFacts(state, 3),
-      extractTargets: [],
-      validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-      style,
-    };
-  }
-
-  // Stall 4: Pre-training connect (exact Perplexity spec text)
-  if (stall === 4) {
-    let trialAppend = '';
-    if (!state.flags.trialMentioned) {
-      state.flags.trialMentioned = true;
-      trialAppend = ` If you'd like, I can also help you activate the free trial during this session.`;
-    }
-    return {
-      stage: 'wow', wowStall: 4,
-      objective: 'Connect pre-training to revenue generation',
-      chosenMove: {
-        id: 'wow_s4_pretrain',
-        kind: 'insight',
-        text: `That's exactly the kind of business intelligence we've used to pre-train your AI team — so they don't sound generic. They understand your positioning, your ${pack.pluralOutcome}, your reputation, and most importantly how you generate revenue.${trialAppend}`,
-      },
-      criticalFacts: buildCriticalFacts(state, 3),
-      extractTargets: [],
-      validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-      style: { ...style, maxSentences: trialAppend ? 3 : 2 },
-    };
-  }
-
-  // Stall 5: Conversion event alignment — use consultant pre-built spoken lines
-  if (stall === 5) {
-    const convNarrative = cea.conversionNarrative ?? '';
-    const agentTrainingLine = cea.agentTrainingLine ?? '';
-    let conversionLine = '';
-    // Priority 1: conversionNarrative (already written for Bella to speak)
-    if (convNarrative) conversionLine = convNarrative;
-    // Priority 2: agentTrainingLine
-    else if (agentTrainingLine) conversionLine = agentTrainingLine;
-    // Priority 3: rebuild from primaryCTA
-    else if (primaryCTA) conversionLine = `So looking at your website, it seems your main conversion event is ${primaryCTA}. That's how you turn interest into new ${pack.pluralOutcome}, and it's exactly the kind of action we train your AI agents to drive more of, automatically`;
-    else conversionLine = `And looking at how your site is set up to convert visitors into ${pack.pluralOutcome}, that's exactly the kind of action we train our AI agents to drive more of, automatically`;
-
-    return {
-      stage: 'wow', wowStall: 5,
-      objective: 'Align conversion events with agent capabilities',
-      chosenMove: { id: 'wow_s5_conversion', kind: 'insight', text: `${conversionLine}. Would that be useful?` },
-      criticalFacts: buildCriticalFacts(state, 3),
-      extractTargets: [],
-      validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-      style,
-    };
-  }
-
-  // Stall 6: Audit setup transition (bridge move, NOT a question — per Perplexity Channel Speed Rule)
-  if (stall === 6) {
-    return {
-      stage: 'wow', wowStall: 6,
-      objective: 'Transition from WOW insights to audit questions',
-      chosenMove: {
-        id: 'wow_s6_audit', kind: 'bridge',
-        text: `Perfect — so that confirms your agents are trained to bring in the right kind of ${pack.pluralOutcome} and move them toward your key conversion points. I've just got a couple of quick opportunity-audit questions so I can work out which agent mix would be most valuable for ${biz}.`,
-      },
-      criticalFacts: buildCriticalFacts(state, 3),
-      extractTargets: [],
-      validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-      style,
-    };
-  }
-
-  // Stall 7: Main controllable source — 3 variants per Perplexity spec
-  if (stall === 7) {
-    // Detect if source is already mostly clear from intel signals
-    const priorityAgentsList = routing.priority_agents ?? [];
-    const hasStrongPhoneSignal = !!(
-      (state.intel.fast as any)?.flags?.call_handling_needed
-      || (state.intel.fast as any)?.flags?.speed_to_lead_needed
-    );
-    const sourceAlreadyClear = priorityAgentsList.length >= 2 && (adsOn || hasStrongPhoneSignal);
-    const detectedChannel = adsOn ? 'paid advertising' : hasStrongPhoneSignal ? 'inbound phone calls' : 'your website';
-
-    let sourceQ = '';
-    if (sourceAlreadyClear) {
-      sourceQ = `Now ${fn}, apart from referrals, it looks like ${detectedChannel} is a meaningful source of new ${pack.leadNoun}s for you — is that fair to say?`;
-    } else if (adsOn) {
-      sourceQ = `Now ${fn}, I can see you're already running ads, which is interesting. Apart from referrals, would you say that's your main source of new ${pack.leadNoun}s, or is another channel doing most of the heavy lifting?`;
-    } else {
-      sourceQ = `Apart from referrals, what would you say is your main source of new ${pack.leadNoun}s right now — your website, phone calls, organic, paid ads, or something else?`;
-    }
-    return {
-      stage: 'wow', wowStall: 7,
-      objective: 'Identify main lead source',
-      chosenMove: { id: 'wow_s7_source', kind: 'question', text: sourceQ },
-      criticalFacts: buildCriticalFacts(state, 3),
-      extractTargets: [],
-      validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-      style,
-    };
-  }
-
-  // Stall 8: Hiring / capacity wedge (skip if no wedge + budget tight)
-  if (stall === 8) {
-    if (!isHiring && state.flags.questionBudgetTight) {
-      state.wowStall = 9;
-      return buildWowPacket(state);
-    }
-    const topHiringWedge = c.hiringAnalysis?.topHiringWedge ?? '';
-    let hiringLine = '';
-    if (topHiringWedge) {
-      // Use consultant's pre-written wedge line as PRIMARY
-      hiringLine = topHiringWedge;
-    } else if (isHiring && hiringMatches.length > 0) {
-      hiringLine = `I also noticed you're hiring for ${hiringMatches[0].role || hiringMatches[0].title}, which is interesting because that's exactly the kind of workload one of our agents can often absorb.`;
-    } else if (isHiring) {
-      hiringLine = `I noticed you're actively hiring — some of those roles are exactly what our AI agents handle.`;
-    } else {
-      hiringLine = `And are you doing any hiring at the moment?`;
-    }
-
-    return {
-      stage: 'wow', wowStall: 8,
-      objective: 'Hiring capacity wedge or data check',
-      chosenMove: { id: 'wow_s8_hiring', kind: isHiring || topHiringWedge ? 'insight' : 'question', text: hiringLine },
-      criticalFacts: buildCriticalFacts(state, 3),
-      extractTargets: [],
-      validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-      style,
-    };
-  }
-
-  // Stall 9: Provisional recommendation + SHORT bridge to numbers (per Perplexity spec)
-  {
-    const a1 = priorityAgents[0] ?? 'Chris';
-    const a2 = priorityAgents[1] ?? 'Alex';
-    const ctaMapping = cea.ctaAgentMapping ?? '';
-
-    // Recommendation part — use ctaAgentMapping if available
-    let recLine = '';
-    if (ctaMapping) {
-      recLine = `Based on what I've found so far, the likely standouts for ${biz} look like ${a1} and ${a2}. ${ctaMapping}`;
-    } else if (isHiring && hiringMatches.length > 0) {
-      const topMatch = hiringMatches[0];
-      const hiringAgent = topMatch.agents?.[0] ?? a1;
-      recLine = `Based on what I've found so far, the likely standouts for ${biz} look like ${hiringAgent} and ${a2}. ${hiringAgent} would help with ${topMatch.wedge || 'that role you\'re hiring for'}, and ${a2} would help with making sure every ${pack.singularOutcome} lead gets followed up.`;
-    } else {
-      recLine = `Based on what I've found so far, the likely standouts for ${biz} look like ${a1} and ${a2}. ${a1} would help with engaging visitors on your website before they bounce, and ${a2} would help with following up every ${pack.singularOutcome} enquiry.`;
-    }
-    // Bridge part — SHORT, one line, then STOP
-    recLine += ` If you want, I can now work out which of those would likely generate the most extra revenue for you.`;
-
-    return {
-      stage: 'wow', wowStall: 9,
-      objective: 'Recommend agents and bridge to number crunching',
-      chosenMove: { id: 'wow_s9_rec', kind: 'bridge', text: recLine },
-      criticalFacts: buildCriticalFacts(state, 5),
-      extractTargets: [],
-      validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-      style: { ...style, maxSentences: 4 },
-    };
-  }
-}
-
-// ─── Channel stage packet builders ──────────────────────────────────────────
-
-function buildAnchorAcvPacket(state: CallBrainState): NextTurnPacket {
-  const fn = firstName(state);
-  const biz = bizName(state);
-  const pack = lp(state);
-  const e = state.extracted;
-
-  if (e.acv) {
-    return {
-      stage: 'anchor_acv', wowStall: null,
-      objective: 'Confirm value and ask timeframe',
-      chosenMove: { id: 'acv_confirmed', kind: 'question', text: `Got it, thanks. And when you think about lead flow, do you usually measure it weekly or monthly?` },
-      criticalFacts: [`${pack.singularOutcome} value: $${e.acv.toLocaleString()}`],
-      extractTargets: ['timeframe'],
-      validation: { mustCaptureAny: ['timeframe'], advanceOnlyIf: ['timeframe'], doNotAdvanceIf: [] },
-      style: baseStyle(state),
-    };
-  }
-
-  return {
-    stage: 'anchor_acv', wowStall: null,
-    objective: 'Capture client value',
-    chosenMove: {
-      id: 'acv_ask', kind: 'question',
-      text: `Perfect. What's a new ${pack.singularOutcome} worth to ${biz} on average? A ballpark is totally fine.`,
-    },
-    criticalFacts: buildCriticalFacts(state, 3),
-    extractTargets: ['acv'],
-    validation: { mustCaptureAny: ['acv'], advanceOnlyIf: ['acv'], doNotAdvanceIf: [] },
-    style: baseStyle(state),
-  };
-}
-
-function buildAnchorTimeframePacket(state: CallBrainState): NextTurnPacket {
-  const e = state.extracted;
-  if (e.timeframe) {
-    return {
-      stage: 'anchor_timeframe', wowStall: null,
-      objective: 'Acknowledge timeframe, advance to channels',
-      chosenMove: { id: 'tf_confirmed', kind: 'bridge', text: `Great, ${e.timeframe} it is. Let me ask you a few quick questions about your current lead channels.` },
-      criticalFacts: [`Timeframe: ${e.timeframe}`, `ACV: $${e.acv?.toLocaleString()}`],
-      extractTargets: [],
-      validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-      style: baseStyle(state),
-    };
-  }
-
-  return {
-    stage: 'anchor_timeframe', wowStall: null,
-    objective: 'Capture weekly vs monthly preference',
-    chosenMove: { id: 'tf_ask', kind: 'question', text: `Got it, thanks. And when you think about lead flow, do you usually measure it weekly or monthly?` },
-    criticalFacts: [`ACV: $${e.acv?.toLocaleString() ?? 'pending'}`],
-    extractTargets: ['timeframe'],
-    validation: { mustCaptureAny: ['timeframe'], advanceOnlyIf: ['timeframe'], doNotAdvanceIf: [] },
-    style: baseStyle(state),
-  };
-}
-
-function buildChannelAdsPacket(state: CallBrainState): NextTurnPacket {
-  const e = state.extracted;
-  const fn = firstName(state);
-  const pack = lp(state);
-  const period = tf(state);
-
-  const adsOn = !!(
-    (state.intel.fast as any)?.flags?.is_running_ads
-    || deep(state).ads?.is_running_google_ads
-    || (deep(state).ads?.google_ads_count ?? 0) > 0
-    || (deep(state).ads?.fb_ads_count ?? 0) > 0
-  );
-
-  // All inputs captured → deliver ROI inline
-  if (e.ads_leads !== null && e.ads_conversions !== null) {
-    const alexCalc = calcAgentROI('Alex', state);
-    if (alexCalc) {
+    if (forceAdvance) {
       return {
-        stage: 'ch_ads', wowStall: null,
-        objective: 'Deliver Alex ROI calculation',
-        chosenMove: {
-          id: 'ch_ads_roi', kind: 'roi',
-          text: `So your average ${pack.singularOutcome} is worth ${e.acv!.toLocaleString()} dollars, and you're currently converting ${e.ads_conversions} from ${e.ads_leads} ad leads per ${period}. Based on the follow-up speed you mentioned, Alex could conservatively add around ${alexCalc.weekly.toLocaleString()} dollars per week just by improving speed-to-lead. Does that make sense?`,
-        },
-        criticalFacts: [`Alex weekly: $${alexCalc.weekly.toLocaleString()}`],
-        extractTargets: [],
-        validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-        style: { ...baseStyle(state), maxSentences: 4 },
+        objective: 'Signal controller to compute Sarah ROI.',
+        allowedMoves: ['compute:sarah', 'advance:next_channel'],
+        requiredData: [],
+        speak: `Let me size Sarah based on that.`,
+        ask: false,
+        waitForUser: false,
+        canSkip: false,
+        calculatorKey: policy.calculatorKey,
       };
     }
+
+    return {
+      objective: 'Sarah question budget exhausted — insufficient data, skip.',
+      allowedMoves: ['advance:next_channel'],
+      requiredData: [],
+      speak: '',
+      ask: false,
+      waitForUser: false,
+      canSkip: true,
+      skipReason: 'Question budget exhausted without sufficient data for Sarah calculation.',
+      notes: policy.fallbackPolicy,
+    };
   }
 
-  // Need more data
-  let questionText = '';
-  if (e.ads_leads == null) {
-    questionText = adsOn
-      ? `How many leads are your ads generating per ${period}? Just a rough figure is fine.`
-      : `I didn't see any Google or Facebook ads campaigns — is that right? Are you running any other online campaigns?`;
-  } else if (e.ads_conversions == null) {
-    questionText = `And roughly how many of those are converting into paying ${pack.pluralOutcome}?`;
-  } else if (e.ads_followup_speed == null) {
-    questionText = `And when those ad leads come in, how quickly is your team following up — under 30 minutes, 30 minutes to 3 hours, 3 to 24 hours, or more than 24 hours?`;
-  }
+  // ── Collect inputs mode ──
+  const questionText = `Roughly how many old leads or past contacts are sitting in your database right now — even a ballpark is fine?`;
+  const extractFields = ['oldLeads'];
+
+  console.log(`[SARAH_SCOPE] oldLeads=${state.oldLeads}`);
 
   return {
-    stage: 'ch_ads', wowStall: null,
-    objective: 'Capture ads channel metrics',
-    chosenMove: { id: 'ch_ads_ask', kind: 'question', text: questionText },
-    criticalFacts: buildCriticalFacts(state, 3),
-    extractTargets: extractTargetsForStage('ch_ads'),
-    validation: { mustCaptureAny: ['ads_leads', 'ads_conversions'], advanceOnlyIf: ['ads_leads', 'ads_conversions'], doNotAdvanceIf: [] },
-    style: baseStyle(state),
+    objective: 'Capture Sarah database reactivation inputs.',
+    allowedMoves: ['extract:sarahInputs'],
+    requiredData: policy.requiredFields,
+    speak: questionText,
+    ask: true,
+    waitForUser: true,
+    canSkip: false,
+    extract: extractFields,
+    maxQuestions: policy.maxQuestions,
+    forceAdvanceWhenSatisfied: policy.forceAdvanceWhenSatisfied,
+    calculatorKey: policy.calculatorKey,
+    notes: policy.fallbackPolicy,
   };
 }
 
-function buildChannelWebsitePacket(state: CallBrainState): NextTurnPacket {
-  const e = state.extracted;
-  const pack = lp(state);
-  const period = tf(state);
+// ─── James — Reputation Manager ─────────────────────────────────────────────
 
-  if (e.web_leads !== null && e.web_conversions !== null) {
-    const chrisCalc = calcAgentROI('Chris', state);
-    if (chrisCalc) {
+/**
+ * James collects two inputs: newCustomersPerWeek + hasReviewSystem.
+ * ACV is already captured at anchor_acv.
+ * ROI: newCustomersPerWeek × ACV × 9% revenue uplift (if no review system).
+ */
+function buildJamesDirective(state: ConversationState): StageDirective {
+  const lang = lp(state);
+  const policy = STAGE_POLICIES.ch_james;
+  const forceAdvance = shouldForceAdvance('ch_james', state);
+  const budgetExhausted = maxQuestionsReached('ch_james', state);
+
+  // ── Deliver ROI mode ──
+  if (forceAdvance || budgetExhausted) {
+    const result = state.calculatorResults.james;
+
+    if (result) {
+      if (result.weeklyValue === 0) {
+        // Has existing review system — no incremental uplift
+        return {
+          objective: 'Deliver James result — existing review system detected.',
+          allowedMoves: ['advance:next_channel'],
+          requiredData: [],
+          speak: `It sounds like you've already got a review system in place, which is great — that means James would be more of a refinement than a revenue driver for ${state.business || 'your business'} right now.`,
+          ask: false,
+          waitForUser: false,
+          canSkip: true,
+          advanceOn: ['spoken'],
+          calculatorKey: policy.calculatorKey,
+        };
+      }
+
       return {
-        stage: 'ch_website', wowStall: null,
-        objective: 'Deliver Chris ROI calculation',
-        chosenMove: {
-          id: 'ch_web_roi', kind: 'roi',
-          text: `So you're getting around ${e.web_leads} website leads per ${period}, and converting about ${e.web_conversions} of them into paying ${pack.pluralOutcome}. Chris, our Website Concierge, typically lifts conversion by engaging visitors in real time, and at your value of ${e.acv!.toLocaleString()} dollars that could mean roughly ${chrisCalc.weekly.toLocaleString()} dollars per week in additional revenue. Does that sound reasonable?`,
-        },
-        criticalFacts: [`Chris weekly: $${chrisCalc.weekly.toLocaleString()}`, 'Conversion lift: ~23% (real-time engagement)'],
-        extractTargets: [],
-        validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-        style: { ...baseStyle(state), maxSentences: 4 },
+        objective: 'Deliver James reputation management ROI.',
+        allowedMoves: ['advance:next_channel'],
+        requiredData: [],
+        speak: `So with around ${state.newCustomersPerWeek} new ${lang.pluralOutcome} a week, if James automates your review collection and gets your rating climbing, the data shows a nine percent revenue uplift per star improvement. That works out to roughly ${result.weeklyValue.toLocaleString()} dollars a week in additional revenue as your reputation compounds. Does that track?`,
+        ask: true,
+        waitForUser: true,
+        canSkip: false,
+        advanceOn: ['user_replied'],
+        calculatorKey: policy.calculatorKey,
+      };
+    }
+
+    if (forceAdvance) {
+      return {
+        objective: 'Signal controller to compute James ROI.',
+        allowedMoves: ['compute:james', 'advance:next_channel'],
+        requiredData: [],
+        speak: `Let me size James based on that.`,
+        ask: false,
+        waitForUser: false,
+        canSkip: false,
+        calculatorKey: policy.calculatorKey,
+      };
+    }
+
+    return {
+      objective: 'James question budget exhausted — insufficient data, skip.',
+      allowedMoves: ['advance:next_channel'],
+      requiredData: [],
+      speak: '',
+      ask: false,
+      waitForUser: false,
+      canSkip: true,
+      skipReason: 'Question budget exhausted without sufficient data for James calculation.',
+      notes: policy.fallbackPolicy,
+    };
+  }
+
+  // ── Collect inputs mode ──
+  let questionText: string;
+  let extractFields: string[];
+
+  if (state.newCustomersPerWeek == null) {
+    questionText = `Roughly how many new ${lang.pluralOutcome} does ${state.business || 'your business'} bring on in a typical week?`;
+    extractFields = ['newCustomersPerWeek'];
+  } else if (state.currentStars == null) {
+    questionText = `And do you know roughly what your current Google star rating is?`;
+    extractFields = ['currentStars'];
+  } else {
+    questionText = `And do you currently have any kind of system for actively collecting and managing your online reviews?`;
+    extractFields = ['hasReviewSystem'];
+  }
+
+  console.log(`[JAMES_SCOPE] newCustomersPerWeek=${state.newCustomersPerWeek} currentStars=${state.currentStars} hasReviewSystem=${state.hasReviewSystem}`);
+
+  return {
+    objective: 'Capture James reputation management inputs.',
+    allowedMoves: ['extract:jamesInputs'],
+    requiredData: policy.requiredFields,
+    speak: questionText,
+    ask: true,
+    waitForUser: true,
+    canSkip: false,
+    extract: extractFields,
+    maxQuestions: policy.maxQuestions,
+    forceAdvanceWhenSatisfied: policy.forceAdvanceWhenSatisfied,
+    calculatorKey: policy.calculatorKey,
+    notes: policy.fallbackPolicy,
+  };
+}
+
+// ─── Optional Side Agents ───────────────────────────────────────────────────
+
+function buildOptionalSideAgentsDirective(state: ConversationState): StageDirective {
+  const notes: string[] = [];
+
+  if (state.prospectAskedAboutSarah) {
+    notes.push('Prospect asked about Sarah — controller may compute and present Sarah ROI.');
+  }
+  if (state.prospectAskedAboutJames) {
+    notes.push('Prospect asked about James — controller may compute and present James ROI.');
+  }
+
+  return {
+    objective: 'Light teaser for optional agents (Sarah, James).',
+    allowedMoves: ['advance:close'],
+    requiredData: [],
+    speak: `There may also be upside in reactivation or reviews, and you can explore those agents on the page as well.`,
+    ask: false,
+    waitForUser: false,
+    canSkip: true,
+    advanceOn: ['spoken'],
+    notes: notes.length > 0 ? notes : undefined,
+  };
+}
+
+// ─── Close ──────────────────────────────────────────────────────────────────
+
+function buildCloseDirective(state: ConversationState): StageDirective {
+  return {
+    objective: 'Close for trial setup.',
+    allowedMoves: ['extract:closeDecision', 'end'],
+    requiredData: [],
+    speak: `Perfect. Would you like to go ahead and activate your free trial? It takes about ten minutes to set up, there's no credit card required, and you could start seeing results this week.`,
+    ask: true,
+    waitForUser: true,
+    canSkip: false,
+    extract: ['closeDecision'],
+    advanceOn: ['user_replied'],
+  };
+}
+
+// ─── Main Entry Point ───────────────────────────────────────────────────────
+
+export function buildStageDirective(input: StageDirectiveInput): StageDirective {
+  const { stage, wowStep, intel, state } = input;
+
+  switch (stage) {
+    // ── Opening half (Chunk 4A) ──
+
+    case 'greeting': {
+      const greetName = fn(state);
+      console.log(`[GREETING_RESOLVE] ts=${new Date().toISOString()} name=${greetName} biz=${biz(state).slice(0, 30)}`);
+      return {
+        objective: 'Warm human opening.',
+        allowedMoves: ['advance:wow'],
+        requiredData: ['firstName'],
+        speak: `Hey ${greetName}, I'm Bella — welcome to your personalised AI Agent demonstration.`,
+        ask: false,
+        waitForUser: true,
+        canSkip: false,
+        advanceOn: ['user_replied'],
+      };
+    }
+
+    case 'wow':
+      return buildWowDirective(wowStep, state);
+
+    case 'recommendation': {
+      const recDirective = buildRecommendationDirective(state);
+      console.log(`[REC_RESOLVE] ts=${new Date().toISOString()} alex=${state.alexEligible} chris=${state.chrisEligible} maddie=${state.maddieEligible} speak="${recDirective.speak.slice(0, 80)}"`);
+      return recDirective;
+    }
+
+    case 'anchor_acv': {
+      const lang = lp(state);
+      const business = biz(state);
+      return {
+        objective: 'Capture average client value.',
+        allowedMoves: ['extract:acv', 'advance:next_channel'],
+        requiredData: ['business', 'industryLanguage.singularOutcome'],
+        speak: `Perfect. What's a new ${lang.singularOutcome} worth to ${business} on average? A ballpark is totally fine.`,
+        ask: true,
+        waitForUser: true,
+        canSkip: false,
+        extract: ['acv'],
+        advanceOn: ['acv_captured'],
+        notes: ['After prospect provides ACV, acknowledge with "Got it." before proceeding.'],
+      };
+    }
+
+    // ── Back half (Chunk 4B) ──
+
+    case 'ch_alex':
+      return buildAlexDirective(intel, state);
+
+    case 'ch_chris':
+      return buildChrisDirective(state);
+
+    case 'ch_maddie':
+      return buildMaddieDirective(state);
+
+    case 'ch_sarah':
+      return buildSarahDirective(state);
+
+    case 'ch_james':
+      return buildJamesDirective(state);
+
+    case 'roi_delivery':
+      return buildCombinedRoiDirective(state);
+
+    case 'optional_side_agents':
+      return buildOptionalSideAgentsDirective(state);
+
+    case 'close':
+      return buildCloseDirective(state);
+
+    default: {
+      console.warn(`[MOVES] unknown stage: ${stage}`);
+      return {
+        objective: `Unknown stage: ${stage}`,
+        allowedMoves: [],
+        requiredData: [],
+        speak: '',
+        ask: false,
+        waitForUser: false,
+        canSkip: false,
       };
     }
   }
-
-  let questionText = '';
-  if (e.web_leads == null) {
-    questionText = `How many enquiries or leads is your website generating per ${period}?`;
-  } else if (e.web_conversions == null) {
-    questionText = `And roughly how many of those convert into paying ${pack.pluralOutcome}?`;
-  } else if (e.web_followup_speed == null) {
-    questionText = `And when a website enquiry comes in, how quickly is your team usually getting back to them?`;
-  }
-
-  return {
-    stage: 'ch_website', wowStall: null,
-    objective: 'Capture website channel metrics',
-    chosenMove: { id: 'ch_web_ask', kind: 'question', text: questionText },
-    criticalFacts: buildCriticalFacts(state, 3),
-    extractTargets: extractTargetsForStage('ch_website'),
-    validation: { mustCaptureAny: ['web_leads', 'web_conversions'], advanceOnlyIf: ['web_leads', 'web_conversions'], doNotAdvanceIf: [] },
-    style: baseStyle(state),
-  };
 }
 
-function buildChannelPhonePacket(state: CallBrainState): NextTurnPacket {
-  const e = state.extracted;
-  const biz = bizName(state);
-  const pack = lp(state);
-  const period = tf(state);
-
-  if (e.phone_volume !== null && e.missed_call_handling !== null) {
-    const maddieCalc = calcAgentROI('Maddie', state);
-    if (maddieCalc) {
-      return {
-        stage: 'ch_phone', wowStall: null,
-        objective: 'Deliver Maddie ROI calculation',
-        chosenMove: {
-          id: 'ch_phone_roi', kind: 'roi',
-          text: `So you're getting around ${e.phone_volume} inbound calls per ${period}, and when calls are missed they're currently handled by ${e.missed_call_handling}. Even a small percentage of missed opportunities there adds up fast, so conservatively Maddie could recover around ${maddieCalc.weekly.toLocaleString()} dollars per week in extra revenue by answering and qualifying more of those calls consistently. Does that track?`,
-        },
-        criticalFacts: [`Maddie weekly: $${maddieCalc.weekly.toLocaleString()}`],
-        extractTargets: [],
-        validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-        style: { ...baseStyle(state), maxSentences: 4 },
-      };
-    }
-  }
-
-  let questionText = '';
-  if (e.phone_volume == null) {
-    questionText = `Roughly how many inbound calls does ${biz} get per ${period}?`;
-  } else if (e.missed_call_handling == null) {
-    questionText = `And when calls are missed — whether that's after hours or during busy periods — what usually happens?`;
-  } else if (e.missed_call_callback_speed == null) {
-    questionText = `And how quickly are missed calls usually called back?`;
-  }
-
-  return {
-    stage: 'ch_phone', wowStall: null,
-    objective: 'Capture phone channel metrics',
-    chosenMove: { id: 'ch_phone_ask', kind: 'question', text: questionText },
-    criticalFacts: buildCriticalFacts(state, 3),
-    extractTargets: extractTargetsForStage('ch_phone'),
-    validation: { mustCaptureAny: ['phone_volume', 'missed_call_handling'], advanceOnlyIf: ['phone_volume', 'missed_call_handling'], doNotAdvanceIf: [] },
-    style: baseStyle(state),
-  };
-}
-
-function buildChannelOldLeadsPacket(state: CallBrainState): NextTurnPacket {
-  const e = state.extracted;
-  const pack = lp(state);
-
-  if (e.old_leads !== null) {
-    const sarahCalc = calcAgentROI('Sarah', state);
-    if (sarahCalc) {
-      return {
-        stage: 'ch_old_leads', wowStall: null,
-        objective: 'Deliver Sarah ROI calculation',
-        chosenMove: {
-          id: 'ch_old_roi', kind: 'roi',
-          text: `If even a small percentage of those older leads re-engage, Sarah could turn that dormant database into a real revenue channel. Based on the number you gave me, that could look like around ${sarahCalc.weekly.toLocaleString()} dollars per week in recovered opportunity. Sound fair?`,
-        },
-        criticalFacts: [`Sarah weekly: $${sarahCalc.weekly.toLocaleString()}`, `Database: ${e.old_leads.toLocaleString()} past ${pack.pluralOutcome}`],
-        extractTargets: [],
-        validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-        style: { ...baseStyle(state), maxSentences: 3 },
-      };
-    }
-  }
-
-  return {
-    stage: 'ch_old_leads', wowStall: null,
-    objective: 'Capture dormant leads count',
-    chosenMove: { id: 'ch_old_ask', kind: 'question', text: `How many past ${pack.pluralOutcome} or older leads would you say are sitting in your database that haven't been contacted in a while?` },
-    criticalFacts: buildCriticalFacts(state, 3),
-    extractTargets: ['old_leads'],
-    validation: { mustCaptureAny: ['old_leads'], advanceOnlyIf: ['old_leads'], doNotAdvanceIf: [] },
-    style: baseStyle(state),
-  };
-}
-
-function buildChannelReviewsPacket(state: CallBrainState): NextTurnPacket {
-  const e = state.extracted;
-  const pack = lp(state);
-  const period = tf(state);
-
-  if (e.new_customers !== null && e.has_review_system !== null) {
-    const jamesCalc = calcAgentROI('James', state);
-    if (jamesCalc && jamesCalc.weekly > 0) {
-      return {
-        stage: 'ch_reviews', wowStall: null,
-        objective: 'Deliver James ROI calculation',
-        chosenMove: {
-          id: 'ch_reviews_roi', kind: 'roi',
-          text: `With your current ${pack.singularOutcome} flow, even a modest lift in review volume and response consistency can materially improve trust and conversion. Conservatively, James could create around ${jamesCalc.weekly.toLocaleString()} dollars per week in additional value by increasing review momentum and protecting your reputation. Does that seem realistic?`,
-        },
-        criticalFacts: [`James weekly: $${jamesCalc.weekly.toLocaleString()}`, '1-star improvement drives ~9% more revenue'],
-        extractTargets: [],
-        validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-        style: { ...baseStyle(state), maxSentences: 3 },
-      };
-    }
-  }
-
-  let questionText = '';
-  if (e.new_customers == null) {
-    questionText = `How many new ${pack.pluralOutcome} would you say you're taking on each ${period}?`;
-  } else if (e.has_review_system == null) {
-    questionText = `And do you have any kind of system in place to ask those ${pack.pluralOutcome} for a review?`;
-  }
-
-  return {
-    stage: 'ch_reviews', wowStall: null,
-    objective: 'Capture review channel metrics',
-    chosenMove: { id: 'ch_reviews_ask', kind: 'question', text: questionText },
-    criticalFacts: buildCriticalFacts(state, 3),
-    extractTargets: extractTargetsForStage('ch_reviews'),
-    validation: { mustCaptureAny: ['new_customers', 'has_review_system'], advanceOnlyIf: ['new_customers', 'has_review_system'], doNotAdvanceIf: [] },
-    style: baseStyle(state),
-  };
-}
-
-function buildRoiDeliveryPacket(state: CallBrainState): NextTurnPacket {
-  const fn = firstName(state);
-  const pack = lp(state);
-  const period = tf(state);
-
-  // Compute ROI if not yet done
-  if (!state.flags.roiComputed) {
-    computeROI(state);
-  }
-
-  const calcs = runCalcs(state);
-  const total = calcs.reduce((sum, c) => sum + c.weekly, 0);
-  const top3 = calcs.slice(0, 3);
-
-  // Perplexity clean format: agent-by-agent + combined total, NO annual, NO trial re-pitch
-  const agentLines = top3.map(c => `${c.agent} at about ${c.weekly.toLocaleString()} dollars per ${period}`).join(', and ');
-
-  return {
-    stage: 'roi_delivery', wowStall: null,
-    objective: 'Deliver combined ROI total — conservative, no trial pitch',
-    chosenMove: {
-      id: 'roi_delivery_total', kind: 'roi',
-      text: `So ${fn}, let me add that up for you. We've got ${agentLines}. That's a combined total of approximately ${total.toLocaleString()} dollars per ${period} in additional revenue across your selected agents — and those are conservative numbers. Does that all make sense?`,
-    },
-    criticalFacts: top3.map(c => `${c.agent}: $${c.weekly.toLocaleString()}/wk (${c.why})`),
-    extractTargets: [],
-    validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-    style: { ...baseStyle(state), maxSentences: 4 },
-    roi: {
-      agentValues: Object.fromEntries(top3.map(c => [c.agent, c.weekly])),
-      totalValue: total,
-    },
-  };
-}
-
-function buildClosePacket(state: CallBrainState): NextTurnPacket {
-  const fn = firstName(state);
-  return {
-    stage: 'close', wowStall: null,
-    objective: 'Close for trial setup',
-    chosenMove: {
-      id: 'close_trial', kind: 'close',
-      text: `Perfect. Would you like to go ahead and activate your free trial? It takes about ten minutes to set up, there's no credit card required, and you could start seeing results this week.`,
-    },
-    criticalFacts: buildCriticalFacts(state, 3),
-    extractTargets: [],
-    validation: { mustCaptureAny: [], advanceOnlyIf: [], doNotAdvanceIf: [] },
-    style: baseStyle(state),
-  };
-}
-
-// ─── MAIN ENTRY POINT ───────────────────────────────────────────────────────
-
-export function buildNextTurnPacket(state: CallBrainState): NextTurnPacket {
-  switch (state.stage) {
-    case 'wow':              return buildWowPacket(state);
-    case 'anchor_acv':       return buildAnchorAcvPacket(state);
-    case 'anchor_timeframe': return buildAnchorTimeframePacket(state);
-    case 'ch_ads':           return buildChannelAdsPacket(state);
-    case 'ch_website':       return buildChannelWebsitePacket(state);
-    case 'ch_phone':         return buildChannelPhonePacket(state);
-    case 'ch_old_leads':     return buildChannelOldLeadsPacket(state);
-    case 'ch_reviews':       return buildChannelReviewsPacket(state);
-    case 'roi_delivery':     return buildRoiDeliveryPacket(state);
-    case 'close':            return buildClosePacket(state);
-  }
-}

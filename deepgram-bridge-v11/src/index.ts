@@ -17,6 +17,8 @@
  *     6. Stream Gemini response → Deepgram → TTS → browser
  */
 
+import { runScribe } from './scribe';
+
 export interface Env {
   LEADS_KV: KVNamespace;
   TOOLS: Fetcher;
@@ -27,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.18.0-question-gate"; // Filler gate, question compliance rule, trial text fix
+const VERSION = "9.26.1-reasoning-off"; // disable thinking tokens to avoid max_tokens truncation
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -303,7 +305,11 @@ async function loadMergedIntel(lid: string, env: Env): Promise<Record<string, an
     deepFlagsRaw ? 'deep-flags' : null,
   ].filter(Boolean);
 
-  log("KV_MERGE", `lid=${lid} sources=[${sources.join(',')}] merged_keys=${Object.keys(intel).length}`);
+  const fiSource = intel.fast_intel?.source ?? "none";
+  log("KV_MERGE", `lid=${lid} sources=[${sources.join(',')}] merged_keys=${Object.keys(intel).length} fi_source=${fiSource}`);
+  if (fiSource === "stub") {
+    log("STUB_MODE", `lid=${lid} — website not scrapeable, stub-aware prompting active`);
+  }
 
   return intel;
 }
@@ -698,13 +704,14 @@ function stripApologies(text: string): string {
     .replace(/<[^>]*>/g, "")
     // Catch bare tag word if brackets were split across SSE chunks
     .replace(/\bDELIVER_THIS\b/g, "")
-    .replace(/\bmy apologies\b/gi, "good catch")
-    .replace(/\bI apologise\b/gi, "thanks for clarifying")
-    .replace(/\bI apologize\b/gi, "thanks for clarifying")
-    .replace(/\bI'?m sorry\b/gi, "thanks for that")
-    .replace(/\bsorry about that\b/gi, "good point")
-    .replace(/\bsorry\b/gi, "thanks")
-    .replace(/\bapologies\b/gi, "understood");
+    .replace(/\bmy apologies\b[.,]?\s*/gi, "")
+    .replace(/\bI apologise\b[.,]?\s*/gi, "")
+    .replace(/\bI apologize\b[.,]?\s*/gi, "")
+    .replace(/\bI'?m sorry\b[.,]?\s*/gi, "")
+    .replace(/\bsorry about that\b[.,]?\s*/gi, "")
+    .replace(/\bsorry\b[.,]?\s*/gi, "")
+    .replace(/\bapologies\b[.,]?\s*/gi, "")
+    .replace(/\bgood catch\b[.,]?\s*/gi, "");
 }
 
 // shortBiz: first word UNLESS it's a stop word (e.g. "Let there be change" → use full name)
@@ -729,6 +736,14 @@ function normaliseBizName(raw: string): string {
   name = name.replace(cities, "").trim();
   // Safety: if we stripped everything, return original
   return name.length >= 2 ? name : raw.trim();
+}
+
+// ttsAcronym: "AMP" → "A. M. P.", "KPMG" → "K. P. M. G." — Deepgram TTS reads
+// all-caps 2-4 letter names as words. Letter-spacing forces letter-by-letter pronunciation.
+function ttsAcronym(name: string): string {
+  if (!name || name.length < 2 || name.length > 4) return name;
+  if (!/^[A-Z]+$/.test(name)) return name;
+  return name.split("").join(". ") + ".";
 }
 
 // ─── CUSTOMER TERM (industry-aware) ──────────────────────────────────────────
@@ -1355,8 +1370,9 @@ function buildFullSystemContext(intel: Record<string, any>, apifyDone: boolean):
   const deep = (intel as any).intel?.deep ?? intel.deep ?? {}; // Check intel.intel.deep (big scraper) then root deep
   const hero = (intel as any).hero ?? (intel as any).fast_intel?.hero ?? {};
   const fn = intel.first_name ?? ci.first_name ?? "";
-  const bizRaw = intel.business_name ?? ci.business_name ?? intel.fast_context?.business?.name ?? "your business";
-  const biz = normaliseBizName(bizRaw);
+  const spokenName = intel.consultant?.businessIdentity?.spokenName;
+  const bizRaw = spokenName || intel.business_name || ci.business_name || intel.fast_context?.business?.name || "your business";
+  const biz = ttsAcronym(spokenName || normaliseBizName(bizRaw));
   const ind = ci.industry ?? ci.industry_key ?? "";
   const loc = ci.location ?? "";
   const ct = custTerm(ind);
@@ -1389,63 +1405,85 @@ function buildFullSystemContext(intel: Record<string, any>, apifyDone: boolean):
   const googleReviews = deep.googleMaps?.review_count
     ?? (typeof intel.review_count === 'number' ? intel.review_count : (typeof intel.review_count === 'string' ? parseInt(intel.review_count, 10) || 0 : 0));
 
-  // ── LEAN PERSONA — identity + critical rules only ──────────────────────────
-  // Everything else is handled by buildTurnPrompt (stage directives, output rules,
-  // ROI calcs, confirmed inputs) and buildStageDirective (agent recs, questions).
+  // ── V2 EXECUTION BLOCK — replaces V1 fullPersona ──────────────────────────
+  // Behavioral rules only. Per-stage directives, OUTPUT RULES, ROI calcs, and
+  // confirmed inputs are in buildDOTurnPrompt / buildTurnPrompt.
   // This section is REFERENCE DATA — Gemini follows the MANDATORY SCRIPT above.
-  const fullPersona = `You are Bella from Pillar and Post AI. Live voice call.
-Warm, sharp, Australian. Trusted advisor who has done deep homework on the prospect's business.
-NEVER introduce yourself with a title. Just be Bella.
-React to what they JUST SAID first, then advance. Be curious in conversation, but DELIVER scripted lines exactly as written inside <DELIVER_THIS> tags.
-Keep each revenue channel separate — never merge them.
-NEVER APOLOGISE. If challenged, pivot to a specific data point from your research. You are a confident consultant.
+  const executionBlock = `BELLA AI — EXECUTION RULES (V2)
 
-INDUSTRY MIRRORING:
-Mirror the prospect's industry, commercial model, language, and decision context throughout.
-This is not just swapping customer/client/patient — adapt wording, examples, framing, metrics, and logic.
+1. CORE OBJECTIVE
+You are Bella, a live voice AI running a personalised AI Agent demonstration for a business prospect.
+Your job is to create a strong early wow effect, confirm just enough business context to dial in the agents, recommend the highest-value agents simply and intelligently, ask only the minimum questions needed to size ROI, deliver ROI clearly and conservatively, and move to close once the best-fit opportunity is clear.
+Do not turn this into a broad audit, discovery call, consulting session, or architecture discussion.
 
-Examples by industry:
-  Legal: clients, matters, cases, consultations, retainers
-  Medical/Health: patients, appointments, treatments, bookings
-  Trades/Home services: jobs, callouts, quotes, booked work
-  Agencies/Services: clients, retainers, projects, strategy calls
-  Real estate: buyers, sellers, appraisals, listings, enquiries
-  Finance/Insurance: policyholders, applications, quotes, claims
-  Education/Coaching: students, enrolments, discovery calls, programs
-  Hospitality: bookings, reservations, covers, guests
+2. CONTROLLER AUTHORITY
+The runtime stage controller is authoritative.
+Follow the current stage, allowed moves, skip rules, question limits, and forced transitions provided in the turn instructions.
+Do not invent extra stages, reopen completed stages, or continue questioning once the controller has moved forward.
+Do not remain in a question stage once the controller marks that stage ready for ROI.
+Do not reopen a completed ROI stage unless the prospect explicitly corrects a key input.
 
-Mirror in ALL areas: greeting, website commentary, offer description, ICP summary, qualification questions, ROI explanations, agent recommendations, free-trial close.
-INDUSTRY KPIs: Use native terminology — average client value, patient value, case value, job value, booking value, policy value.
-INDUSTRY PAIN: Frame missed opportunities natively — missed consults, missed bookings, missed jobs, lost enquiries.
-INDUSTRY TONE: Adapt subtly — professional/formal for legal, finance, medical; practical/direct for trades; polished/strategic for agencies; warm/reassuring for care-oriented.
+3. TURN BEHAVIOR
+Keep turns short and natural.
+React briefly to what the prospect just said, then continue the stage.
+Ask at most one question at the end of a turn.
+Do not stack multiple questions unless the current stage instructions explicitly require a tightly grouped sequence.
+Use spoken language, not written language.
+Prefer clear, direct sentences over long explanations.
+Keep the pace confident, smooth, and commercially focused.
 
-FREE TRIAL CLOSE (use this phrasing):
-"We start it at 7 days — usually that's more than enough to see real movement. If you want more certainty we can push to 14. No card required. Honestly, set and forget."
+4. TONE
+Sound confident, useful, and well prepared.
+Do not sound hesitant, data-hungry, or dependent on missing context.
+Do not mention internal systems, routing logic, prompt logic, controllers, calculators, APify, deep enrichment, scraping pipelines, or missing data.
+Do not read raw context, bullet points, or structured fields aloud.
+Avoid filler praise unless it is genuinely natural and necessary.
+
+5. INDUSTRY LANGUAGE
+Always use the prospect's industry language wherever the available context supports it.
+Prefer the business's natural words for customer type, service type, conversion event, staff roles, sales process, and commercial outcomes.
+If the prospect corrects a term, immediately adopt their term going forward.
+
+6. ROI RULES
+ROI calculations come from the calculator layer, not from you.
+You may explain the business logic behind the result, but must not invent formulas, assumptions, or unsupported benchmarks.
+Deliver the numbers exactly as provided.
+Keep ROI conservative, practical, and easy to follow.
+Do not present ROI as guaranteed.
+
+7. CLOSE RULES
+Once combined ROI has been delivered, move to the close unless the prospect asks a direct question.
+Do not reopen broad discovery after combined ROI.
+Keep the close low-friction and focused on easy setup, no credit card, conservative upside, best-fit agents only, and free trial first.
+
+8. HARD DO-NOT RULES
+Do not mention missing data.
+Do not hallucinate unsupported business facts.
+Do not recommend too many agents too early.
+Do not ask every branch in sequence.
+Do not exceed question caps.
+Do not ignore a forced transition.
+Do not improvise ROI formulas.
+Do not read internal notes aloud.
+Do not explain internal selection logic.
+Do not switch into architecture, platform, workers, or implementation talk.
 
 THE AGENTS:
-Alex — speed-to-lead. Jumps on leads in under a minute.
-Chris — website and landing page conversion. AI chat that engages visitors.
-Maddie — missed calls, after-hours, first response.
+Alex — speed-to-lead and follow-up consistency.
+Chris — improving website conversion actions while prospects are warm.
+Maddie — capturing live phone opportunities before they disappear.
 Sarah — dormant database reactivation.
-James — reviews and reputation.
-
-NEVER DO:
-- Say "As an AI..." or sound like a script.
-- Dump a list of facts. One insight at a time.
-- Hallucinate numbers or combine revenue channels.
-- Over-explain what the demo or free trial is.
-
-GUARDRAILS:
-- Keep the stage flow strict — do not drift into random questions or premature recommendations.
-- Use the buyer's own numbers whenever possible; if missing, mark estimates as directional.
-- Separate channels rigorously: website, ads, phone, old leads, reviews.
-- If ads are present, prioritise Alex + Chris discovery first unless another signal is clearly stronger.`;
+James — reviews and reputation.`;
 
   // ── BUSINESS INTEL ──
+  const isStubIntel = intel.fast_intel?.source === "stub";
   const intelLines: string[] = [
     `BUSINESS INTEL FOR ${biz.toUpperCase()}`,
     `Business: ${biz}${loc ? ` | Location: ${loc}` : ""} | Industry: ${ind}`,
   ];
+  if (isStubIntel) {
+    intelLines.push(`[INTEL QUALITY: LIMITED — their website was not accessible during research. Do not claim you reviewed their website, observed specific pages, or noticed specific site features. Use the business name and domain to guide your conversation with general industry knowledge. Stay confident, polished, and commercially focused — never mention missing data or apologise for limited context.]`);
+  }
   if (ci.tagline) intelLines.push(`Tagline: "${ci.tagline}"`);
   if (ci.model) intelLines.push(`Business model: ${ci.model}`);
   if (ci.phone) intelLines.push(`Phone: ${ci.phone}`);
@@ -1502,22 +1540,14 @@ GUARDRAILS:
   if (intel.top_fix?.copyHeadline) intelLines.push(`Key opportunity: ${intel.top_fix.copyHeadline}`);
   if (opener) intelLines.push(`Opener: ${opener}`);
 
-  if (cons.icpAnalysis?.whoTheyTarget) intelLines.push(`ICP: ${cons.icpAnalysis.whoTheyTarget}`);
+  if (cons.icpAnalysis?.marketPositionNarrative) intelLines.push(`Market position: ${cons.icpAnalysis.marketPositionNarrative}`);
+  else if (cons.icpAnalysis?.whoTheyTarget) intelLines.push(`ICP: ${cons.icpAnalysis.whoTheyTarget}`);
   if (cons.copyAnalysis?.bellaLine || cons.valuePropAnalysis?.bellaLine) intelLines.push(`Site observation: ${cons.copyAnalysis?.bellaLine ?? cons.valuePropAnalysis?.bellaLine}`);
   if (cons.conversationHooks?.length) intelLines.push(`Conversation hooks: ${cons.conversationHooks.slice(0, 3).join(" | ")}`);
 
-  // ── BENCHMARK STATS (lean — only what Bella needs for ROI calculations) ──
-  const benchmarks = `APPROVED BENCHMARKS (use exactly, never invent):
-Alex: Speed-to-lead. Uplift tiers: >24h=391%, 3-24h=200%, 30m-3h=100%, <30m=50%.
-Chris: Website AI chat. 23% conversion uplift.
-Maddie: Missed calls. 78% of customers go with the first responder.
-Sarah: Database reactivation. 5% conversion from dormant leads.
-James: Reviews. 1-star improvement drives 9% revenue lift.
-Free trial: "7 days, no card required, set and forget."`;
-
   const marker = apifyDone ? "\n[APIFY_ENRICHED]" : "";
 
-  return `${fullPersona}\n${intelLines.join("\n")}\n${benchmarks}${marker}`;
+  return `${executionBlock}\n${intelLines.join("\n")}${marker}`;
 }
 
 // ─── LEAN PER-TURN PROMPT — ~800 chars, rebuilt every turn ───────────────────
@@ -1533,8 +1563,9 @@ Free trial: "7 days, no card required, set and forget."`;
 function buildTurnPrompt(s: State, intel: Record<string, any>, convMemory: string): string {
   const ci = intel.core_identity ?? {};
   const fn = intel.first_name ?? ci.first_name ?? "";
-  const bizRaw = intel.business_name ?? ci.business_name ?? intel.fast_context?.business?.name ?? "your business";
-  const biz = normaliseBizName(bizRaw);
+  const spokenName = intel.consultant?.businessIdentity?.spokenName;
+  const bizRaw = spokenName || intel.business_name || ci.business_name || intel.fast_context?.business?.name || "your business";
+  const biz = ttsAcronym(spokenName || normaliseBizName(bizRaw));
   const ind = ci.industry ?? ci.industry_key ?? "";
   const ct = custTerm(ind);
   const tf = s.inputs.timeframe ?? "weekly";
@@ -1612,15 +1643,16 @@ function buildTurnPrompt(s: State, intel: Record<string, any>, convMemory: strin
     ? `\nRETRIEVED INTEL (cite verbatim where relevant):\n"${vecSnippet}"`
     : "";
 
-  // ── OUTPUT RULES ──
-  const outputRules = `OUTPUT RULES
-1. ONLY SPOKEN WORDS. No labels, no headers, no XML tags in output.
-2. Up to 3 statements and a question per turn (4 sentences max, fewer is fine).
-3. No symbols, no markdown.
-4. Say numbers as words.
-5. Max one question at the end.
-6. NEVER APOLOGISE — THIS IS AN ABSOLUTE RULE. The words "sorry", "apologies", "my apologies", "I apologise" must NEVER appear in your response under ANY circumstance. If you are corrected, say "Good catch" or "Thanks for clarifying" then immediately pivot to the correct data. NEVER grovel. You are a confident consultant, not a customer service bot.
-7. SCRIPT COMPLIANCE: Text inside <DELIVER_THIS> tags is your EXACT script. Deliver it word-for-word. You may add a brief natural reaction to what the prospect just said BEFORE the scripted line (e.g. "Great question." or "Love it."), but the scripted line itself MUST be delivered verbatim. Do NOT paraphrase, restructure, summarise, or omit any part of it.`;
+  // ── OUTPUT RULES (V2) ──
+  const outputRules = `OUTPUT RULES (V2)
+1. ONLY SPOKEN WORDS. No labels, headers, XML tags, markdown, code formatting, or symbols in the output.
+2. Use up to 3 statements and one question per turn, 4 sentences maximum.
+3. Say numbers naturally in spoken form. Say dollar amounts as "[number] dollars".
+4. NEVER APOLOGISE. If corrected, briefly acknowledge and pivot.
+5. SCRIPT COMPLIANCE: Deliver the <DELIVER_THIS> instruction exactly. You may add a very brief natural reaction before it, but the scripted line itself must remain unchanged.
+6. QUESTION COMPLIANCE: If the prospect gives filler instead of answering a question, briefly acknowledge and re-ask. Do not pretend the question was answered.
+7. Do not mention missing data, internal systems, routing logic, controllers, calculators, or enrichment pipelines.
+8. Do not improvise ROI formulas or benchmark claims. Use only the numbers provided in the LIVE ROI section.`;
 
 
   return `====================================
@@ -1729,8 +1761,10 @@ function buildStageDirective(
       //   8=Hiring → 9=ProvisionalRec+Bridge
       // IMPORTANT: stall is incremented BEFORE this function runs, so stall=1 is first turn
 
-      // Consultant pre-built spoken lines
+      // Consultant pre-built spoken lines (narratives)
       const convNarrative: string = (intel.consultant as any)?.conversionEventAnalysis?.conversionNarrative ?? "";
+      const icpNarrative: string = icpAnalysis.icpNarrative ?? "";
+      const marketPositionNarrative: string = icpAnalysis.marketPositionNarrative ?? "";
       const bellaCheckLine: string = icpAnalysis.bellaCheckLine ?? "";
       const routing = intel.consultant?.routing ?? {};
       const priorityAgents: string[] = (routing.priority_agents ?? []).map((a: string) =>
@@ -1766,11 +1800,15 @@ Then STOP and wait for their response.`;
           : "";
         let insightText = "";
 
-        // PRIMARY: ICP + problems + solutions when data is rich
-        if (cleanIcp && icpProblems.length >= 2 && icpSolutions.length >= 2) {
+        // PRIORITY 1: icpNarrative — consultant pre-built spoken line (like conversionNarrative)
+        if (icpNarrative) {
+          insightText = icpNarrative;
+        }
+        // PRIORITY 2: mechanical stitch from raw arrays
+        else if (cleanIcp && icpProblems.length >= 2 && icpSolutions.length >= 2) {
           insightText = `It looks like you're primarily targeting ${cleanIcp}. The typical challenges your ${ct}s face are ${icpProblems[0]} and ${icpProblems[1]}, and you solve those through ${icpSolutions[0]} and ${icpSolutions[1]}. Does that sound right?`;
         }
-        // FALLBACK: positioning from referenceOffer
+        // PRIORITY 3: positioning from referenceOffer
         else if (referenceOffer && cleanIcp) {
           insightText = `From your website, it looks like your positioning is really centred around ${referenceOffer}, and the way you present it suggests you're speaking to ${cleanIcp}. Does that sound right?`;
         }
@@ -2111,6 +2149,7 @@ async function streamToDeepgram(
   messages: Msg[],
   env: Env,
   doReplyCallback?: (spokenText: string) => Promise<void> | void,
+  doFailureCallback?: (errorCode: string) => Promise<void> | void,
 ): Promise<Response> {
   const t0 = Date.now();
   const gemRes = await fetch(GEMINI_URL, {
@@ -2124,6 +2163,7 @@ async function streamToDeepgram(
     body: JSON.stringify({
       model: MODEL, messages, stream: true, temperature: 0.3,
       max_tokens: 500,
+      reasoning_effort: "none",
       stream_options: { include_usage: true },
     }),
   });
@@ -2134,6 +2174,10 @@ async function streamToDeepgram(
   if (!gemRes.ok || !gemRes.body) {
     const errBody = await gemRes.text().catch(() => "no-body");
     log("GEMINI_ERR", `status=${gemRes.status} body=${errBody}`);
+    // Notify DO: the intended directive FAILED even though fallback text is spoken
+    if (doFailureCallback) {
+      try { await doFailureCallback(`gemini_${gemRes.status}`); } catch { }
+    }
     const fallback = [
       `data: {"id":"f","object":"chat.completion.chunk","model":"${MODEL}","choices":[{"index":0,"delta":{"content":"Give me one moment."},"finish_reason":null}]}`,
       `data: {"id":"f","object":"chat.completion.chunk","model":"${MODEL}","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}`,
@@ -2152,6 +2196,9 @@ async function streamToDeepgram(
     let chunkCount = 0;
     let sseBuffer = "";
     let responseText = "";
+    // Stream-instance-local guards — prevent duplicate callbacks
+    let replySent = false;
+    let failureSent = false;
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -2207,12 +2254,17 @@ async function streamToDeepgram(
       log("BELLA_SAID", responseText.slice(0, 2000));
       log("GEMINI_DONE", `total=${totalMs}ms chunks=${chunkCount} first_chunk=${firstContentAt}ms`);
       await writer.write(enc.encode("data: [DONE]\n\n"));
-      // Phase D — T014: fire llm_reply_done callback after stream completes
-      if (doReplyCallback) {
+      // Fire llm_reply_done callback after stream completes (once only)
+      if (doReplyCallback && !replySent) {
+        replySent = true;
         try { await doReplyCallback(responseText); } catch { }
       }
     } catch (e) {
       log("GEMINI_STREAM_ERR", `${e}`);
+      if (doFailureCallback && !failureSent) {
+        failureSent = true;
+        try { await doFailureCallback(`stream_error:${String(e).slice(0, 200)}`); } catch { }
+      }
     }
     finally { writer.close().catch(() => { }); }
   })();
@@ -2239,6 +2291,7 @@ interface DONextTurnPacket {
   validation: { mustCaptureAny: string[]; advanceOnlyIf: string[]; doNotAdvanceIf: string[] };
   style: { tone: string; industryTerms: string[]; maxSentences: number; noApology: boolean };
   roi?: { agentValues: Record<string, number>; totalValue: number };
+  activeMemory?: string[];
 }
 
 interface DOTurnResponse {
@@ -2251,14 +2304,23 @@ interface DOTurnResponse {
 }
 
 /**
- * buildDOTurnPrompt — V9.17.0
+ * buildDOTurnPrompt — V9.19.0
  * Rich directive from DO packet. Includes MANDATORY SCRIPT, DELIVER_THIS tags,
- * CONFIRMED THIS CALL, LIVE ROI, CONTEXT, and full OUTPUT RULES.
+ * CONFIRMED THIS CALL, LIVE ROI, CONTEXT, and OUTPUT RULES (V2).
  * Target: ~1.5K chars.
  */
-function buildDOTurnPrompt(doResult: DOTurnResponse): string {
+function buildDOTurnPrompt(doResult: DOTurnResponse, rawBizName?: string): string {
   const packet = doResult.packet;
   const extracted = doResult.extractedState ?? {};
+
+  // Apply TTS acronym formatting to DO speak text (DO stores raw name in state)
+  let speakText = packet.chosenMove.text;
+  if (rawBizName) {
+    const ttsBiz = ttsAcronym(rawBizName);
+    if (ttsBiz !== rawBizName) {
+      speakText = speakText.replaceAll(rawBizName, ttsBiz);
+    }
+  }
 
   // ── MANDATORY SCRIPT with DELIVER_THIS tags ──
   const scriptBlock = `====================================
@@ -2267,7 +2329,7 @@ MANDATORY SCRIPT — FOLLOW EXACTLY
 OBJECTIVE: ${packet.objective}
 STAGE: ${packet.stage.toUpperCase()} ${packet.wowStall != null ? `| STALL: ${packet.wowStall}` : ''}
 
-<DELIVER_THIS>${packet.chosenMove.text}</DELIVER_THIS>
+<DELIVER_THIS>${speakText}</DELIVER_THIS>
 ====================================`;
 
   // ── CONFIRMED THIS CALL — prevent re-asking captured data ──
@@ -2286,19 +2348,25 @@ STAGE: ${packet.stage.toUpperCase()} ${packet.wowStall != null ? `| STALL: ${pac
     ? `\nCONTEXT (use to inform your response — do not read aloud):\n${packet.criticalFacts.slice(0, 8).map(f => `- ${f}`).join('\n')}\n`
     : '';
 
-  // ── OUTPUT RULES — proven guardrails from old path ──
-  const outputRules = `OUTPUT RULES
-1. ONLY SPOKEN WORDS. No labels, no headers, no XML tags in output.
-2. Up to 3 statements and a question per turn (4 sentences max, fewer is fine).
-3. No symbols, no markdown.
-4. Say numbers as words.
-5. Max one question at the end.
-6. NEVER APOLOGISE — THIS IS AN ABSOLUTE RULE. The words "sorry", "apologies", "my apologies", "I apologise" must NEVER appear in your response under ANY circumstance. If you are corrected, say "Thanks for clarifying" then immediately pivot to the correct data. NEVER grovel. You are a confident consultant, not a customer service bot.
-7. SCRIPT COMPLIANCE: Text inside <DELIVER_THIS> tags is your EXACT script. Deliver it word-for-word. You may add a brief natural reaction to what the prospect just said BEFORE the scripted line (e.g. "Great question." or "Love it."), but the scripted line itself MUST be delivered verbatim. Do NOT paraphrase, restructure, summarise, or omit any part of it.
-8. QUESTION COMPLIANCE: If your script asks a question and the prospect's response does not actually answer it (just filler like "yeah", "ok", "sure"), briefly acknowledge and re-ask or rephrase the question. Do not move to new material until questions are substantively answered. If your script is a statement (no question), deliver it and stop — do not add filler or pad the response.`;
+  // ── ACTIVE MEMORY — things the prospect or Bella have said that matter ──
+  const memoryLines = packet.activeMemory ?? [];
+  const memorySection = memoryLines.length > 0
+    ? `\nACTIVE MEMORY (use naturally — do not read aloud or reference directly):\n${memoryLines.map(m => `- ${m}`).join('\n')}\n`
+    : '';
+
+  // ── OUTPUT RULES (V2) ──
+  const outputRules = `OUTPUT RULES (V2)
+1. ONLY SPOKEN WORDS. No labels, headers, XML tags, markdown, code formatting, or symbols in the output.
+2. Use up to 3 statements and one question per turn, 4 sentences maximum.
+3. Say numbers naturally in spoken form. Say dollar amounts as "[number] dollars".
+4. NEVER APOLOGISE. If corrected, briefly acknowledge and pivot.
+5. SCRIPT COMPLIANCE: Deliver the <DELIVER_THIS> instruction exactly. You may add a very brief natural reaction before it, but the scripted line itself must remain unchanged.
+6. QUESTION COMPLIANCE: If the prospect gives filler instead of answering a question, briefly acknowledge and re-ask. Do not pretend the question was answered.
+7. Do not mention missing data, internal systems, routing logic, controllers, calculators, or enrichment pipelines.
+8. Do not improvise ROI formulas or benchmark claims. Use only the numbers provided in the LIVE ROI section.`;
 
   return `${scriptBlock}
-${confirmedSection}${roiSection}${contextSection}
+${confirmedSection}${roiSection}${contextSection}${memorySection}
 STYLE: tone=${packet.style.tone}; terms=${packet.style.industryTerms.join(', ')}; max ${packet.style.maxSentences} sentences
 
 ${outputRules}`;
@@ -2313,13 +2381,14 @@ async function callDOTurn(
   transcript: string,
   turnId: string,
   env: Env,
+  identity?: { firstName?: string; businessName?: string; industry?: string },
 ): Promise<DOTurnResponse | null> {
   try {
     const res = await env.CALL_BRAIN.fetch(
       new Request(`https://do-internal/turn?callId=${encodeURIComponent(lid)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
-        body: JSON.stringify({ leadId: lid, transcript, turnId }),
+        body: JSON.stringify({ leadId: lid, transcript, turnId, identity }),
       }),
     );
     if (!res.ok) {
@@ -2335,33 +2404,89 @@ async function callDOTurn(
 }
 
 /**
- * callDOLlmReplyDone — T014: After Gemini finishes streaming, notify DO.
- * Non-blocking — fire-and-forget.
+ * retryFetch — fire-and-retry with short backoff for DO callbacks.
+ * Idempotent by deliveryId on the DO side.
+ */
+async function retryFetch(
+  request: Request,
+  fetcher: Fetcher,
+  tag: string,
+  maxAttempts: number = 3,
+  backoffMs: number = 200,
+): Promise<Response | null> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetcher.fetch(request.clone());
+      if (res.ok) {
+        log(tag, `attempt=${attempt} status=${res.status}`);
+        return res;
+      }
+      log(tag, `attempt=${attempt} non-ok status=${res.status}`);
+    } catch (e: any) {
+      log(`${tag}_ERR`, `attempt=${attempt} ${e.message}`);
+    }
+    if (attempt < maxAttempts) {
+      await new Promise(r => setTimeout(r, backoffMs * attempt));
+    }
+  }
+  log(`${tag}_EXHAUSTED`, `all ${maxAttempts} attempts failed`);
+  return null;
+}
+
+/**
+ * callDOLlmReplyDone — After Gemini finishes streaming, notify DO.
+ * Includes deliveryId for flow harness correlation.
+ * Retries 3x with backoff (DO callbacks are idempotent by deliveryId).
  */
 async function callDOLlmReplyDone(
   lid: string,
   moveId: string,
+  deliveryId: string,
   spokenText: string,
   env: Env,
 ): Promise<void> {
-  try {
-    const res = await env.CALL_BRAIN.fetch(
-      new Request(`https://do-internal/event?callId=${encodeURIComponent(lid)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
-        body: JSON.stringify({
-          type: 'llm_reply_done',
-          spokenText: spokenText.slice(0, 2000),
-          moveId,
-          ts: new Date().toISOString(),
-        }),
-      }),
-    );
-    log('DO_REPLY', `lid=${lid} moveId=${moveId} status=${res.status}`);
-  } catch (e: any) {
-    log('DO_REPLY_ERR', `lid=${lid} ${e.message}`);
-  }
+  const request = new Request(`https://do-internal/event?callId=${encodeURIComponent(lid)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
+    body: JSON.stringify({
+      type: 'llm_reply_done',
+      spokenText: spokenText.slice(0, 2000),
+      moveId,
+      deliveryId: deliveryId || undefined,
+      ts: new Date().toISOString(),
+    }),
+  });
+  await retryFetch(request, env.CALL_BRAIN, 'DO_REPLY');
 }
+
+/**
+ * callDODeliveryFailed — notify DO that Gemini stream errored.
+ * Fires on definite generation failure — Gemini 4xx/5xx or stream exception.
+ * Retries 3x. DO decides whether failure is retryable.
+ */
+async function callDODeliveryFailed(
+  lid: string,
+  moveId: string,
+  deliveryId: string,
+  errorCode: string,
+  env: Env,
+): Promise<void> {
+  const request = new Request(`https://do-internal/event?callId=${encodeURIComponent(lid)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
+    body: JSON.stringify({
+      type: 'delivery_failed',
+      deliveryId: deliveryId || undefined,
+      moveId,
+      errorCode: String(errorCode).slice(0, 500),
+      ts: new Date().toISOString(),
+    }),
+  });
+  await retryFetch(request, env.CALL_BRAIN, 'DO_FAIL');
+}
+
+// callDOSessionInit REMOVED (v9.21.0) — identity now forwarded via /turn payload on every call.
+// DO self-heals via ensureSession; bridge passes identity inline.
 
 /**
  * shadowDOCall — T015: Background DO call for shadow mode comparison.
@@ -2434,6 +2559,7 @@ export default {
     const messages: Msg[] = body.messages ?? [];
     const lid = getLid(messages);
     log("REQ", `lid=${lid} msgs=${messages.length}`);
+    log("SCRIBE_CONFIG", `enabled=${!!env.GEMINI_API_KEY} do_path=${env.USE_DO_BRAIN === 'true'} brain=${!!env.CALL_BRAIN}`);
 
     // ── DIAGNOSTIC: log first-turn system message so we can see what Deepgram sends us
     if (messages.length <= 2) {
@@ -2471,21 +2597,23 @@ export default {
       convMemory = rawMemory ?? "";
     }
 
-    // FALLBACK: extract prospect_first_name and prospect_business from DG system prompt
-    // when KV intel is empty (fast-intel still running). Voice agent embeds these from URL params.
+    // FALLBACK: extract identity from voice agent system prompt when KV intel is empty.
+    // V9 format: "prospect_first_name: X. prospect_business: Y."
+    // V11 format: "FIRST NAME: X\nBUSINESS: Y"
     if (!intel.first_name || !intel.business_name) {
       const sys = messages.find(m => m.role === "system")?.content ?? "";
       if (typeof sys === "string") {
-        const fnMatch = sys.match(/prospect_first_name:\s*([^.]+)/);
-        const bizMatch = sys.match(/prospect_business:\s*([^.]+)/);
-        if (fnMatch?.[1] && fnMatch[1].trim() !== "unknown" && !intel.first_name) {
+        // V9 patterns
+        const fnMatch = sys.match(/prospect_first_name:\s*([^.]+)/) ?? sys.match(/FIRST NAME:\s*(.+)/);
+        const bizMatch = sys.match(/prospect_business:\s*([^.]+)/) ?? sys.match(/BUSINESS:\s*(.+)/);
+        if (fnMatch?.[1] && fnMatch[1].trim() !== "unknown" && fnMatch[1].trim() !== "" && !intel.first_name) {
           intel.first_name = fnMatch[1].trim();
           intel.firstName = fnMatch[1].trim();
-          log("FALLBACK", `first_name="${intel.first_name}" from DG system prompt`);
+          log("FALLBACK", `first_name="${intel.first_name}" from system prompt`);
         }
-        if (bizMatch?.[1] && bizMatch[1].trim() !== "unknown" && !intel.business_name) {
+        if (bizMatch?.[1] && bizMatch[1].trim() !== "unknown" && bizMatch[1].trim() !== "your business" && !intel.business_name) {
           intel.business_name = bizMatch[1].trim();
-          log("FALLBACK", `business_name="${intel.business_name}" from DG system prompt`);
+          log("FALLBACK", `business_name="${intel.business_name}" from system prompt`);
         }
       }
     }
@@ -2545,24 +2673,45 @@ export default {
     // ── DO BRAIN PATH (Phase C — V9.17.0) ──────────────────────────────────
     // DO owns state, extraction, gating. Bridge builds rich directive from
     // NextTurnPacket + full reference data from buildFullSystemContext.
-    // /turn self-heals via ensureSession() inside the DO.
+    // Bridge passes identity on every /turn so DO always has business name.
     const useDoPath = env.USE_DO_BRAIN === 'true' && !!lid;
     if (useDoPath) {
       const utt = lastUser(messages);
       const turnNum = messages.length;
       log('DO_PATH', `lid=${lid} turn=${turnNum} utt_chars=${utt.length}`);
 
-      // POST /turn — DO self-heals via ensureSession, no separate init needed
-      const doResult = await callDOTurn(lid, utt, String(turnNum), env);
+      // Extract identity from loaded intel for DO (bridge always has KV data)
+      const ci = intel.core_identity ?? {};
+      // Build supplement: bridge has merged KV data that the DO may not have received via events
+      const _suppRating = parseFloat(intel.star_rating ?? intel.places?.rating) || null;
+      const _suppReviews = parseInt(intel.review_count ?? intel.places?.review_count) || 0;
+      const _suppConsultant = intel.consultant ?? null;
+      const doIdentity = {
+        firstName: intel.first_name ?? intel.firstName ?? ci.first_name ?? '',
+        businessName: intel.business_name ?? ci.business_name ?? '',
+        industry: ci.industry ?? ci.industry_key ?? intel.industry ?? '',
+        supplement: {
+          rating: _suppRating,
+          reviewCount: _suppReviews,
+          consultant: _suppConsultant,
+        },
+      };
+      log('DO_IDENTITY', `fn="${doIdentity.firstName}" biz="${doIdentity.businessName}" ind="${doIdentity.industry}" supp_rating=${_suppRating ?? 'none'} supp_consultant=${!!_suppConsultant}`);
+
+      const doResult = await callDOTurn(lid, utt, String(turnNum), env, doIdentity);
       if (!doResult) {
         // DO failed — fall through to old path
         log('DO_FALLBACK', `DO call failed for lid=${lid} — falling back to old path`);
       } else {
         // Build rich directive from DO packet (~1.5K)
-        const doTurnPrompt = buildDOTurnPrompt(doResult);
-        log('DO_PROMPT', `stage=${doResult.stage} stall=${doResult.wowStall} move=${doResult.packet.chosenMove.id} chars=${doTurnPrompt.length}`);
+        // Pass raw biz name so TTS acronym formatting can be applied to speak text
+        const doSpokenName = intel.consultant?.businessIdentity?.spokenName;
+        const doRawBiz = doSpokenName || intel.business_name || (intel.core_identity as any)?.business_name || '';
+        const doTurnPrompt = buildDOTurnPrompt(doResult, doRawBiz);
+        const memoryLineCount = (doResult.packet.activeMemory ?? []).length;
+        log('DO_PROMPT', `stage=${doResult.stage} stall=${doResult.wowStall} move=${doResult.packet.chosenMove.id} chars=${doTurnPrompt.length} memory_lines=${memoryLineCount}`);
 
-        // Build reference data (persona + business intel + benchmarks) (~1.5K)
+        // Build reference data (V2 execution block + business intel) (~1.5K)
         const deepStatus = (intel as any).intel?.deep?.status ?? intel.deep?.status;
         const apifyDone = deepStatus === 'done';
         const bridgeSystem = buildFullSystemContext(intel, apifyDone);
@@ -2582,11 +2731,50 @@ export default {
           ...conversation,
         ];
 
+        // ── Scribe: background note extraction (best-effort, non-blocking) ──
+        if (utt.trim().length > 0 && lid && env.GEMINI_API_KEY && env.CALL_BRAIN) {
+          const scribeRecentTurns = messages
+            .filter(m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim().length > 0)
+            .slice(-4)
+            .map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' }));
+
+          const scribeMemTitles = (doResult.packet?.activeMemory ?? [])
+            .filter((line: unknown): line is string => typeof line === 'string')
+            .map((line: string) => line.replace(/^\[.*?\]\s*/, '').slice(0, 60));
+
+          const scribeTurnIndex = doResult.extractedState?.transcriptLog?.length ?? messages.filter(m => m.role === 'user').length;
+
+          log('SCRIBE_LAUNCH', `path=do callId=${lid} stage=${doResult.stage ?? 'unknown'} turn=${scribeTurnIndex}`);
+          ctx.waitUntil(
+            runScribe(
+              utt,
+              scribeRecentTurns,
+              doResult.stage ?? 'unknown',
+              scribeMemTitles,
+              lid,
+              scribeTurnIndex,
+              env.GEMINI_API_KEY,
+              env.CALL_BRAIN,
+            )
+          );
+        }
+
         log('STREAM', `DO path stage=${doResult.stage} history=${conversation.length} turns → streaming`);
+        // Closure-scope the IDs — NEVER use mutable module-scope variables
         const doMoveId = doResult.packet.chosenMove.id;
-        return streamToDeepgram(finalMessages, env, async (spokenText) => {
-          await callDOLlmReplyDone(lid!, doMoveId, spokenText, env);
-        });
+        const doDeliveryId = (doResult.extractedState as any)?.pendingDelivery?.deliveryId ?? '';
+        log('DO_DELIVERY_ID', `lid=${lid} moveId=${doMoveId} deliveryId=${doDeliveryId || 'none'}`);
+
+        return streamToDeepgram(finalMessages, env,
+          // Success callback — Gemini stream completed
+          async (spokenText) => {
+            await callDOLlmReplyDone(lid!, doMoveId, doDeliveryId, spokenText, env);
+          },
+          // Failure callback — Gemini errored
+          async (errorCode) => {
+            await callDODeliveryFailed(lid!, doMoveId, doDeliveryId, errorCode, env);
+          },
+        );
       }
     }
 
@@ -2778,10 +2966,35 @@ export default {
     ];
 
     log("STREAM", `stage=${s.stage} history=${conversation.length} turns → streaming`);
+
+    // ── Scribe: background note extraction — old path (best-effort, non-blocking) ──
+    if (utt.trim().length > 0 && lid && env.GEMINI_API_KEY && env.CALL_BRAIN) {
+      const scribeRecentTurns = messages
+        .filter(m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim().length > 0)
+        .slice(-4)
+        .map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' }));
+
+      const scribeTurnIndex = messages.filter(m => m.role === 'user' && typeof m.content === 'string').length;
+
+      log('SCRIBE_LAUNCH', `path=old callId=${lid} stage=${s.stage ?? 'unknown'} turn=${scribeTurnIndex}`);
+      ctx.waitUntil(
+        runScribe(
+          utt,
+          scribeRecentTurns,
+          s.stage ?? 'unknown',
+          [],
+          lid,
+          scribeTurnIndex,
+          env.GEMINI_API_KEY,
+          env.CALL_BRAIN,
+        )
+      );
+    }
+
     // Phase D — T014: fire llm_reply_done in shadow mode to keep DO state in sync
     if (shadowMode) {
       return streamToDeepgram(finalMessages, env, async (spokenText) => {
-        await callDOLlmReplyDone(lid!, 'old_path_unknown', spokenText, env);
+        await callDOLlmReplyDone(lid!, 'old_path_unknown', '', spokenText, env);
       });
     }
     return streamToDeepgram(finalMessages, env);

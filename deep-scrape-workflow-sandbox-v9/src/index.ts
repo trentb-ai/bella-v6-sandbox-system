@@ -1,10 +1,12 @@
 /**
- * deep-scrape-workflow-sandbox v9.2.0
+ * deep-scrape-workflow-sandbox v9.3.0-progressive-intel
  *
- * All 5 Apify actors run concurrently in a single step via Promise.allSettled.
- * Per-actor error isolation: one failure never kills the others.
- * Step 2 writes results to KV.
+ * Progressive DO delivery: each Apify actor sends its result to the Call Brain
+ * DO the moment it finishes, instead of waiting for all 5 to complete.
+ * Google Maps data reaches the DO ~15s in, hiring ~20s, ads ~30s.
+ * Final event (version 99) carries the complete dataset as a safety net.
  *
+ * Per-actor error isolation via Promise.allSettled.
  * I/O wait (Apify polling, setTimeout) = zero CPU cost.
  * All 5 actors start simultaneously, wall time = slowest actor (~30-60s).
  */
@@ -38,9 +40,11 @@ async function runApifyActor(
   pollIntervalMs = 4000
 ): Promise<unknown[] | null> {
   if (!apiKey) return null;
+  // Apify API uses ~ as namespace separator, not / (slash → 404)
+  const apiActorId = actorId.replace("/", "~");
   try {
     const startResp = await fetch(
-      `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`,
+      `https://api.apify.com/v2/acts/${apiActorId}/runs?token=${apiKey}`,
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }
     );
     if (!startResp.ok) {
@@ -140,6 +144,41 @@ function settle<T>(result: PromiseSettledResult<T | null>): T | null {
   return result.status === "fulfilled" ? result.value : null;
 }
 
+// ─── Progressive DO delivery ──────────────────────────────────────────────────
+// Sends a partial deep_ready event to the Call Brain DO the moment an actor
+// finishes. Non-throwing: failures are logged but never fatal because the
+// final event (version 99) carries the complete dataset as a safety net.
+
+async function deliverToDoPartial(
+  callBrain: Fetcher,
+  lid: string,
+  partialPayload: Record<string, unknown>,
+  version: number,
+  sourceLabel: string,
+): Promise<void> {
+  try {
+    const eventId = crypto.randomUUID();
+    console.log(`[DEEP_PARTIAL] source=${sourceLabel} lid=${lid} version=${version} eventId=${eventId}`);
+    const res = await callBrain.fetch(
+      new Request(`https://do-internal/event?callId=${encodeURIComponent(lid)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
+        body: JSON.stringify({
+          type: 'deep_ready',
+          payload: partialPayload,
+          version,
+          eventId,
+          sentAt: new Date().toISOString(),
+          source: `deep-scrape-workflow/${sourceLabel}`,
+        }),
+      }),
+    );
+    console.log(`[DEEP_PARTIAL] delivered source=${sourceLabel} lid=${lid} status=${res.status}`);
+  } catch (e: any) {
+    console.warn(`[DEEP_PARTIAL] FAILED source=${sourceLabel} lid=${lid}: ${e.message}`);
+  }
+}
+
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 
 export class DeepScrapeWorkflow extends WorkflowEntrypoint<Env, DeepScrapeParams> {
@@ -152,7 +191,7 @@ export class DeepScrapeWorkflow extends WorkflowEntrypoint<Env, DeepScrapeParams
     try { domain = new URL(websiteUrl).hostname.replace("www.", ""); } catch (_) { domain = businessName; }
     const companySlug = businessName.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
 
-    console.log(`[DeepScrape v9.2] Starting all actors concurrently lid=${lid}`);
+    console.log(`[DeepScrape v9.3.0-progressive-intel] Starting all actors concurrently lid=${lid}`);
 
     // ── Step 0: Fetch website HTML blob and write to KV immediately ──────────
     // This gives the bridge real website content within ~15s for Gemini context.
@@ -226,49 +265,98 @@ export class DeepScrapeWorkflow extends WorkflowEntrypoint<Env, DeepScrapeParams
       }
     );
 
-    // ── Step 1: ALL 5 actors fire simultaneously via Promise.allSettled ──────
-    // allSettled = per-actor error isolation. One timeout/failure → null, others continue.
-    // CPU cost = near zero (all I/O wait). Wall time = slowest actor.
+    // ── Step 1: Scrape all actors + deliver partial results to DO as each finishes
+    // Same Promise.allSettled concurrency pattern, but each actor sends its result
+    // to the DO the moment it's ready via deliverToDoPartial(). Google Maps data
+    // reaches the DO ~15s in instead of waiting ~45s for all actors.
+    // Version counter: shared in run() scope. Single-threaded JS = atomic increment.
+    let nextVersion = 1;
+    const getVersion = () => nextVersion++;
+
     const scraped = await step.do(
-      "scrape-all-concurrent",
+      "scrape-and-deliver",
       { retries: { limit: 1, delay: "10 seconds" }, timeout: "4 minutes" },
       async () => {
+        // Ads coordination: FB + Google Ads must combine before delivery
+        let fbResult: unknown[] | null | undefined = undefined;   // undefined = not yet done
+        let gadsResult: unknown[] | null | undefined = undefined;
+        let adsDelivered = false;
+
+        const maybeSendAds = async () => {
+          if (fbResult === undefined || gadsResult === undefined || adsDelivered) return;
+          adsDelivered = true;
+          const adsSummary = buildAdsSummary(
+            fbResult === null ? null : fbResult,
+            gadsResult === null ? null : gadsResult,
+          );
+          await deliverToDoPartial(this.env.CALL_BRAIN, lid, { ads: adsSummary }, getVersion(), 'ads');
+        };
+
         const [fbR, googleR, indeedR, mapsR, linkedInR] = await Promise.allSettled([
 
-          // FB Ads Library
-          runApifyActor(apiKey, "apify/facebook-ads-scraper", {
-            startUrls: [{ url: `https://www.facebook.com/ads/library/?search_term=${domain}` }],
-            maxAds: 10,
-          }),
+          // FB Ads Library — coordinated with Google Ads
+          (async () => {
+            const result = await runApifyActor(apiKey, "apify/facebook-ads-scraper", {
+              startUrls: [{ url: `https://www.facebook.com/ads/library/?search_term=${domain}` }],
+              maxAds: 10,
+            });
+            fbResult = result;
+            await maybeSendAds();
+            return result;
+          })(),
 
-          // Google Ads signals
-          runApifyActor(apiKey, "apify/google-search-scraper", {
-            queries: [`site:google.com/aclk ${domain}`],
-            maxPagesPerQuery: 1,
-          }),
+          // Google Ads signals — coordinated with FB Ads
+          (async () => {
+            const result = await runApifyActor(apiKey, "apify/google-search-scraper", {
+              queries: [`site:google.com/aclk ${domain}`],
+              maxPagesPerQuery: 1,
+            });
+            gadsResult = result;
+            await maybeSendAds();
+            return result;
+          })(),
 
-          // Indeed jobs (AU)
-          runApifyActor(apiKey, "misceres/indeed-scraper", {
-            position: "",
-            company: businessName,
-            country: "AU",
-            maxItems: 5,
-          }),
+          // Indeed jobs (AU) — delivers immediately
+          (async () => {
+            const result = await runApifyActor(apiKey, "misceres/indeed-scraper", {
+              position: "",
+              company: businessName,
+              country: "AU",
+              maxItems: 5,
+            });
+            const hiringSummary = buildHiringSummary(result);
+            await deliverToDoPartial(this.env.CALL_BRAIN, lid, { hiring: hiringSummary }, getVersion(), 'indeed');
+            return result;
+          })(),
 
-          // Google Maps reviews
-          runApifyActor(apiKey, "compass/google-maps-reviews-scraper", {
-            searchStringsArray: [businessName],
-            maxCrawledPlacesPerSearch: 1,
-            language: "en",
-            maxReviews: 8,
-          }),
+          // Google Maps reviews — delivers immediately (fastest actor, ~12s)
+          (async () => {
+            const result = await runApifyActor(apiKey, "compass/google-maps-reviews-scraper", {
+              searchStringsArray: [businessName],
+              maxCrawledPlacesPerSearch: 1,
+              language: "en",
+              maxReviews: 8,
+            });
+            const mapsSummary = buildGoogleMapsSummary(result);
+            if (mapsSummary) {
+              await deliverToDoPartial(this.env.CALL_BRAIN, lid, { googleMaps: mapsSummary }, getVersion(), 'googleMaps');
+            }
+            return result;
+          })(),
 
-          // LinkedIn company
+          // LinkedIn company — delivers immediately (slowest actor)
           companySlug.length > 2
-            ? runApifyActor(apiKey, "anchor/linkedin-company-scraper", {
-                searchUrls: [`https://www.linkedin.com/company/${companySlug}`],
-                proxy: { useApifyProxy: true },
-              })
+            ? (async () => {
+                const result = await runApifyActor(apiKey, "anchor/linkedin-company-scraper", {
+                  searchUrls: [`https://www.linkedin.com/company/${companySlug}`],
+                  proxy: { useApifyProxy: true },
+                });
+                const linkedInSummary = buildLinkedInSummary(result);
+                if (linkedInSummary) {
+                  await deliverToDoPartial(this.env.CALL_BRAIN, lid, { linkedin: linkedInSummary }, getVersion(), 'linkedin');
+                }
+                return result;
+              })()
             : Promise.resolve(null),
         ]);
 
@@ -284,31 +372,34 @@ export class DeepScrapeWorkflow extends WorkflowEntrypoint<Env, DeepScrapeParams
           indeed: indeed?.length ?? "null",
           maps: maps?.length ?? "null",
           linkedin: linkedin?.length ?? "null",
+          partialVersionsUsed: nextVersion - 1,
         });
 
         return {
-          ads:       buildAdsSummary(fb, google),
-          hiring:    buildHiringSummary(indeed),
+          ads:        buildAdsSummary(fb, google),
+          hiring:     buildHiringSummary(indeed),
           googleMaps: buildGoogleMapsSummary(maps),
-          linkedin:  buildLinkedInSummary(linkedin),
+          linkedin:   buildLinkedInSummary(linkedin),
         };
       }
     );
 
-    // ── Step 2: Write to KV ───────────────────────────────────────────────────
+    // ── Step 2: KV cold backup + final DO delivery (version 99) ────────────
+    // KV write is unchanged (cold backup). Final deep_ready at version 99
+    // guarantees the DO has the complete dataset even if all partials failed.
+    // Version 99 always passes shouldApplyVersion() regardless of replay state.
     await step.do(
-      "write-kv",
-      { retries: { limit: 3, delay: "2 seconds" }, timeout: "30 seconds" },
+      "finalize-deep",
+      { retries: { limit: 3, delay: "3 seconds" }, timeout: "30 seconds" },
       async () => {
         const deepSummary = {
-          status: "done",
+          status: "done" as const,
           ts_done: new Date().toISOString(),
           duration_ms: Date.now() - t0,
           ...scraped,
         };
 
-        // SCHEMA v3: deep at ROOT, not nested in intel.deep
-        // Additive merge into lead:{lid}:intel (never overwrites Phase B or Firecrawl data)
+        // KV cold backup — additive merge (never overwrites Phase B or Firecrawl data)
         const existing = await this.env.LEADS_KV.get(`lead:${lid}:intel`);
         const envelope = existing
           ? (JSON.parse(existing) as Record<string, unknown>)
@@ -317,40 +408,33 @@ export class DeepScrapeWorkflow extends WorkflowEntrypoint<Env, DeepScrapeParams
         await this.env.LEADS_KV.put(`lead:${lid}:intel`, JSON.stringify(envelope));
 
         console.log(`[DeepScrape] KV written lid=${lid} total=${deepSummary.duration_ms}ms ads_fb_running=${scraped.ads.fb.running} google_rating=${scraped.googleMaps?.rating ?? "n/a"} hiring=${scraped.hiring.is_hiring}`);
-      }
-    );
 
-    // ── Step 3: Deliver deep_ready event to Call Brain DO (Phase D — T013) ──
-    await step.do(
-      "notify-do-brain",
-      { retries: { limit: 2, delay: "3 seconds" }, timeout: "15 seconds" },
-      async () => {
+        // Final DO delivery — version 99 is the safety net
         try {
           const eventId = crypto.randomUUID();
-          const sentAt = new Date().toISOString();
-          console.log(`[DEEP_SEND] eventId=${eventId} lid=${lid} version=1 sentAt=${sentAt}`);
+          console.log(`[DEEP_FINAL] lid=${lid} version=99 eventId=${eventId}`);
           const res = await this.env.CALL_BRAIN.fetch(
             new Request(`https://do-internal/event?callId=${encodeURIComponent(lid)}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
               body: JSON.stringify({
                 type: 'deep_ready',
-                payload: scraped,
-                version: 1,
+                payload: deepSummary,
+                version: 99,
                 eventId,
-                sentAt,
-                source: 'deep-scrape-workflow',
+                sentAt: new Date().toISOString(),
+                source: 'deep-scrape-workflow/final',
               }),
             }),
           );
-          console.log(`[DeepScrape] DO deep_ready delivered lid=${lid} eventId=${eventId} status=${res.status}`);
+          console.log(`[DEEP_FINAL] delivered lid=${lid} status=${res.status}`);
         } catch (e: any) {
-          console.log(`[DeepScrape] DO deep_ready failed lid=${lid}: ${e.message}`);
+          console.warn(`[DEEP_FINAL] FAILED lid=${lid}: ${e.message}`);
         }
       }
     );
 
-    console.log(`[DeepScrape v9.3] Complete lid=${lid} wall=${Date.now() - t0}ms`);
+    console.log(`[DeepScrape v9.3.0-progressive-intel] Complete lid=${lid} wall=${Date.now() - t0}ms`);
   }
 }
 

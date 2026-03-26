@@ -19,7 +19,7 @@ binding = "CALL_BRAIN"
 service = "call-brain-do"
 
 [vars]
-USE_DO_BRAIN = "false"
+USE_DO_BRAIN = "true"
 # GEMINI_API_KEY set via: wrangler secret put GEMINI_API_KEY
 # TOOLS_BEARER    set via: wrangler secret put TOOLS_BEARER
 
