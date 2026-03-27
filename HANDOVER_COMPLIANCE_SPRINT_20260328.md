@@ -417,3 +417,134 @@ in Closed-Loop Agent Taxonomy". See doc-voice-compliance-publication-strategy-20
 
 ---
 Local file: ~/Desktop/BELLA_V1.0_SANDBOX_COMPLETE_SYSTEM/HANDOVER_COMPLIANCE_SPRINT_20260328.md
+
+---
+
+## SPRINT 4 EXPANDED — FULL DATA INJECTION AUDIT
+
+### Critical Finding: "Delivered to DO but not used in moves.ts" = Gemini never sees it
+
+The Gemini system prompt has EXACTLY 6 slots. Only data that lands in one of these slots
+reaches Gemini. Everything else in brain.intel.consultant is invisible:
+
+  1. MANDATORY SCRIPT     <- packet.chosenMove.text (the speak string moves.ts built)
+  2. CONFIRMED THIS CALL  <- extracted state fields (acv, leads etc)
+  3. LIVE ROI             <- packet.roi dollar figures
+  4. CONTEXT              <- packet.criticalFacts[] (currently ALWAYS EMPTY)
+  5. ACTIVE MEMORY        <- packet.activeMemory[] (commitment notes only)
+  6. STYLE                <- packet.style.tone + industryTerms
+
+Confirmed by reading deepgram-bridge-v11/src/index.ts buildFullSystemContext() function.
+
+Two paths to get consultant data into Gemini:
+  Path A: Hard-code into the speak string (moves.ts reads it, Bella says it verbatim)
+  Path B: Put it in criticalFacts[] (CONTEXT block — Gemini uses for off-script responses)
+
+### Full Gap Matrix — Three Tiers
+
+TIER 1 — Produced, delivered, USED (working correctly):
+  icpAnalysis.icpNarrative              -> wow_3 priority 1
+  icpAnalysis.icpProblems/Solutions     -> wow_3 priority 2
+  icpAnalysis.icp_guess (scriptFills)   -> wow_3 priority 2
+  icpAnalysis.bellaCheckLine            -> wow_3 priority 4
+  conversionEventAnalysis.conversionNarrative  -> wow_4 priority 0
+  conversionEventAnalysis.agentTrainingLine    -> wow_4 priority 1
+  conversionEventAnalysis.bellaLine            -> wow_4 priority 2
+  conversionEventAnalysis.primaryCTA           -> wow_4 priority 3
+  mostImpressive[0].bellaLine           -> wow_6 fallback
+  hiringAnalysis.topHiringWedge         -> wow_6 fallback
+  routing.priority_agents/skip_agents   -> queue building
+  d.googleMaps.rating/review_count      -> wow_2
+  d.ads.*                               -> wow_8
+  d.hiring.*                            -> wow_6, recommendation
+
+TIER 2 — Produced, delivered to DO, NEVER USED (Gemini has zero knowledge of these):
+  businessIdentity.spokenName           -> shortBiz() rolls its own logic instead
+  icpAnalysis.marketPositionNarrative   -> never read anywhere
+  icpAnalysis.howTheyKnow               -> never read
+  icpAnalysis.problemSolutionMapping    -> never read
+  copyAnalysis.* (ALL fields)           -> entire object unused
+  copyAnalysis.bellaLine                -> unused
+  copyAnalysis.strongestLine            -> unused
+  valuePropAnalysis.* (ALL fields)      -> entire object unused
+  valuePropAnalysis.statedBenefits      -> unused
+  valuePropAnalysis.strongestBenefit    -> unused
+  valuePropAnalysis.bellaLine           -> unused
+  conversionEventAnalysis.ctaAgentMapping    -> produced, REQUIRED in prompt, never used
+  conversionEventAnalysis.allConversionEvents -> unused
+  conversionEventAnalysis.ctaBreakdown       -> unused
+  conversionEventAnalysis.frictionPoints     -> unused
+  googlePresence[0].bellaLine           -> unused (Google-data spoken observation)
+  googlePresence[0].insight             -> unused
+  websiteCompliments[0].bellaLine       -> unused (intentionally removed from script)
+  conversationHooks[0-2]                -> delivered as array, never read in moves.ts
+  routing.reasoning.alex/chris/maddie   -> never injected as spoken colour
+  routing.questions_to_prioritise       -> never used
+  routing.questions_to_brush_over       -> never used
+  secondaryRecommendations[*]           -> entire array unused
+  redFlags[*]                           -> delivered as red_flags, never read
+  landingPageVerdict.verdictLine        -> unused
+  landingPageVerdict.trustSignals       -> unused
+  scriptFills.rep_commentary            -> arrives, never used in moves.ts
+  scriptFills.recent_review_snippet     -> arrives, never used in moves.ts
+  scriptFills.top_2_website_ctas        -> arrives, never used in moves.ts
+
+TIER 3 — Not produced yet (prompt gap):
+  scriptFills.scrapedDataSummary        -> SPRINT 4 core fix (add to prompt + wire delivery)
+
+### Updated Sprint 4 Scope — Wire ALL missing data in one pass
+
+Priority order (highest bang-for-buck first):
+
+1. scrapedDataSummary — add to consultant prompt + wire deliverDOEvents()
+   HOW: Add field to consultant JSON schema. Map in deliverDOEvents() scriptFills merge.
+
+2. googlePresence[0].bellaLine — use in wow_6 as priority 2
+   HOW: In wow_6 case in moves.ts, read c.googlePresence?.[0]?.bellaLine after scrapedDataSummary check.
+   RESULT: wow_6 gets a Google-data-specific observation instead of falling to mostImpressive.
+
+3. conversationHooks[0] — use in wow_6 as priority 4 (before GENERIC)
+   HOW: Read c.conversationHooks?.[0] — has .topic, .data, .how fields — compose observation line.
+   RESULT: wow_6 almost never hits GENERIC fallback.
+
+4. businessIdentity.spokenName — replace shortBiz() fallback
+   HOW: In shortBiz() helper: return c.businessIdentity?.spokenName ?? (existing logic).
+   RESULT: Bella uses the consultant-verified spoken name instead of algorithmic stripping.
+
+5. conversionEventAnalysis.ctaAgentMapping — promote to wow_4 priority 0
+   HOW: Read cea.ctaAgentMapping in wow_4, use as highest-priority spoken line.
+   RESULT: wow_4 uses consultant-written CTA->agent mapping sentence (currently REQUIRED in prompt, never spoken).
+
+6. marketPositionNarrative — into criticalFacts[] always slot
+   HOW: buildCriticalFacts() always includes c.icpAnalysis?.marketPositionNarrative (Sprint 3 already planned).
+
+7. valuePropAnalysis.strongestBenefit — into criticalFacts[] when present
+   HOW: buildCriticalFacts() adds c.valuePropAnalysis?.strongestBenefit as second slot.
+
+8. routing.questions_to_prioritise — into recommendation stage notes[]
+   HOW: In buildRecommendationDirective(), set notes: c.routing?.questions_to_prioritise ?? [].
+   RESULT: Gemini knows which questions matter most for this specific prospect.
+
+### Updated wow_6 Priority Stack (post-Sprint-4)
+
+  Priority 1: fills.scrapedDataSummary          <- NEW (Sprint 4 core)
+  Priority 2: googlePresence[0].bellaLine        <- NEW (Google-data observation)
+  Priority 3: mostImpressive[0].bellaLine        <- existing
+  Priority 4: conversationHooks[0]               <- NEW (specific hook with data)
+  Priority 5: topHiringWedge                     <- existing
+  Priority 6: hiringMatches                      <- existing
+  Priority 7: GENERIC                            <- existing last resort
+
+### What stays parked (diminishing returns for current call flow)
+  copyAnalysis.*        — website copy analysis, not directly speakable
+  websiteCompliments.*  — intentionally removed from script
+  redFlags.*            — internal routing signal, not spoken
+  secondaryRecommendations.* — subsumed by routing.reasoning colour
+  landingPageVerdict.*  — not part of current call flow
+  scriptFills.rep_commentary/recent_review_snippet — covered by wow_2 Google data path
+
+### Files for Sprint 4 expanded scope
+  call-brain-do/src/moves.ts           — wow_6 priority stack, wow_4 ctaAgentMapping, shortBiz()
+  consultant-v9/worker.js              — add scrapedDataSummary to prompt schema
+  fast-intel-sandbox-v9/src/index.ts   — deliverDOEvents() scriptFills merge
+
