@@ -548,3 +548,136 @@ Priority order (highest bang-for-buck first):
   consultant-v9/worker.js              — add scrapedDataSummary to prompt schema
   fast-intel-sandbox-v9/src/index.ts   — deliverDOEvents() scriptFills merge
 
+
+---
+
+## STATS KB — PHASE 2 WIRING (Sprint 6 — after compliance + consultant data)
+
+### What exists (Phase 1 complete — do not rebuild)
+Location: call-brain-do/src/stats-kb/
+
+Files:
+  alex-speed-to-lead.ts      171 lines — pain, urgency, competitor, close, ROI stats
+  chris-website-concierge.ts 202 lines — engagement, conversion, abandonment stats
+  maddie-ai-receptionist.ts  255 lines — missed call, after-hours, receptionist cost stats
+  sarah-database-reactivation.ts 139 lines — dormant lead, reactivation ROI stats
+  james-reputation-uplift.ts 132 lines — review impact, reputation ROI stats
+  WIRING_RULES.ts            443 lines — Three-Beat Pattern, trigger conditions, NLP matching
+  index.ts                   barrel export of all 5 agent stat sets
+  PHASE_2_TODO.md            complete spec for wiring (already written)
+  TOTAL: 1,354 lines of sourced, tiered, tagged stats with URLs
+
+Current status: ALL STATS IMPORTED BY NOTHING.
+grep confirmed: zero references to ALEX_STATS, CHRIS_STATS etc in any DO source file.
+Stats compile into the Worker bundle but Gemini has never seen a single stat.
+
+### Why this is separate from Sprint 4 (consultant data)
+Sprint 4 wires data that already EXISTS in DO state (brain.intel.consultant).
+Stats KB wiring requires building new modules:
+  - detect-trigger.ts (new file) — what did the prospect just say?
+  - select-stat.ts (new file) — which stat fits this moment?
+  - gemini-extract.ts changes — add statTrigger extraction field
+  - moves.ts changes — inject stat into directive notes[]
+
+One full CC session minimum. Must not be rushed into compliance sprint.
+
+### The Three-Beat Pattern (from WIRING_RULES.ts)
+Every stat deployment follows:
+  Beat 1 — STAT: "Research shows 85% of callers who don't get through never call back."
+  Beat 2 — TRANSLATE: "So out of every 10 people calling you, if 6 miss — 5 are gone forever."
+  Beat 3 — CONNECT: "You mentioned 30 calls/week and your team can't always get to the phone —
+              that's real jobs walking out the door every single week."
+
+The CONNECT beat uses prospect's own numbers from state (phoneVolume, inboundLeads etc).
+This is what makes stats feel personal not generic.
+
+### Five trigger conditions (when to deploy a stat)
+  1. PAIN AMPLIFICATION — prospect describes a problem
+     Pull: pain tier stats for current agent stage
+  2. OBJECTION TURNAROUND — prospect pushes back
+     Pull: competitor or scepticism stats
+  3. COMPETITOR PRESSURE — prospect mentions competitors or asks "what are others doing?"
+     Pull: competitor stats
+  4. CLOSING / VALUE REINFORCEMENT — prospect warming up, asking about pricing
+     Pull: close or ROI stats
+  5. CREDIBILITY CHALLENGE — prospect asks "where'd you get that?" or seems sceptical
+     Action: cite source + offer URL
+
+Rule: stats deployed ONLY when trigger fires. Never sprayed randomly.
+Rule: one stat per turn maximum. The beat pattern takes time — don't stack.
+
+### Files to build (Phase 2)
+
+NEW: call-brain-do/src/stats-kb/detect-trigger.ts
+  function detectTrigger(prospectUtterance, currentStage):
+    { triggerType: 'pain'|'objection'|'competitor'|'close'|'scepticism'|null, agentHint: StageId|null }
+  Can use keyword pre-filter OR add statTrigger to gemini-extract.ts schema
+  Keyword approach is faster (no extra Gemini call), good enough for MVP
+
+NEW: call-brain-do/src/stats-kb/select-stat.ts
+  function selectStat(stage, triggerType, state, intel):
+    { stat, source, url, tier, deliveryModality, connectTemplate } | null
+  Logic:
+    - Map stage to agent stats file (ch_alex -> ALEX_STATS, ch_maddie -> MADDIE_STATS etc)
+    - Filter by triggerType category
+    - Prefer tier 1 during wow/discovery, tier 2 during channel stages
+    - Industry match: if intel has industry -> prefer industry-specific stat where tagged
+    - Personalisation: if state has prospect numbers -> build connectTemplate with their data
+    - Return null if no good match — never force a stat
+
+MODIFY: call-brain-do/src/gemini-extract.ts
+  Add optional statTrigger field to per-turn extraction schema:
+    statTrigger?: { type: 'pain'|'objection'|'competitor'|'close'|'scepticism', agentHint: string|null } | null
+  Gemini detects trigger from prospect's words
+  Alternative: keyword matching in detectTrigger.ts (no schema change needed)
+
+MODIFY: call-brain-do/src/moves.ts — each build[Agent]Directive()
+  At top of each channel builder:
+    const trigger = detectTrigger(lastProspectUtterance, stage)
+    const stat = trigger ? selectStat(stage, trigger.triggerType, state, intel) : null
+  If stat found, append to directive notes[]:
+    STAT_CONTEXT: {
+      stat: stat.stat,
+      source: stat.source,
+      url: stat.url,
+      beatPattern: "Acknowledge prospect concern -> Quote stat -> Translate to plain English
+                    -> Connect: 'You mentioned [their number] — that means [personalised impact]'"
+    }
+  If no stat: notes unchanged — do not force it
+
+### Stat injection into Gemini
+Stats go into directive.notes[] — which appears in the system prompt as guidance,
+not as mandatory script. Gemini reads it and weaves the stat in naturally.
+This preserves the "Bella sounds human" quality — stats feel conversational not recited.
+
+Important: compliance loop checks the SPEAK string (mandatory script).
+Stats in notes[] are guidance only — compliance loop should NOT penalise for not quoting
+a stat verbatim. Add a compliance exemption: notes[] content is never checked.
+
+### Stage-to-stats mapping
+  greeting, wow_1-8: no stats (discovery only — do not interrupt the wow sequence)
+  recommendation:    ALEX_STATS.urgency tier 1 if pain trigger fires
+  ch_alex:           ALEX_STATS — all categories, tier 2 during channel questions
+  ch_chris:          CHRIS_STATS — all categories, tier 2
+  ch_maddie:         MADDIE_STATS — all categories, tier 2
+  ch_sarah:          SARAH_STATS — tier 2 during collection
+  ch_james:          JAMES_STATS — tier 2 during collection
+  roi_delivery:      best tier 1 stat from primary agent (reinforcement)
+  close:             close/ROI stats from primary agent (value reinforcement)
+
+### Success criteria for Phase 2
+  - [STAT_DEPLOYED] log tag when a stat fires (stage, triggerType, stat preview)
+  - [STAT_SKIPPED] log when trigger detected but no matching stat (for tuning)
+  - [NO_TRIGGER] log when no trigger detected (majority of turns — expected)
+  - In canary: at least 1 stat deployed per channel stage when prospect gives a
+    pain signal or pushback
+  - Stats never appear in wow_1-8 (guarded by stage check)
+  - Compliance loop ignores notes[] content (verified via eval)
+
+### Files for Phase 2
+  call-brain-do/src/stats-kb/detect-trigger.ts    NEW
+  call-brain-do/src/stats-kb/select-stat.ts        NEW
+  call-brain-do/src/gemini-extract.ts              MODIFY (optional statTrigger field)
+  call-brain-do/src/moves.ts                       MODIFY (inject stat into notes[])
+
+Do NOT modify stats KB files themselves — Phase 1 is complete and correct.
