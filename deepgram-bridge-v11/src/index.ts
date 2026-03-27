@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.26.1-reasoning-off"; // disable thinking tokens to avoid max_tokens truncation
+const VERSION = "9.29.0-sanitize-morgans"; // DELIVER_THIS word-boundary fix + "My Name" hallucination + 8 new apology patterns
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -702,8 +702,16 @@ function stripApologies(text: string): string {
   return text
     // Strip ALL XML/HTML tags — no angle brackets belong in spoken TTS output
     .replace(/<[^>]*>/g, "")
-    // Catch bare tag word if brackets were split across SSE chunks
-    .replace(/\bDELIVER_THIS\b/g, "")
+    // Catch bare/lone angle brackets that survived (chunk-split remnants, malformed tags)
+    .replace(/[<>]/g, "")
+    // Catch DELIVER_THIS regardless of word boundaries — SSE chunks may concatenate
+    // e.g. "DELIVER_THISAnd" has no space, so \b fails between two word chars
+    .replace(/DELIVER_THIS/gi, "")
+    // Strip any other prompt-section labels that may leak
+    .replace(/MANDATORY SCRIPT/gi, "")
+    // ── "My [Name]" hallucination — Gemini prepends possessive "My" before prospect name
+    .replace(/\bMy\s+(?=[A-Z][a-z])/g, "")
+    // ── Direct apology phrases ──
     .replace(/\bmy apologies\b[.,]?\s*/gi, "")
     .replace(/\bI apologise\b[.,]?\s*/gi, "")
     .replace(/\bI apologize\b[.,]?\s*/gi, "")
@@ -711,7 +719,28 @@ function stripApologies(text: string): string {
     .replace(/\bsorry about that\b[.,]?\s*/gi, "")
     .replace(/\bsorry\b[.,]?\s*/gi, "")
     .replace(/\bapologies\b[.,]?\s*/gi, "")
-    .replace(/\bgood catch\b[.,]?\s*/gi, "");
+    .replace(/\bgood catch\b[.,]?\s*/gi, "")
+    // ── Semantic apology synonyms — Gemini finds linguistic loopholes ──
+    .replace(/\bfor the misunderstanding\b[.,]?\s*/gi, "")
+    .replace(/\bfor any misunderstanding\b[.,]?\s*/gi, "")
+    .replace(/\bfor any confusion\b[.,]?\s*/gi, "")
+    .replace(/\bfor the confusion\b[.,]?\s*/gi, "")
+    .replace(/\bfor the oversight\b[.,]?\s*/gi, "")
+    .replace(/\bmy mistake\b[.,]?\s*/gi, "")
+    // ── Canary v5.11 additions — patterns from Morgans call ──
+    .replace(/\bI got ahead of myself\b[.,]?\s*/gi, "")
+    .replace(/\bI misspoke[^.]*?\.\s*/gi, "")
+    .replace(/\byou are absolutely right[^.]*?\.\s*/gi, "")
+    .replace(/\bI missed the mark[^.]*?\.\s*/gi, "")
+    .replace(/\bI appreciate you keeping me on track\b[.,]?\s*/gi, "")
+    .replace(/\bthank you for the correction\b[.,]?\s*/gi, "")
+    .replace(/\bfor the correction\b[.,]?\s*/gi, "")
+    .replace(/\bthank you for keeping me on track\b[.,]?\s*/gi, "");
+}
+
+/** Check if text contains prompt artifacts; returns true if any were found */
+function hasPromptArtifacts(text: string): boolean {
+  return /<[^>]*>|[<>]|DELIVER_THIS|MANDATORY SCRIPT/i.test(text);
 }
 
 // shortBiz: first word UNLESS it's a stop word (e.g. "Let there be change" → use full name)
@@ -1648,11 +1677,11 @@ function buildTurnPrompt(s: State, intel: Record<string, any>, convMemory: strin
 1. ONLY SPOKEN WORDS. No labels, headers, XML tags, markdown, code formatting, or symbols in the output.
 2. Use up to 3 statements and one question per turn, 4 sentences maximum.
 3. Say numbers naturally in spoken form. Say dollar amounts as "[number] dollars".
-4. NEVER APOLOGISE. If corrected, briefly acknowledge and pivot.
-5. SCRIPT COMPLIANCE: Deliver the <DELIVER_THIS> instruction exactly. You may add a very brief natural reaction before it, but the scripted line itself must remain unchanged.
+4. NEVER APOLOGISE, NEVER BACKTRACK. If the prospect challenges a number, say "That's the conservative estimate from our model" and move to the current directive. Never say sorry, my mistake, good catch, I misspoke, you're right to pull me up, I missed the mark, I got ahead of myself, or any synonym of apology.
+5. SCRIPT COMPLIANCE: Deliver the scripted instruction from the MANDATORY SCRIPT section exactly as written. You may add ONE brief natural sentence before it, but the scripted line must remain WORD-FOR-WORD unchanged. Do not recalculate, paraphrase, or break the scripted numbers into sub-calculations.
 6. QUESTION COMPLIANCE: If the prospect gives filler instead of answering a question, briefly acknowledge and re-ask. Do not pretend the question was answered.
 7. Do not mention missing data, internal systems, routing logic, controllers, calculators, or enrichment pipelines.
-8. Do not improvise ROI formulas or benchmark claims. Use only the numbers provided in the LIVE ROI section.`;
+8. Do not improvise ROI formulas or benchmark claims. Use ONLY the exact dollar figures from the LIVE ROI section and the DELIVER_THIS text. Never multiply, divide, or restate the math yourself.`;
 
 
   return `====================================
@@ -2251,13 +2280,18 @@ async function streamToDeepgram(
         if (modified) log("APOLOGY_FILTER", "Stripped apology phrase from response chunk");
       }
       const totalMs = Date.now() - t0;
-      log("BELLA_SAID", responseText.slice(0, 2000));
+      // Full-response sanitization pass: catches chunk-split artifacts that per-chunk filtering missed
+      const hadArtifacts = hasPromptArtifacts(responseText);
+      const sanitizedResponse = stripApologies(responseText);
+      if (hadArtifacts) log("OUTPUT_SANITIZED", "reason=prompt_artifact");
+      log("BELLA_SAID", sanitizedResponse.slice(0, 2000));
       log("GEMINI_DONE", `total=${totalMs}ms chunks=${chunkCount} first_chunk=${firstContentAt}ms`);
       await writer.write(enc.encode("data: [DONE]\n\n"));
       // Fire llm_reply_done callback after stream completes (once only)
+      // Uses sanitized response — no prompt artifacts reach DO state
       if (doReplyCallback && !replySent) {
         replySent = true;
-        try { await doReplyCallback(responseText); } catch { }
+        try { await doReplyCallback(sanitizedResponse); } catch { }
       }
     } catch (e) {
       log("GEMINI_STREAM_ERR", `${e}`);
@@ -2359,11 +2393,11 @@ STAGE: ${packet.stage.toUpperCase()} ${packet.wowStall != null ? `| STALL: ${pac
 1. ONLY SPOKEN WORDS. No labels, headers, XML tags, markdown, code formatting, or symbols in the output.
 2. Use up to 3 statements and one question per turn, 4 sentences maximum.
 3. Say numbers naturally in spoken form. Say dollar amounts as "[number] dollars".
-4. NEVER APOLOGISE. If corrected, briefly acknowledge and pivot.
-5. SCRIPT COMPLIANCE: Deliver the <DELIVER_THIS> instruction exactly. You may add a very brief natural reaction before it, but the scripted line itself must remain unchanged.
+4. NEVER APOLOGISE, NEVER BACKTRACK. If the prospect challenges a number, say "That's the conservative estimate from our model" and move to the current directive. Never say sorry, my mistake, good catch, I misspoke, you're right to pull me up, I missed the mark, I got ahead of myself, or any synonym of apology.
+5. SCRIPT COMPLIANCE: Deliver the scripted instruction from the MANDATORY SCRIPT section exactly as written. You may add ONE brief natural sentence before it, but the scripted line must remain WORD-FOR-WORD unchanged. Do not recalculate, paraphrase, or break the scripted numbers into sub-calculations.
 6. QUESTION COMPLIANCE: If the prospect gives filler instead of answering a question, briefly acknowledge and re-ask. Do not pretend the question was answered.
 7. Do not mention missing data, internal systems, routing logic, controllers, calculators, or enrichment pipelines.
-8. Do not improvise ROI formulas or benchmark claims. Use only the numbers provided in the LIVE ROI section.`;
+8. Do not improvise ROI formulas or benchmark claims. Use ONLY the exact dollar figures from the LIVE ROI section and the DELIVER_THIS text. Never multiply, divide, or restate the math yourself.`;
 
   return `${scriptBlock}
 ${confirmedSection}${roiSection}${contextSection}${memorySection}
@@ -2769,6 +2803,28 @@ export default {
           // Success callback — Gemini stream completed
           async (spokenText) => {
             await callDOLlmReplyDone(lid!, doMoveId, doDeliveryId, spokenText, env);
+
+            // M3: Compliance check — observability only, no blocking/retry/state mutation
+            try {
+              const checks = doResult.packet?.complianceChecks;
+              const phrases: string[] = checks?.mustContainPhrases ?? [];
+              if (phrases.length > 0 && spokenText.length >= 20) {
+                // Fuzzy match: lowercase, collapse whitespace, strip punctuation
+                const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+                const normSpoken = norm(spokenText);
+                const matched = phrases.filter(p => normSpoken.includes(norm(p)));
+                const coverage = matched.length / phrases.length;
+
+                if (coverage >= 0.5) {
+                  log('COMPLIANCE_OK', `lid=${lid} moveId=${doMoveId} matched=${matched.length}/${phrases.length} coverage=${coverage.toFixed(2)}`);
+                } else {
+                  const missed = phrases.filter(p => !normSpoken.includes(norm(p)));
+                  log('COMPLIANCE_MISS', `lid=${lid} moveId=${doMoveId} matched=${matched.length}/${phrases.length} coverage=${coverage.toFixed(2)} missed=${JSON.stringify(missed.slice(0, 3))}`);
+                }
+              }
+            } catch (_complianceErr) {
+              // Compliance is observability-only — never fail the delivery
+            }
           },
           // Failure callback — Gemini errored
           async (errorCode) => {

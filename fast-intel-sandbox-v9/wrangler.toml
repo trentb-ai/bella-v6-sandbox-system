@@ -16,7 +16,7 @@ service = "consultant-v8"
 
 [[services]]
 binding = "DEEP_SCRAPE"
-service = "deep-scrape-workflow-v8"
+service = "deep-scrape-workflow-v9"
 
 [[services]]
 binding = "BIG_SCRAPER"

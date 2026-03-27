@@ -281,3 +281,102 @@ describe('commitmentKey', () => {
     expect(commitmentKey('Send It Over')).toBe(commitmentKey('send it over'));
   });
 });
+
+// ─── Canary: conversational numeric answers (Gemini-primary, regex-fallback) ──
+
+describe('contextual regex fallback — conversational answers', () => {
+  it('captures "about five" as inboundConversions when in ch_alex with leads populated', () => {
+    const state = mockState({ inboundLeads: 50, currentStage: 'ch_alex' });
+    const result = extractFromTranscript('about five', ['inboundConversions', 'inboundConversionRate'], 'ch_alex', 'accounting', state);
+    expect(result.fields.inboundConversions).toBe(5);
+  });
+
+  it('captures "maybe three or four" — takes first number', () => {
+    const state = mockState({ inboundLeads: 50, currentStage: 'ch_alex' });
+    const result = extractFromTranscript('maybe three or four', ['inboundConversions', 'inboundConversionRate'], 'ch_alex', 'accounting', state);
+    expect(result.fields.inboundConversions).toBe(3);
+  });
+
+  it('captures "probably around six" as inboundConversions', () => {
+    const state = mockState({ inboundLeads: 50, currentStage: 'ch_alex' });
+    const result = extractFromTranscript('probably around six', ['inboundConversions', 'inboundConversionRate'], 'ch_alex', 'accounting', state);
+    expect(result.fields.inboundConversions).toBe(6);
+  });
+
+  it('captures "yeah maybe two" as inboundConversions', () => {
+    const state = mockState({ inboundLeads: 50, currentStage: 'ch_alex' });
+    const result = extractFromTranscript('yeah maybe two', ['inboundConversions', 'inboundConversionRate'], 'ch_alex', 'accounting', state);
+    expect(result.fields.inboundConversions).toBe(2);
+  });
+
+  it('captures "not sure maybe around five" as inboundConversions', () => {
+    const state = mockState({ inboundLeads: 50, currentStage: 'ch_alex' });
+    const result = extractFromTranscript('not sure maybe around five', ['inboundConversions', 'inboundConversionRate'], 'ch_alex', 'accounting', state);
+    expect(result.fields.inboundConversions).toBe(5);
+  });
+
+  it('captures "roughly twenty percent" as inboundConversionRate', () => {
+    const state = mockState({ inboundLeads: 50, currentStage: 'ch_alex' });
+    const result = extractFromTranscript('roughly twenty percent', ['inboundConversions', 'inboundConversionRate'], 'ch_alex', 'accounting', state);
+    expect(result.fields.inboundConversionRate).toBe(0.2);
+  });
+
+  it('captures webConversions "about five" when in ch_chris', () => {
+    const state = mockState({ webLeads: 30, currentStage: 'ch_chris' });
+    const result = extractFromTranscript('about five', ['webConversions', 'webConversionRate'], 'ch_chris', 'accounting', state);
+    expect(result.fields.webConversions).toBe(5);
+  });
+
+  it('captures missedCalls "maybe ten" when in ch_maddie', () => {
+    const state = mockState({ phoneVolume: 50, currentStage: 'ch_maddie' });
+    const result = extractFromTranscript('maybe ten', ['missedCalls', 'missedCallRate'], 'ch_maddie', 'accounting', state);
+    expect(result.fields.missedCalls).toBe(10);
+  });
+});
+
+// ─── Negative guards: false-positive avoidance ──────────────────────────────
+
+describe('contextual regex fallback — negative guards', () => {
+  it('does NOT capture staff counts as inboundConversions', () => {
+    const state = mockState({ inboundLeads: 50, currentStage: 'ch_alex' });
+    const result = extractFromTranscript("we've got five staff", ['inboundConversions'], 'ch_alex', 'accounting', state);
+    expect(result.fields.inboundConversions).toBeUndefined();
+  });
+
+  it('does NOT capture ACV as inboundConversions', () => {
+    const state = mockState({ inboundLeads: 50, acv: 5000, currentStage: 'ch_alex' });
+    const result = extractFromTranscript('our ACV is five grand', ['inboundConversions'], 'ch_alex', 'accounting', state);
+    expect(result.fields.inboundConversions).toBeUndefined();
+  });
+
+  it('does NOT capture leads count as inboundConversions (same utterance)', () => {
+    const state = mockState({ inboundLeads: 50, currentStage: 'ch_alex' });
+    const result = extractFromTranscript('we get fifty leads a month', ['inboundConversions', 'inboundLeads'], 'ch_alex', 'accounting', state);
+    // fifty = 50 = same as inboundLeads → should NOT be captured as conversions
+    expect(result.fields.inboundConversions).toBeUndefined();
+  });
+
+  it('does NOT capture team/office count as inboundConversions', () => {
+    const state = mockState({ inboundLeads: 50, currentStage: 'ch_alex' });
+    const result = extractFromTranscript('there are five people in the office', ['inboundConversions'], 'ch_alex', 'accounting', state);
+    expect(result.fields.inboundConversions).toBeUndefined();
+  });
+
+  it('does NOT capture number >= inboundLeads as conversions (parent-child bound)', () => {
+    const state = mockState({ inboundLeads: 10, currentStage: 'ch_alex' });
+    const result = extractFromTranscript('about fifteen', ['inboundConversions'], 'ch_alex', 'accounting', state);
+    expect(result.fields.inboundConversions).toBeUndefined();
+  });
+
+  it('does NOT capture missedCalls > phoneVolume (parent-child bound)', () => {
+    const state = mockState({ phoneVolume: 20, currentStage: 'ch_maddie' });
+    const result = extractFromTranscript('about thirty', ['missedCalls'], 'ch_maddie', 'accounting', state);
+    expect(result.fields.missedCalls).toBeUndefined();
+  });
+
+  it('does NOT capture webConversions > webLeads (parent-child bound)', () => {
+    const state = mockState({ webLeads: 10, currentStage: 'ch_chris' });
+    const result = extractFromTranscript('about fifteen', ['webConversions'], 'ch_chris', 'accounting', state);
+    expect(result.fields.webConversions).toBeUndefined();
+  });
+});

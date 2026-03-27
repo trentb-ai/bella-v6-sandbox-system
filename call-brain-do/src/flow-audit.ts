@@ -1,11 +1,13 @@
 /**
- * call-brain-do/src/flow-audit.ts — v4.9.1-flow-scaffold
+ * call-brain-do/src/flow-audit.ts — v5.0.0-h1-source
  * Append-only audit log utilities for the flow harness.
  * Additive only — no behavior changes.
  */
 
 import type { CompletionMode, ConversationState, FlowAction, FlowEntry, StageId, WowStepId } from './types';
 import { FLOW_LOG_CAP } from './flow-constants';
+
+export type AuditSource = 'turn' | 'alarm' | 'event' | 'scribe';
 
 // ─── Core Append ─────────────────────────────────────────────────────────────
 
@@ -20,6 +22,7 @@ export function appendAudit(
   wowStep?: WowStepId | null,
   detail?: string,
   completionMode?: CompletionMode,
+  source?: AuditSource,
 ): FlowEntry {
   const entry: FlowEntry = {
     seq: state.flowSeq++,
@@ -29,6 +32,7 @@ export function appendAudit(
     ts: new Date().toISOString(),
     detail,
     ...(completionMode ? { completionMode } : {}),
+    ...(source ? { source } : {}),
   };
 
   state.flowLog.push(entry);
@@ -47,8 +51,9 @@ export function auditDirectiveIssued(
   stage: StageId,
   wowStep?: WowStepId | null,
   detail?: string,
+  source?: AuditSource,
 ): FlowEntry {
-  return appendAudit(state, 'directive_issued', stage, wowStep, detail);
+  return appendAudit(state, 'directive_issued', stage, wowStep, detail, undefined, source);
 }
 
 export function auditDeliveryResolved(
@@ -56,8 +61,9 @@ export function auditDeliveryResolved(
   stage: StageId,
   wowStep?: WowStepId | null,
   detail?: string,
+  source?: AuditSource,
 ): FlowEntry {
-  return appendAudit(state, 'delivery_resolved', stage, wowStep, detail);
+  return appendAudit(state, 'delivery_resolved', stage, wowStep, detail, undefined, source);
 }
 
 export function auditStageAdvanced(
@@ -66,8 +72,9 @@ export function auditStageAdvanced(
   toStage: StageId,
   detail?: string,
   completionMode?: CompletionMode,
+  source?: AuditSource,
 ): FlowEntry {
-  return appendAudit(state, 'stage_advanced', fromStage, undefined, detail ?? `→ ${toStage}`, completionMode);
+  return appendAudit(state, 'stage_advanced', fromStage, undefined, detail ?? `→ ${toStage}`, completionMode, source);
 }
 
 export function auditStepSkipped(
@@ -75,22 +82,25 @@ export function auditStepSkipped(
   stage: StageId,
   wowStep: WowStepId,
   reason: string,
+  source?: AuditSource,
 ): FlowEntry {
-  return appendAudit(state, 'step_skipped', stage, wowStep, reason);
+  return appendAudit(state, 'step_skipped', stage, wowStep, reason, undefined, source);
 }
 
 export function auditStaleEvent(
   state: ConversationState,
   stage: StageId,
   detail: string,
+  source?: AuditSource,
 ): FlowEntry {
-  return appendAudit(state, 'stale_event', stage, undefined, detail);
+  return appendAudit(state, 'stale_event', stage, undefined, detail, undefined, source);
 }
 
 export function auditCallDegraded(
   state: ConversationState,
   stage: StageId,
   reason: string,
+  source?: AuditSource,
 ): FlowEntry {
-  return appendAudit(state, 'call_degraded', stage, undefined, reason);
+  return appendAudit(state, 'call_degraded', stage, undefined, reason, undefined, source);
 }

@@ -4,6 +4,11 @@
  *
  * Core agents (Alex, Chris, Maddie) → default queue + combined ROI.
  * Optional agents (Sarah, James) → on-demand only, never in combined ROI.
+ *
+ * ROI COMMERCIAL NOTE (AUDIT-1, 27 March 2026):
+ * DO formulas produce ~10x larger figures than the legacy bridge formulas.
+ * This is CORRECT — the bridge had a /52 bug dividing weekly inputs by 52.
+ * Approved by founder for launch. Post-launch tuning available via constants.
  */
 
 import type {
@@ -257,17 +262,22 @@ export function computeJamesRoi(input: JamesRoiInputs): AgentRoiResult {
 
 /**
  * Aggregate ROI across core agents only (Alex, Chris, Maddie).
- * Sarah and James are NEVER included in the combined total.
+ * Sarah and James are NEVER included in the combined total:
+ *   - Sarah excluded: her value is a one-time dormant-database pool, not weekly recurring revenue.
+ *   - James excluded: optional agent, not part of the default core recurring combined total.
+ * The TypeScript signature enforces this — the input type is Partial<Record<CoreAgent, ...>>
+ * which only accepts 'alex' | 'chris' | 'maddie' keys.
  */
 export function computeCombinedRoi(
   results: Partial<Record<CoreAgent, AgentRoiResult>>,
 ): CombinedRoiResult {
+  // Core recurring agents only — Sarah and James are excluded by type and by design
   const coreOrder: CoreAgent[] = ['alex', 'chris', 'maddie'];
 
   // Only include agents that have results
   const orderedAgents = coreOrder.filter((a) => results[a] != null);
 
-  // Sum weekly values across core agents
+  // Sum weekly values across core agents only (recurring combined total)
   let totalWeeklyValue = 0;
   for (const agent of orderedAgents) {
     totalWeeklyValue += results[agent]!.weeklyValue;

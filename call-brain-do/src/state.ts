@@ -79,6 +79,9 @@ export function initState(callId: string, leadId: string): ConversationState {
     chrisEligible: false,
     maddieEligible: false,
 
+    // ── 24/7 phone coverage skip ──
+    maddieSkip: false,
+
     // ── Flow control ──
     proceedToROI: null,
     trialMentioned: false,
@@ -139,11 +142,17 @@ export function initState(callId: string, leadId: string): ConversationState {
     transcriptLog: [],
     memoryNotes: [],
 
+    // ── Monthly normalization ──
+    detectedInputUnits: {},
+
     // ── Flow harness ──
     pendingDelivery: null,
     flowLog: [],
     flowSeq: 0,
     consecutiveTimeouts: 0,
+
+    // ── KV export versioning ──
+    kvExportVersion: 0,
   };
 }
 
@@ -159,6 +168,9 @@ export async function loadState(storage: DurableObjectStorage): Promise<Conversa
   if (!Array.isArray(state.flowLog)) state.flowLog = [];
   if (typeof state.flowSeq !== 'number') state.flowSeq = 0;
   if (typeof state.consecutiveTimeouts !== 'number') state.consecutiveTimeouts = 0;
+  if (!state.detectedInputUnits) state.detectedInputUnits = {};
+  if (typeof state.kvExportVersion !== 'number') state.kvExportVersion = 0;
+  if (typeof state.maddieSkip !== 'boolean') state.maddieSkip = false;
 
   // Backward-compat: Chunk 3 PendingDelivery field migration
   if (state.pendingDelivery) {
@@ -319,6 +331,9 @@ function memoryKey(leadId: string): string {
 /**
  * Export active non-session memory notes to KV for cross-call persistence.
  * Non-fatal: KV write failures are logged but never throw.
+ *
+ * Also writes a legacy-compatible conv_memory export (Sprint DR-3b) for
+ * external consumers during bridge-brain deletion migration.
  */
 export async function exportMemoryToKV(
   kv: KVNamespace,
@@ -330,6 +345,7 @@ export async function exportMemoryToKV(
     return;
   }
 
+  // ── Canonical export: lead:{lid}:memory (structured MemoryNote[]) ──────
   try {
     const exportable = memoryNotes.filter(
       n => n.scope !== 'session' && n.status === 'active',
@@ -339,14 +355,73 @@ export async function exportMemoryToKV(
     if (exportable.length === 0) {
       await kv.delete(key);
       console.log(`[MEMORY_EXPORT] leadId=${leadId} notes=0 (key deleted)`);
-      return;
+    } else {
+      await kv.put(key, JSON.stringify(exportable));
+      console.log(`[MEMORY_EXPORT] leadId=${leadId} notes=${exportable.length}`);
     }
-
-    await kv.put(key, JSON.stringify(exportable));
-    console.log(`[MEMORY_EXPORT] leadId=${leadId} notes=${exportable.length}`);
   } catch (err: any) {
     console.error(`[MEMORY_EXPORT_ERR] leadId=${leadId} error=${err.message}`);
   }
+
+  // ── Legacy conv_memory compatibility export (Sprint DR-3b) ─────────────
+  // Architecture:
+  //   lead:{lid}:memory      = canonical source of truth (structured MemoryNote[])
+  //   lead:{lid}:conv_memory = temporary legacy compatibility mirror for external
+  //     consumers (bella-tools /run_deep_analysis, /snapshot; workflows-backend
+  //     Stage 3 ROI node) during bridge-brain deletion migration.
+  //     Remove this shim after all consumers migrate to lead:{lid}:memory.
+  // Best-effort: failures are logged but never thrown or retried.
+  // Empty-memory: writes empty string to clear stale bridge data.
+  try {
+    const convMemory = flattenNotesForLegacyConvMemory(memoryNotes);
+    await kv.put(`lead:${leadId}:conv_memory`, convMemory);
+    console.log(`[CONV_MEMORY_COMPAT] leadId=${leadId} chars=${convMemory.length}`);
+  } catch (err: any) {
+    console.error(`[CONV_MEMORY_COMPAT_ERR] leadId=${leadId} error=${err.message}`);
+  }
+}
+
+/**
+ * Flatten active memory notes into a legacy-compatible conv_memory bullet-string.
+ *
+ * This is a temporary compatibility shim (Sprint DR-3b) — NOT a canonical interface.
+ * Canonical memory lives in lead:{lid}:memory as structured MemoryNote[].
+ * This output mirrors the bridge's legacy conv_memory format for downstream consumers.
+ *
+ * Deterministic: same notes → identical output.
+ * Ordering: by createdAt ascending (oldest first, matching bridge append behavior).
+ * Filtering: active, non-session scope, non-empty text only. Deduped by normalized text.
+ * Format: "- [category] text" per line, newline-joined.
+ * Empty case: returns empty string (caller writes empty string to KV).
+ */
+export function flattenNotesForLegacyConvMemory(notes: MemoryNote[]): string {
+  // Same filter criteria as canonical export: active + non-session
+  const exportable = notes.filter(
+    n => n.scope !== 'session' && n.status === 'active' && n.text.trim().length > 0,
+  );
+
+  if (exportable.length === 0) return '';
+
+  // Deterministic order: createdAt ascending (oldest first)
+  const sorted = [...exportable].sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt),
+  );
+
+  // Dedupe by normalized text (keep first/oldest occurrence)
+  const seen = new Set<string>();
+  const deduped: MemoryNote[] = [];
+  for (const note of sorted) {
+    const normKey = note.text.toLowerCase().trim();
+    if (!seen.has(normKey)) {
+      seen.add(normKey);
+      deduped.push(note);
+    }
+  }
+
+  // Concise bullet format matching legacy bridge conv_memory style
+  return deduped
+    .map(n => `- [${n.category}] ${n.text.trim()}`)
+    .join('\n');
 }
 
 /**
@@ -571,6 +646,9 @@ export function migrateV1toV2(old: any): ConversationState {
     chrisEligible: ext.web_leads != null,
     maddieEligible: ext.phone_volume != null,
 
+    // ── 24/7 phone coverage skip ──
+    maddieSkip: false,
+
     // ── Flow control ──
     proceedToROI: null,
     trialMentioned: flags.trialMentioned ?? false,
@@ -646,10 +724,16 @@ export function migrateV1toV2(old: any): ConversationState {
       salience: note.salience ?? 2,
     })),
 
+    // ── Monthly normalization ──
+    detectedInputUnits: {},
+
     // ── Flow harness ──
     pendingDelivery: null,
     flowLog: [],
     flowSeq: 0,
     consecutiveTimeouts: 0,
+
+    // ── KV export versioning ──
+    kvExportVersion: 0,
   };
 }

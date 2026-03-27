@@ -40,7 +40,7 @@ import {
   mergeImportedMemory,
   exportCompatToKV,
 } from './state';
-import { extractFromTranscript, applyExtraction, appendTranscript, extractBellaMemoryNotes, commitmentKey, prescanForEarlyROI } from './extract';
+import { extractFromTranscript, applyExtraction, appendTranscript, extractBellaMemoryNotes, commitmentKey, prescanForEarlyROI, inferAcvMultiplier } from './extract';
 import { geminiExtract, geminiExtractHistory } from './gemini-extract';
 import { mergeIntel, initQueueFromIntel, deepMerge } from './intel';
 import { buildStageDirective } from './moves';
@@ -58,7 +58,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v5.6.0-s0-compat-exports';
+const VERSION = 'v5.12.0-acv-guard';
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
@@ -268,6 +268,49 @@ function buildActiveMemoryContext(
   return lines;
 }
 
+// ─── Compliance: extract key phrases from directive speak text ───────────────
+
+/** Filler openers to skip when extracting key phrases. */
+const FILLER_OPENERS = /^(so|and|but|now|well|okay|ok|right|great|yeah|yes|no|alright|absolutely|definitely|sure|perfect|exactly|look)\b/i;
+
+/**
+ * Extract 1-5 high-signal phrases from directive speak text for compliance checking.
+ * Returns empty array for empty/short text (<20 chars) — caller must not check compliance.
+ * Pure function — no side effects.
+ */
+function extractKeyPhrases(speakText: string): string[] {
+  if (!speakText || speakText.length < 20) return [];
+
+  // Split on sentence boundaries
+  const sentences = speakText.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length >= 10);
+  if (sentences.length === 0) return [];
+
+  const phrases: string[] = [];
+
+  for (const sentence of sentences) {
+    if (phrases.length >= 5) break;
+
+    // Strip filler opener
+    const cleaned = sentence.replace(FILLER_OPENERS, '').trim();
+    if (cleaned.length < 10) continue;
+
+    // Extract a 3-6 word window from the middle-to-start of the sentence
+    const words = cleaned.split(/\s+/);
+    if (words.length < 3) continue;
+
+    // Take first 3-5 substantive words as the phrase
+    const windowSize = Math.min(5, words.length);
+    const phrase = words.slice(0, windowSize).join(' ');
+
+    // Skip if too short or too generic
+    if (phrase.length < 8) continue;
+
+    phrases.push(phrase);
+  }
+
+  return phrases;
+}
+
 // ─── Map StageDirective to bridge-compat packet ─────────────────────────────
 
 function directiveToPacket(
@@ -306,7 +349,18 @@ function directiveToPacket(
         totalValue: coreResults.reduce((sum, [_, v]) => sum + v!.weeklyValue, 0),
       },
     } : {}),
+    // Sarah pool value: separate from recurring roi.totalValue (one-time dormant-database value, not weekly)
+    ...(state.calculatorResults.sarah ? {
+      sarahPoolValue: state.calculatorResults.sarah.weeklyValue,
+    } : {}),
     activeMemory: buildActiveMemoryContext(state, state.currentStage),
+    ...(Object.keys(state.detectedInputUnits).length > 0 ? {
+      detectedInputUnits: state.detectedInputUnits,
+    } : {}),
+    // M3: compliance phrases for delivery verification (observability only)
+    complianceChecks: {
+      mustContainPhrases: extractKeyPhrases(directive.speak),
+    },
   };
 }
 
@@ -502,6 +556,8 @@ export class CallBrainDO {
   private state: DurableObjectState;
   private env: Env;
   private geminiKey: string | null = null;
+  /** H1: monotonic counter for stale-write prevention on KV compat exports */
+  private _latestExportSeq = 0;
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
@@ -747,6 +803,17 @@ export class CallBrainDO {
     const { transcript, turnId, leadId } = body;
     const { brain } = await this.ensureSession(leadId ?? 'unknown');
 
+    // ── Dedup by turnId (catches near-duplicate transcripts from voice retries) ──
+    // Moved BEFORE identity population and extraction for efficiency (H1).
+    const cleanTranscript = (transcript || '').trim();
+    const cacheKey = `turn:${turnId}`;
+
+    const cached = await this.state.storage.get<any>(cacheKey);
+    if (cached) {
+      console.log(`[DEDUP] turnId=${turnId} — returning cached packet`);
+      return json({ ...cached, dedup: true });
+    }
+
     // Populate identity from bridge-forwarded fields (bridge loads KV before /turn)
     if (body.identity) {
       const id = body.identity;
@@ -801,16 +868,6 @@ export class CallBrainDO {
       }
     }
 
-    // ── Dedup by turnId (catches near-duplicate transcripts from voice retries) ──
-    const cleanTranscript = (transcript || '').trim();
-    const cacheKey = `turn:${turnId}`;
-
-    const cached = await this.state.storage.get<any>(cacheKey);
-    if (cached) {
-      console.log(`[DEDUP] turnId=${turnId} — returning cached packet`);
-      return json({ ...cached, dedup: true });
-    }
-
     // ── 1. Extract from transcript — Gemini primary, regex fallback ──
     const v2Targets = extractTargetsForStage(brain.currentStage, brain.currentWowStep);
 
@@ -842,6 +899,23 @@ export class CallBrainDO {
       console.log(`[EXTRACT] source=gemini stage=${brain.currentStage} fields=[${Object.keys(geminiResult.fields).join(',')}] ms=${geminiResult.latencyMs}`);
     } else {
       console.log(`[EXTRACT] source=regex stage=${brain.currentStage} gemini=${geminiResult === null ? 'skipped' : 'empty'} fields=[${Object.keys(regexResult.fields).filter(k => !k.startsWith('_')).join(',')}]`);
+    }
+
+    // ── 1a-post. ACV industry multiplier (ported from bridge monolith) ──
+    // Gemini returns literal parses for ambiguous values: "two fifty"→250, "five hundred"→500.
+    // Apply industry multiplier when value is in ambiguous range AND no explicit unit keyword in transcript.
+    const rawAcv = result.fields.acv;
+    if (
+      typeof rawAcv === 'number' && rawAcv >= 50 && rawAcv <= 999 &&
+      !/\b(k|thousand|grand|hundred\s*thousand|million|mil)\b/i.test(cleanTranscript) &&
+      brain.industryLanguage?.industryLabel &&
+      brain.industryLanguage.industryLabel !== 'business'
+    ) {
+      const mult = inferAcvMultiplier(brain.industryLanguage.industryLabel);
+      if (mult > 1) {
+        result.fields.acv = rawAcv * mult;
+        console.log(`[ACV_MULTIPLIER] raw=${rawAcv} industry=${brain.industryLanguage.industryLabel} multiplier=${mult} adjusted=${result.fields.acv}`);
+      }
     }
 
     const applied = applyExtraction(brain, result);
@@ -956,13 +1030,17 @@ export class CallBrainDO {
     // ── 4. Handle channel stage question counting ──
     // Must happen AFTER flow harness but BEFORE building packet
     // Only count if we're still in a channel stage and about to ask a question
+    // SKIP if the delivery gate just cleared a FAILED delivery — the previous question was
+    // never spoken to the user (stream error), so this directive is a retry, not a new question.
     const isChannelStage = brain.currentStage === 'ch_alex' || brain.currentStage === 'ch_chris' || brain.currentStage === 'ch_maddie' || brain.currentStage === 'ch_sarah' || brain.currentStage === 'ch_james';
-    if (isChannelStage && directive.ask && !advanced) {
+    if (isChannelStage && directive.ask && !advanced && !flowResult.clearedFailedDelivery) {
       const qKey = brain.currentStage as keyof typeof brain.questionCounts;
       if (qKey in brain.questionCounts) {
         brain.questionCounts[qKey]++;
         console.log(`[QCOUNT] ${qKey}=${brain.questionCounts[qKey]}/${directive.maxQuestions ?? '?'}`);
       }
+    } else if (isChannelStage && directive.ask && flowResult.clearedFailedDelivery) {
+      console.log(`[QCOUNT_SKIP] ${brain.currentStage} — previous delivery failed, not counting retry`);
     }
 
     // DIAG: log every directive before it becomes the packet
@@ -994,7 +1072,16 @@ export class CallBrainDO {
     await this.scheduleNextAlarm(brain);
 
     // Compatibility export: mirror DO state → legacy KV keys (non-blocking, non-fatal)
-    exportCompatToKV(this.env.LEADS_KV, brain).catch(() => {});
+    // H1: kvExportVersion + stale-write prevention via monotonic sequence
+    brain.kvExportVersion++;
+    const exportSeq = ++this._latestExportSeq;
+    this.state.waitUntil((async () => {
+      if (exportSeq < this._latestExportSeq) {
+        console.log(`[COMPAT_EXPORT_STALE] seq=${exportSeq} current=${this._latestExportSeq} — skipping`);
+        return;
+      }
+      await exportCompatToKV(this.env.LEADS_KV, brain);
+    })().catch(() => {}));
 
     return json({ ...responseBody, dedup: false });
   }
@@ -1043,11 +1130,13 @@ export class CallBrainDO {
           brain,
           event.deliveryId,
           event.moveId,
+          'event',
         );
 
         await persistState(this.state.storage, brain as any);
         await this.scheduleNextAlarm(brain);
-        return json({ status: resolved ? 'resolved' : 'stale', resolution: 'barged_in' });
+        console.log(`[EVENT] delivery_barged_in eventId=${event.eventId ?? 'none'} resolved=${resolved}`);
+        return json({ status: resolved ? 'resolved' : 'stale', resolution: 'barged_in', eventId: event.eventId });
       }
 
       case 'delivery_failed': {
@@ -1059,11 +1148,13 @@ export class CallBrainDO {
           event.deliveryId,
           event.moveId,
           event.errorCode,
+          'event',
         );
 
         await persistState(this.state.storage, brain as any);
         await this.scheduleNextAlarm(brain);
-        return json({ status: resolved ? 'resolved' : 'stale', resolution: 'failed' });
+        console.log(`[EVENT] delivery_failed eventId=${event.eventId ?? 'none'} resolved=${resolved}`);
+        return json({ status: resolved ? 'resolved' : 'stale', resolution: 'failed', eventId: event.eventId });
       }
 
       case 'call_end':
@@ -1086,7 +1177,7 @@ export class CallBrainDO {
       : event.type === 'consultant_ready' ? 'consultant'
       : 'deep';
 
-    const eventId = (event as any).eventId ?? 'none';
+    const eventId = event.eventId ?? 'none';
     const sentAt = (event as any).sentAt ?? 'unknown';
     const source = (event as any).source ?? 'unknown';
     const receivedAt = new Date().toISOString();
@@ -1164,6 +1255,8 @@ export class CallBrainDO {
     if (!brain) {
       return json({ error: 'no_session', message: 'No active session' }, 400);
     }
+
+    const eventId = event.eventId ?? 'none';
 
     // ── Flow Harness: resolve delivery ──
     if (event.deliveryId && brain.pendingDelivery) {
@@ -1249,6 +1342,7 @@ export class CallBrainDO {
       status: 'recorded',
       moveId: event.moveId,
       stage: brain.currentStage,
+      eventId,
     });
   }
 
@@ -1280,6 +1374,8 @@ export class CallBrainDO {
     }
 
     // Final compatibility export: mirror DO state → legacy KV keys (awaited at call_end)
+    brain.kvExportVersion++;
+    this._latestExportSeq++;
     await exportCompatToKV(this.env.LEADS_KV, brain).catch((err: any) => {
       console.error(`[COMPAT_EXPORT_FINAL_ERR] leadId=${brain.leadId} error=${err.message}`);
     });
@@ -1441,6 +1537,7 @@ export class CallBrainDO {
       flowLog: filteredLog,
       questionCounts: brain.questionCounts,
       calculatorResults: brain.calculatorResults,
+      kvExportVersion: brain.kvExportVersion,
     });
   }
 
@@ -1456,48 +1553,81 @@ export class CallBrainDO {
     if (brain.pendingDelivery && brain.pendingDelivery.status === 'pending') {
       const elapsed = now - brain.pendingDelivery.issuedAt;
       if (elapsed >= DELIVERY_TIMEOUT_MS) {
-        const { reissue } = resolveDeliveryTimeout(brain);
+        // H1 idempotency guard: re-read state to catch concurrent resolution
+        const freshBrain = await loadState(this.state.storage) as ConversationState | null;
+        if (!freshBrain) return;
+        if (!freshBrain.pendingDelivery || freshBrain.pendingDelivery.status !== 'pending') {
+          console.log(`[ALARM_IDEMPOTENT] delivery already resolved between reads — skipping`);
+          await this.scheduleNextAlarm(freshBrain);
+          return;
+        }
+        // Verify same deliveryId (not a new delivery queued between reads)
+        if (freshBrain.pendingDelivery.deliveryId !== brain.pendingDelivery.deliveryId) {
+          console.log(`[ALARM_IDEMPOTENT] deliveryId changed: was=${brain.pendingDelivery.deliveryId} now=${freshBrain.pendingDelivery.deliveryId} — skipping`);
+          await this.scheduleNextAlarm(freshBrain);
+          return;
+        }
 
-        await persistState(this.state.storage, brain as any);
-        // Schedule next alarm (covers both delivery reissue timeout and watchdog)
-        await this.scheduleNextAlarm(brain);
+        const { reissue } = resolveDeliveryTimeout(freshBrain, 'alarm');
+
+        // H1: persist BEFORE scheduling next alarm (persist-before-work)
+        await persistState(this.state.storage, freshBrain as any);
+        await this.scheduleNextAlarm(freshBrain);
         return; // Handled — don't fall through to watchdog this cycle
       }
     }
 
-    // ── Watchdog alarm logic (existing) ──
-    const lastTurnMs = brain.watchdog.lastTurnAt
-      ? new Date(brain.watchdog.lastTurnAt).getTime()
-      : null;
+    // ── Watchdog alarm logic ──
+    // Wrapped in try/finally to ensure persist-before-work even if watchdog throws
+    try {
+      const lastTurnMs = brain.watchdog.lastTurnAt
+        ? new Date(brain.watchdog.lastTurnAt).getTime()
+        : null;
 
-    // ── Deep intel missing ──
-    const deepStatus = (brain.intel.deep as any)?.status;
-    const apifyDone = deepStatus === 'done';
-    if (!apifyDone && !brain.watchdog.deepIntelMissingEscalation) {
-      brain.watchdog.deepIntelMissingEscalation = true;
-      console.log(`[ALARM] Deep intel missing — escalation flagged callId=${brain.callId}`);
-    }
+      // ── Deep intel missing ──
+      // Flag preserved for observability — moves.ts uses data-presence checks directly,
+      // not this flag. wow_2 checks d.googleMaps?.rating, wow_6 checks fills.scrapedDataSummary,
+      // wow_8 works from fast-intel flags without requiring deep data. The log line below
+      // provides useful production signal for diagnosing slow deep-scrape pipelines.
+      const deepStatus = (brain.intel.deep as any)?.status;
+      const apifyDone = deepStatus === 'done';
+      if (!apifyDone && !brain.watchdog.deepIntelMissingEscalation) {
+        brain.watchdog.deepIntelMissingEscalation = true;
+        console.log(`[ALARM] Deep intel missing — escalation flagged callId=${brain.callId}`);
+      }
 
-    // ── Call stale: no /turn for 120s ──
-    if (lastTurnMs && now - lastTurnMs > 120_000) {
-      console.log(`[ALARM] Call stale — no turn for ${Math.round((now - lastTurnMs) / 1000)}s callId=${brain.callId}`);
-      // Run pending calculators on stale call
-      const channelStages: StageId[] = ['ch_alex', 'ch_chris', 'ch_maddie'];
-      for (const stage of channelStages) {
-        const agent: CoreAgent = stage === 'ch_alex' ? 'alex' : stage === 'ch_chris' ? 'chris' : 'maddie';
-        if (!brain.calculatorResults[agent]) {
-          tryRunCalculator(stage, brain);
+      // ── Call stale: no /turn for 120s ──
+      // mustDeliverRoiNext was proposed but never implemented. Force-advance is
+      // handled by gate.ts shouldForceAdvance() + maxQuestionsReached(). No
+      // additional flag needed — the gate logic covers all ROI-pressure scenarios.
+      if (lastTurnMs && now - lastTurnMs > 120_000) {
+        console.log(`[ALARM] Call stale — no turn for ${Math.round((now - lastTurnMs) / 1000)}s callId=${brain.callId}`);
+        // Run pending calculators on stale call.
+        // Idempotent: the guard (!brain.calculatorResults[agent]) skips agents
+        // whose ROI was already computed. tryRunCalculator itself no-ops when
+        // minimum data is absent (hasXxxMinimumData returns false). Safe to
+        // re-enter on repeated alarms.
+        const channelStages: StageId[] = ['ch_alex', 'ch_chris', 'ch_maddie'];
+        for (const stage of channelStages) {
+          const agent: CoreAgent = stage === 'ch_alex' ? 'alex' : stage === 'ch_chris' ? 'chris' : 'maddie';
+          if (!brain.calculatorResults[agent]) {
+            console.log(`[ALARM_CALC] Running ${agent} calculator (acv=${brain.acv})`);
+            tryRunCalculator(stage, brain);
+          }
         }
       }
+
+      // ── Question budget tight ──
+      const isChannelStage = brain.currentStage === 'ch_alex' || brain.currentStage === 'ch_chris' || brain.currentStage === 'ch_maddie' || brain.currentStage === 'ch_sarah' || brain.currentStage === 'ch_james';
+      if (isChannelStage && maxQuestionsReached(brain.currentStage, brain) && !brain.questionBudgetTight) {
+        brain.questionBudgetTight = true;
+        console.log(`[ALARM] Question budget tight — stage=${brain.currentStage}`);
+      }
+    } catch (err: any) {
+      console.error(`[ALARM_WATCHDOG_ERR] ${err.message}`);
     }
 
-    // ── Question budget tight ──
-    const isChannelStage = brain.currentStage === 'ch_alex' || brain.currentStage === 'ch_chris' || brain.currentStage === 'ch_maddie' || brain.currentStage === 'ch_sarah' || brain.currentStage === 'ch_james';
-    if (isChannelStage && maxQuestionsReached(brain.currentStage, brain) && !brain.questionBudgetTight) {
-      brain.questionBudgetTight = true;
-      console.log(`[ALARM] Question budget tight — stage=${brain.currentStage}`);
-    }
-
+    // H1: persist BEFORE scheduling next alarm (persist-before-work)
     await persistState(this.state.storage, brain as any);
     await this.scheduleNextAlarm(brain);
   }

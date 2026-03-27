@@ -42,6 +42,7 @@ import {
   hasJamesMinimumData,
 } from './gate';
 import { WOW_STEP_ORDER, DELIVERY_TIMEOUT_MS, MAX_DELIVERY_ATTEMPTS, MAX_CONSECUTIVE_TIMEOUTS, DELIVERY_MIN_WINDOW_MS } from './flow-constants';
+import type { AuditSource } from './flow-audit';
 import {
   auditDirectiveIssued,
   auditDeliveryResolved,
@@ -162,19 +163,27 @@ export function tryRunCalculator(stage: StageId, state: ConversationState): bool
  * Returns 'hold' if the delivery is too fresh to clear (residual speech).
  * When 'hold' is returned, processFlow must NOT advance or overwrite pendingDelivery.
  */
+interface GateResult {
+  action: 'open' | 'hold';
+  /** True when the gate cleared a failed/timed_out delivery — question was never heard by user */
+  clearedFailed: boolean;
+}
+
 function resolveDeliveryGate(
   state: ConversationState,
   transcript: string,
-): 'open' | 'hold' {
+  source: AuditSource = 'turn',
+): GateResult {
   const p = state.pendingDelivery;
-  if (!p) return 'open'; // No pending delivery — gate is open
+  if (!p) return { action: 'open', clearedFailed: false };
 
   // Already resolved by event handler or alarm — just clear
   if (p.status !== 'pending') {
+    const wasFailed = p.status === 'failed';
     auditDeliveryResolved(state, p.stage, p.wowStep,
-      `gate_clear status=${p.status} resolution=${p.resolution ?? 'none'} moveId=${p.moveId}`);
+      `gate_clear status=${p.status} resolution=${p.resolution ?? 'none'} moveId=${p.moveId}`, source);
     state.pendingDelivery = null;
-    return 'open';
+    return { action: 'open', clearedFailed: wasFailed };
   }
 
   // Still pending — user spoke on /turn → implicit confirmation
@@ -186,17 +195,17 @@ function resolveDeliveryGate(
       // Too soon — this is residual speech, not a response to the new directive.
       // Do NOT clear, advance, or overwrite. Let llm_reply_done handle it naturally.
       console.log(`[DELIVERY_GATE_HOLD] moveId=${p.moveId} elapsed=${elapsed}ms < min=${DELIVERY_MIN_WINDOW_MS}ms — holding delivery`);
-      return 'hold';
+      return { action: 'hold', clearedFailed: false };
     }
-    auditDeliveryResolved(state, p.stage, p.wowStep, `implicit_user_spoke moveId=${p.moveId}`);
+    auditDeliveryResolved(state, p.stage, p.wowStep, `implicit_user_spoke moveId=${p.moveId}`, source);
     state.consecutiveTimeouts = 0;
     state.pendingDelivery = null;
-    return 'open';
+    return { action: 'open', clearedFailed: false };
   }
 
   // Edge case: empty transcript on /turn (shouldn't happen, handle gracefully)
   state.pendingDelivery = null;
-  return 'open';
+  return { action: 'open', clearedFailed: false };
 }
 
 // ─── Set Pending Delivery ───────────────────────────────────────────────────
@@ -209,6 +218,7 @@ function setPendingDelivery(
   state: ConversationState,
   directive: StageDirective,
   moveId: string,
+  source: AuditSource = 'turn',
 ): void {
   if (state.pendingDelivery && state.pendingDelivery.status === 'pending') {
     console.warn(`[FLOW_WARN] overwriting unresolved pendingDelivery moveId=${state.pendingDelivery.moveId} deliveryId=${state.pendingDelivery.deliveryId} with ${moveId}`);
@@ -228,7 +238,7 @@ function setPendingDelivery(
     attempts: 1,
   };
 
-  auditDirectiveIssued(state, state.currentStage, state.currentWowStep, `moveId=${moveId} deliveryId=${deliveryId}`);
+  auditDirectiveIssued(state, state.currentStage, state.currentWowStep, `moveId=${moveId} deliveryId=${deliveryId}`, source);
 }
 
 // ─── Delivery Resolution Functions ─────────────────────────────────────────
@@ -251,13 +261,14 @@ export function resolveDeliveryCompleted(
   state: ConversationState,
   deliveryId: string,
   moveId: string,
+  source: AuditSource = 'event',
 ): boolean {
   const p = state.pendingDelivery;
 
   // Stale-event check: deliveryId must match
   if (!p || p.deliveryId !== deliveryId) {
     auditStaleEvent(state, state.currentStage,
-      `llm_reply_done deliveryId=${deliveryId} expected=${p?.deliveryId ?? 'none'}`);
+      `llm_reply_done deliveryId=${deliveryId} expected=${p?.deliveryId ?? 'none'}`, source);
     console.log(`[STALE_EVENT] llm_reply_done deliveryId=${deliveryId} expected=${p?.deliveryId ?? 'none'}`);
     return false;
   }
@@ -265,7 +276,7 @@ export function resolveDeliveryCompleted(
   // Correlation check: if moveId is present, verify it matches
   if (moveId && p.moveId !== moveId) {
     auditStaleEvent(state, state.currentStage,
-      `llm_reply_done deliveryId=${deliveryId} moveId_mismatch expected=${p.moveId} got=${moveId}`);
+      `llm_reply_done deliveryId=${deliveryId} moveId_mismatch expected=${p.moveId} got=${moveId}`, source);
     console.log(`[STALE_EVENT] llm_reply_done correlation mismatch deliveryId=${deliveryId} moveId=${moveId} expected=${p.moveId}`);
     return false;
   }
@@ -273,7 +284,7 @@ export function resolveDeliveryCompleted(
   // First-valid-event-wins: already resolved
   if (p.status !== 'pending') {
     auditStaleEvent(state, state.currentStage,
-      `llm_reply_done_late deliveryId=${deliveryId} status=${p.status}`);
+      `llm_reply_done_late deliveryId=${deliveryId} status=${p.status}`, source);
     console.log(`[STALE_EVENT] llm_reply_done arrived but status already ${p.status}`);
     return false;
   }
@@ -284,7 +295,7 @@ export function resolveDeliveryCompleted(
   state.consecutiveTimeouts = 0;
 
   auditDeliveryResolved(state, p.stage, p.wowStep,
-    `delivery_completed deliveryId=${deliveryId} moveId=${p.moveId}`);
+    `delivery_completed deliveryId=${deliveryId} moveId=${p.moveId}`, source);
   console.log(`[DELIVERY] completed deliveryId=${deliveryId} moveId=${p.moveId}`);
 
   return true;
@@ -298,13 +309,14 @@ export function resolveDeliveryBargedIn(
   state: ConversationState,
   deliveryId: string,
   moveId: string,
+  source: AuditSource = 'event',
 ): boolean {
   const p = state.pendingDelivery;
 
   // Stale-event check
   if (!p || p.deliveryId !== deliveryId) {
     auditStaleEvent(state, state.currentStage,
-      `delivery_barged_in deliveryId=${deliveryId} expected=${p?.deliveryId ?? 'none'}`);
+      `delivery_barged_in deliveryId=${deliveryId} expected=${p?.deliveryId ?? 'none'}`, source);
     console.log(`[STALE_EVENT] barged_in deliveryId=${deliveryId} expected=${p?.deliveryId ?? 'none'}`);
     return false;
   }
@@ -312,7 +324,7 @@ export function resolveDeliveryBargedIn(
   // Correlation check
   if (moveId && p.moveId !== moveId) {
     auditStaleEvent(state, state.currentStage,
-      `delivery_barged_in deliveryId=${deliveryId} moveId_mismatch expected=${p.moveId} got=${moveId}`);
+      `delivery_barged_in deliveryId=${deliveryId} moveId_mismatch expected=${p.moveId} got=${moveId}`, source);
     console.log(`[STALE_EVENT] barged_in correlation mismatch deliveryId=${deliveryId} moveId=${moveId} expected=${p.moveId}`);
     return false;
   }
@@ -320,7 +332,7 @@ export function resolveDeliveryBargedIn(
   // First-valid-event-wins
   if (p.status !== 'pending') {
     auditStaleEvent(state, state.currentStage,
-      `delivery_barged_in_late deliveryId=${deliveryId} status=${p.status}`);
+      `delivery_barged_in_late deliveryId=${deliveryId} status=${p.status}`, source);
     console.log(`[STALE_EVENT] barged_in arrived but status already ${p.status}`);
     return false;
   }
@@ -331,7 +343,7 @@ export function resolveDeliveryBargedIn(
   state.consecutiveTimeouts = 0;
 
   auditDeliveryResolved(state, p.stage, p.wowStep,
-    `delivery_barged_in deliveryId=${deliveryId} moveId=${p.moveId} waitForUser=${p.waitForUser}`);
+    `delivery_barged_in deliveryId=${deliveryId} moveId=${p.moveId} waitForUser=${p.waitForUser}`, source);
   console.log(`[DELIVERY] barged_in deliveryId=${deliveryId} moveId=${p.moveId} waitForUser=${p.waitForUser}`);
 
   return true;
@@ -348,13 +360,14 @@ export function resolveDeliveryFailed(
   deliveryId: string,
   moveId: string,
   errorCode?: string,
+  source: AuditSource = 'event',
 ): boolean {
   const p = state.pendingDelivery;
 
   // Stale-event check
   if (!p || p.deliveryId !== deliveryId) {
     auditStaleEvent(state, state.currentStage,
-      `delivery_failed deliveryId=${deliveryId} expected=${p?.deliveryId ?? 'none'}`);
+      `delivery_failed deliveryId=${deliveryId} expected=${p?.deliveryId ?? 'none'}`, source);
     console.log(`[STALE_EVENT] failed deliveryId=${deliveryId} expected=${p?.deliveryId ?? 'none'}`);
     return false;
   }
@@ -362,7 +375,7 @@ export function resolveDeliveryFailed(
   // Correlation check
   if (moveId && p.moveId !== moveId) {
     auditStaleEvent(state, state.currentStage,
-      `delivery_failed deliveryId=${deliveryId} moveId_mismatch expected=${p.moveId} got=${moveId}`);
+      `delivery_failed deliveryId=${deliveryId} moveId_mismatch expected=${p.moveId} got=${moveId}`, source);
     console.log(`[STALE_EVENT] failed correlation mismatch deliveryId=${deliveryId} moveId=${moveId} expected=${p.moveId}`);
     return false;
   }
@@ -370,7 +383,7 @@ export function resolveDeliveryFailed(
   // First-valid-event-wins
   if (p.status !== 'pending') {
     auditStaleEvent(state, state.currentStage,
-      `delivery_failed_late deliveryId=${deliveryId} status=${p.status}`);
+      `delivery_failed_late deliveryId=${deliveryId} status=${p.status}`, source);
     console.log(`[STALE_EVENT] failed arrived but status already ${p.status}`);
     return false;
   }
@@ -380,7 +393,7 @@ export function resolveDeliveryFailed(
   p.resolution = `failed_error=${errorCode ?? 'unknown'}`;
 
   auditDeliveryResolved(state, p.stage, p.wowStep,
-    `delivery_failed deliveryId=${deliveryId} moveId=${p.moveId} error=${errorCode ?? 'unknown'} attempts=${p.attempts}`);
+    `delivery_failed deliveryId=${deliveryId} moveId=${p.moveId} error=${errorCode ?? 'unknown'} attempts=${p.attempts}`, source);
   console.log(`[DELIVERY] failed deliveryId=${deliveryId} moveId=${p.moveId} error=${errorCode ?? 'unknown'} attempts=${p.attempts}`);
 
   return true;
@@ -400,6 +413,7 @@ export function resolveDeliveryFailed(
  */
 export function resolveDeliveryTimeout(
   state: ConversationState,
+  source: AuditSource = 'alarm',
 ): { reissue: boolean; degraded: boolean } {
   const p = state.pendingDelivery;
 
@@ -417,13 +431,13 @@ export function resolveDeliveryTimeout(
     p.issuedAt = Date.now(); // Reset timer for next timeout window
 
     auditDeliveryResolved(state, p.stage, p.wowStep,
-      `timeout_reissue deliveryId=${p.deliveryId} attempts=${p.attempts} consecutiveTimeouts=${state.consecutiveTimeouts}`);
+      `timeout_reissue deliveryId=${p.deliveryId} attempts=${p.attempts} consecutiveTimeouts=${state.consecutiveTimeouts}`, source);
     console.log(`[DELIVERY_TIMEOUT] reissue attempts=${p.attempts} deliveryId=${p.deliveryId}`);
 
     // Check degradation
     if (state.consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
       auditCallDegraded(state, state.currentStage,
-        `${state.consecutiveTimeouts} consecutive timeouts — bridge may be offline`);
+        `${state.consecutiveTimeouts} consecutive timeouts — bridge may be offline`, source);
       console.log(`[CALL_DEGRADED] ${state.consecutiveTimeouts} consecutive timeouts — bridge may be offline`);
       return { reissue: true, degraded: true };
     }
@@ -438,13 +452,13 @@ export function resolveDeliveryTimeout(
   p.resolution = 'timed_out';
 
   auditDeliveryResolved(state, p.stage, p.wowStep,
-    `delivery_timeout deliveryId=${p.deliveryId} attempts_exhausted=${p.attempts} consecutiveTimeouts=${state.consecutiveTimeouts}`);
+    `delivery_timeout deliveryId=${p.deliveryId} attempts_exhausted=${p.attempts} consecutiveTimeouts=${state.consecutiveTimeouts}`, source);
   console.log(`[DELIVERY_TIMEOUT] force-clear deliveryId=${p.deliveryId} attempts=${p.attempts}`);
 
   // Check degradation
   if (state.consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
     auditCallDegraded(state, state.currentStage,
-      `${state.consecutiveTimeouts} consecutive timeouts`);
+      `${state.consecutiveTimeouts} consecutive timeouts`, source);
     console.log(`[CALL_DEGRADED] ${state.consecutiveTimeouts} consecutive timeouts`);
     return { reissue: false, degraded: true };
   }
@@ -476,11 +490,11 @@ export function processFlow(
   // PHASE 1: DELIVERY GATE
   // ═════════════════════════════════════════════════════════════════════════
 
-  const gateResult = resolveDeliveryGate(state, cleanTranscript);
+  const gateResult = resolveDeliveryGate(state, cleanTranscript, 'turn');
 
   // Gate hold: delivery is too fresh to clear (residual speech from previous turn).
   // Return the EXISTING directive without advancing or overwriting pendingDelivery.
-  if (gateResult === 'hold') {
+  if (gateResult.action === 'hold') {
     const directive = buildStageDirective({
       stage: state.currentStage,
       wowStep: state.currentWowStep,
@@ -490,6 +504,9 @@ export function processFlow(
     const moveId = `v2_${state.currentStage}${state.currentWowStep ? '_' + state.currentWowStep : ''}`;
     return { directive, moveId, advanced: false };
   }
+
+  // Track if we just cleared a failed delivery — used to skip question counting
+  const clearedFailedDelivery = gateResult.clearedFailed;
 
   // ═════════════════════════════════════════════════════════════════════════
   // PHASE 2: ADVANCEMENT — deterministic state machine
@@ -506,7 +523,7 @@ export function processFlow(
         state.currentStage = 'wow';
         state.currentWowStep = 'wow_1_research_intro';
         advanced = true;
-        auditStageAdvanced(state, 'greeting', 'wow', '→ wow_1_research_intro');
+        auditStageAdvanced(state, 'greeting', 'wow', '→ wow_1_research_intro', undefined, 'turn');
         console.log(`[ADVANCE] greeting → wow (wow_1_research_intro)`);
       }
       break;
@@ -514,6 +531,29 @@ export function processFlow(
 
     // ── WOW ───────────────────────────────────────────────────────────────
     case 'wow': {
+      // Failed delivery recovery: skip the failed step immediately.
+      // The user never heard the full directive — re-issuing with stale
+      // conversation context causes Gemini off-script behavior.
+      if (clearedFailedDelivery && state.currentWowStep) {
+        console.log(`[WOW_FAILED_SKIP] ${state.currentWowStep} → skipping past failed delivery`);
+        state.completedWowSteps.push(state.currentWowStep);
+        const nextAfterFail = nextWowStep(state.currentWowStep);
+        if (nextAfterFail) {
+          state.currentWowStep = nextAfterFail;
+          advanced = true;
+          auditStageAdvanced(state, 'wow', 'wow', `failed_delivery_skip → ${nextAfterFail}`, undefined, 'turn');
+          console.log(`[WOW] → ${nextAfterFail} (failed delivery skip)`);
+        } else {
+          state.completedStages.push('wow');
+          state.currentWowStep = null;
+          state.currentStage = 'recommendation';
+          advanced = true;
+          auditStageAdvanced(state, 'wow', 'recommendation', 'failed_delivery_skip_exhausted', undefined, 'turn');
+          console.log(`[ADVANCE] wow → recommendation (failed delivery skip)`);
+        }
+        break;
+      }
+
       const filler = isFillerOnly(cleanTranscript);
 
       // Build directive for current step to check if it's skippable or a question
@@ -530,7 +570,7 @@ export function processFlow(
         while (skipStep) {
           const sd = buildStageDirective({ stage: 'wow', wowStep: skipStep, intel, state });
           if (!sd.canSkip || sd.waitForUser) break; // found non-skippable — stop here
-          auditStepSkipped(state, 'wow', skipStep, 'canSkip_no_waitForUser');
+          auditStepSkipped(state, 'wow', skipStep, 'canSkip_no_waitForUser', 'turn');
           console.log(`[WOW_SKIP] ${skipStep} (canSkip + no waitForUser)`);
           state.completedWowSteps.push(skipStep);
           const nxt = nextWowStep(skipStep);
@@ -543,7 +583,7 @@ export function processFlow(
             state.currentWowStep = null;
             state.currentStage = 'recommendation';
             advanced = true;
-            auditStageAdvanced(state, 'wow', 'recommendation', 'auto_skip_exhausted');
+            auditStageAdvanced(state, 'wow', 'recommendation', 'auto_skip_exhausted', undefined, 'turn');
             console.log(`[ADVANCE] wow → recommendation`);
             skipStep = null;
           }
@@ -578,7 +618,7 @@ export function processFlow(
           while (chainStep) {
             const nd = buildStageDirective({ stage: 'wow', wowStep: chainStep, intel, state });
             if (!nd.canSkip || nd.waitForUser) break; // found non-skippable — deliver this one
-            auditStepSkipped(state, 'wow', chainStep, 'canSkip_chain_skip');
+            auditStepSkipped(state, 'wow', chainStep, 'canSkip_chain_skip', 'turn');
             console.log(`[WOW_CHAIN_SKIP] ${chainStep} (canSkip + no waitForUser)`);
             state.completedWowSteps.push(chainStep);
             const nextNext = nextWowStep(chainStep);
@@ -591,7 +631,7 @@ export function processFlow(
               state.currentWowStep = null;
               state.currentStage = 'recommendation';
               advanced = true;
-              auditStageAdvanced(state, 'wow', 'recommendation', 'chain_skip_exhausted');
+              auditStageAdvanced(state, 'wow', 'recommendation', 'chain_skip_exhausted', undefined, 'turn');
               console.log(`[ADVANCE] wow → recommendation`);
               chainStep = null;
             }
@@ -601,7 +641,7 @@ export function processFlow(
           state.currentWowStep = null;
           state.currentStage = 'recommendation';
           advanced = true;
-          auditStageAdvanced(state, 'wow', 'recommendation', 'wow_complete');
+          auditStageAdvanced(state, 'wow', 'recommendation', 'wow_complete', undefined, 'turn');
           console.log(`[ADVANCE] wow → recommendation`);
         }
       }
@@ -614,9 +654,19 @@ export function processFlow(
         state.topAgents = deriveTopAgents(state);
         state.currentQueue = buildInitialQueue(state);
         state.completedStages.push('recommendation');
+
+        // ── just_demo skip: bypass entire numbers path ──
+        if (state.proceedToROI === false) {
+          state.currentStage = 'close';
+          advanced = true;
+          auditStageAdvanced(state, 'recommendation', 'close', 'just_demo_skip', 'just_demo_skip', 'turn');
+          console.log(`[JUST_DEMO_SKIP] recommendation → close (proceedToROI=false)`);
+          break;
+        }
+
         state.currentStage = 'anchor_acv';
         advanced = true;
-        auditStageAdvanced(state, 'recommendation', 'anchor_acv', `queue=[${state.currentQueue.map(q => q.stage).join(',')}]`);
+        auditStageAdvanced(state, 'recommendation', 'anchor_acv', `queue=[${state.currentQueue.map(q => q.stage).join(',')}]`, undefined, 'turn');
         console.log(`[ADVANCE] recommendation → anchor_acv (queue=[${state.currentQueue.map(q => q.stage).join(',')}])`);
       }
       break;
@@ -624,11 +674,21 @@ export function processFlow(
 
     // ── ANCHOR ACV ────────────────────────────────────────────────────────
     case 'anchor_acv': {
+      // ── just_demo mid-flow skip ──
+      if (state.proceedToROI === false) {
+        state.completedStages.push('anchor_acv');
+        state.currentStage = 'close';
+        advanced = true;
+        auditStageAdvanced(state, 'anchor_acv', 'close', 'just_demo_skip', 'just_demo_skip', 'turn');
+        console.log(`[JUST_DEMO_SKIP] anchor_acv → close (proceedToROI=false)`);
+        break;
+      }
+
       if (state.acv != null) {
         state.completedStages.push('anchor_acv');
         state.currentStage = nextChannelFromQueue(state);
         advanced = true;
-        auditStageAdvanced(state, 'anchor_acv', state.currentStage, `acv=$${state.acv}`);
+        auditStageAdvanced(state, 'anchor_acv', state.currentStage, `acv=$${state.acv}`, undefined, 'turn');
         console.log(`[ADVANCE] anchor_acv → ${state.currentStage} (acv=$${state.acv})`);
       }
       break;
@@ -645,6 +705,26 @@ export function processFlow(
       const agent = agentMap[stage];
       const qKey = stage as keyof typeof state.questionCounts;
       const maxQ = stage === 'ch_alex' ? 3 : 2; // Alex=3, Chris=2, Maddie=2
+
+      // ── just_demo mid-flow skip: prospect opted out of numbers ──
+      if (state.proceedToROI === false) {
+        state.completedStages.push(stage);
+        state.currentStage = 'close';
+        advanced = true;
+        auditStageAdvanced(state, stage, 'close', 'just_demo_skip', 'just_demo_skip', 'turn');
+        console.log(`[JUST_DEMO_SKIP] ${stage} → close (proceedToROI=false)`);
+        break;
+      }
+
+      // ── 24/7 skip: skip ch_maddie at execution time if maddieSkip is true ──
+      if (stage === 'ch_maddie' && state.maddieSkip) {
+        state.completedStages.push('ch_maddie');
+        state.currentStage = nextChannelFromQueue(state);
+        advanced = true;
+        auditStageAdvanced(state, 'ch_maddie', state.currentStage, 'maddieSkip=true (24/7 coverage)', 'skipped_24_7', 'turn');
+        console.log(`[ADVANCE] ch_maddie → ${state.currentStage} (skipped_24_7 — 24/7 phone coverage)`);
+        break;
+      }
 
       // Try to run calculator if we have enough data
       const force = shouldForceAdvance(stage, state);
@@ -671,7 +751,7 @@ export function processFlow(
             state.currentStage = nextChannelFromQueue(state);
           }
           advanced = true;
-          auditStageAdvanced(state, stage, state.currentStage, `hasResult=${hasResult} hasSpoken=${hasSpoken} budgetDone=${budgetDone} isStuck=${isStuck} qCount=${state.questionCounts[qKey]}`, completionMode);
+          auditStageAdvanced(state, stage, state.currentStage, `hasResult=${hasResult} hasSpoken=${hasSpoken} budgetDone=${budgetDone} isStuck=${isStuck} qCount=${state.questionCounts[qKey]}`, completionMode, 'turn');
           console.log(`[ADVANCE] ${stage} → ${state.currentStage} (${completionMode}) (hasResult=${hasResult} hasSpoken=${hasSpoken} budgetDone=${budgetDone} isStuck=${isStuck} qCount=${state.questionCounts[qKey]})`);
         }
         // Otherwise the directive will show ROI this turn — don't advance yet
@@ -687,7 +767,7 @@ export function processFlow(
         state.completedStages.push('roi_delivery');
         state.currentStage = 'optional_side_agents';
         advanced = true;
-        auditStageAdvanced(state, 'roi_delivery', 'optional_side_agents', 'roi_confirmed');
+        auditStageAdvanced(state, 'roi_delivery', 'optional_side_agents', 'roi_confirmed', undefined, 'turn');
         console.log(`[ADVANCE] roi_delivery → optional_side_agents`);
       }
       break;
@@ -699,18 +779,18 @@ export function processFlow(
       if (state.prospectAskedAboutSarah && !state.completedStages.includes('ch_sarah')) {
         state.currentStage = 'ch_sarah';
         advanced = true;
-        auditStageAdvanced(state, 'optional_side_agents', 'ch_sarah', 'prospect_asked');
+        auditStageAdvanced(state, 'optional_side_agents', 'ch_sarah', 'prospect_asked', undefined, 'turn');
         console.log(`[ADVANCE] optional_side_agents → ch_sarah (prospect asked)`);
       } else if (state.prospectAskedAboutJames && !state.completedStages.includes('ch_james')) {
         state.currentStage = 'ch_james';
         advanced = true;
-        auditStageAdvanced(state, 'optional_side_agents', 'ch_james', 'prospect_asked');
+        auditStageAdvanced(state, 'optional_side_agents', 'ch_james', 'prospect_asked', undefined, 'turn');
         console.log(`[ADVANCE] optional_side_agents → ch_james (prospect asked)`);
       } else {
         state.completedStages.push('optional_side_agents');
         state.currentStage = 'close';
         advanced = true;
-        auditStageAdvanced(state, 'optional_side_agents', 'close', 'no_optional_pending');
+        auditStageAdvanced(state, 'optional_side_agents', 'close', 'no_optional_pending', undefined, 'turn');
         console.log(`[ADVANCE] optional_side_agents → close`);
       }
       break;
@@ -740,7 +820,7 @@ export function processFlow(
   // PHASE 4: SET PENDING DELIVERY
   // ═════════════════════════════════════════════════════════════════════════
 
-  setPendingDelivery(state, directive, moveId);
+  setPendingDelivery(state, directive, moveId, 'turn');
 
-  return { directive, moveId, advanced };
+  return { directive, moveId, advanced, clearedFailedDelivery };
 }

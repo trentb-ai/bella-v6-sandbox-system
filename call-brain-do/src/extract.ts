@@ -283,6 +283,23 @@ export function commitmentKey(text: string): string {
     .trim();
 }
 
+// ─── ACV industry multiplier (ported from bridge monolith) ──────────────────
+
+/**
+ * Infer a multiplier for ambiguous ACV values based on industry.
+ * Bridge monolith gold — deepgram-bridge-v11/src/index.ts lines 875-888.
+ * Extended with keywords from DO's KEYWORD_MAP in intel.ts: wealth, financial, landscap.
+ */
+export function inferAcvMultiplier(industry: string): number {
+  const ind = industry.toLowerCase();
+  if (/legal|law|consult|advisory|account|finance|financial|wealth|insurance|enterprise|corporate/.test(ind)) return 1000;
+  if (/real.?estate|property|agency|market|architect|engineer/.test(ind)) return 100;
+  if (/dental|medical|health|physio|chiro|gym|fitness|beauty|salon/.test(ind)) return 10;
+  if (/trade|plumb|electric|build|construct|hvac|roof|landscap/.test(ind)) return 100;
+  if (/restaurant|cafe|hospit|hotel|retail|shop|store/.test(ind)) return 1;
+  return 10;
+}
+
 // ─── Memory note detection ──────────────────────────────────────────────────
 
 interface MemoryPattern {
@@ -509,15 +526,26 @@ export function extractFromTranscript(
       const val = parseInt(convMatch[1]);
       if (val > 0) { fields.inboundConversions = val; normalized.inboundConversions = convMatch[0]; }
     }
-    // Standalone fallback: only fire if inboundLeads was NOT extracted from the same utterance
-    // (prevents mirroring the same number to both fields)
+    // Contextual regex fallback (secondary to Gemini):
+    // Only fires when keyword-match above missed AND the prospect's answer is short/direct.
+    // Guards: value must be < inboundLeads, not ACV/revenue fragment, not staff/office count.
     if (!fields.inboundConversions && !fields.inboundLeads) {
-      const standaloneConv = s.match(/(?:about|around|roughly|maybe|probably|say|like)?\s*(ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|\d{1,3})\b/i);
-      if (standaloneConv) {
-        const val = parseNumber(standaloneConv[1]);
-        const acv = currentState?.acv ?? 0;
-        const isAcvMatch = acv > 0 && (val === acv || val === acv / 10 || val === acv / 100 || val === acv / 1000 || (val && (val * 10 === acv || val * 100 === acv || val * 1000 === acv)));
-        if (val && val > 0 && val <= 500 && !isAcvMatch) { fields.inboundConversions = val; normalized.inboundConversions = standaloneConv[0]; }
+      // Negative guard: reject if utterance mentions staff, team, office, employees
+      const staffContext = /\b(?:staff|team|employee|people|office|person)\b/i.test(s);
+      if (!staffContext) {
+        const standaloneConv = s.match(/(?:about|around|roughly|maybe|probably|say|like|oh|uh|um|yeah)?\s*(ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|\d{1,3})\b/i);
+        if (standaloneConv) {
+          const val = parseNumber(standaloneConv[1]);
+          const acv = currentState?.acv ?? 0;
+          const leads = currentState?.inboundLeads ?? Infinity;
+          const isAcvFragment = acv > 0 && (val === acv || val === acv / 10 || val === acv / 100 || val === acv / 1000 || (val && (val * 10 === acv || val * 100 === acv || val * 1000 === acv)));
+          // Parent-child bound: conversions must be less than leads
+          if (val && val > 0 && val < leads && val <= 500 && !isAcvFragment) {
+            fields.inboundConversions = val;
+            normalized.inboundConversions = standaloneConv[0];
+            console.log(`[SLOT_FALLBACK] stage=ch_alex slot=inboundConversions source=regex_context val=${val}`);
+          }
+        }
       }
     }
   }
@@ -571,6 +599,26 @@ export function extractFromTranscript(
     // Keyword-aware conversion match only — no greedy multi-number extraction
     const convMatch = s.match(/(\d+)\s*(?:convert|become|turn|close|sale|client|customer)/i);
     if (convMatch) { fields.webConversions = parseInt(convMatch[1]); normalized.webConversions = convMatch[0]; }
+
+    // Contextual regex fallback (secondary to Gemini):
+    // Short direct answer with a number, no keyword needed. Guards: < webLeads, not ACV/staff.
+    if (!fields.webConversions && !fields.webLeads) {
+      const staffContext = /\b(?:staff|team|employee|people|office|person)\b/i.test(s);
+      if (!staffContext) {
+        const standaloneConv = s.match(/(?:about|around|roughly|maybe|probably|say|like|oh|uh|um|yeah)?\s*(ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|\d{1,3})\b/i);
+        if (standaloneConv) {
+          const val = parseNumber(standaloneConv[1]);
+          const acv = currentState?.acv ?? 0;
+          const leads = currentState?.webLeads ?? Infinity;
+          const isAcvFragment = acv > 0 && (val === acv || val === acv / 10 || val === acv / 100 || val === acv / 1000 || (val && (val * 10 === acv || val * 100 === acv || val * 1000 === acv)));
+          if (val && val > 0 && val < leads && val <= 500 && !isAcvFragment) {
+            fields.webConversions = val;
+            normalized.webConversions = standaloneConv[0];
+            console.log(`[SLOT_FALLBACK] stage=ch_chris slot=webConversions source=regex_context val=${val}`);
+          }
+        }
+      }
+    }
   }
 
   // ── Web conversion rate (Chris — ch_chris) ──
@@ -598,6 +646,27 @@ export function extractFromTranscript(
     if (missedNumMatch) {
       const val = parseInt(missedNumMatch[1]);
       if (val > 0) { fields.missedCalls = val; normalized.missedCalls = missedNumMatch[0]; }
+    }
+
+    // Contextual regex fallback (secondary to Gemini):
+    // Short direct answer with a number. Guards: <= phoneVolume, not ACV/staff.
+    if (!fields.missedCalls) {
+      const staffContext = /\b(?:staff|team|employee|people|office|person)\b/i.test(s);
+      if (!staffContext) {
+        const standaloneMatch = s.match(/(?:about|around|roughly|maybe|probably|say|like|oh|uh|um|yeah)?\s*(ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|\d{1,3})\b/i);
+        if (standaloneMatch) {
+          const val = parseNumber(standaloneMatch[1]);
+          const acv = currentState?.acv ?? 0;
+          const volume = currentState?.phoneVolume ?? Infinity;
+          const isAcvFragment = acv > 0 && (val === acv || val === acv / 10 || val === acv / 100 || val === acv / 1000 || (val && (val * 10 === acv || val * 100 === acv || val * 1000 === acv)));
+          // Parent-child bound: missed calls must be <= phone volume
+          if (val && val > 0 && val <= volume && val <= 500 && !isAcvFragment) {
+            fields.missedCalls = val;
+            normalized.missedCalls = standaloneMatch[0];
+            console.log(`[SLOT_FALLBACK] stage=ch_maddie slot=missedCalls source=regex_context val=${val}`);
+          }
+        }
+      }
     }
   }
 
@@ -667,21 +736,30 @@ export function extractFromTranscript(
         let mappedTo = '';
         if (stage === 'anchor_acv' && val >= 100) { fields.acv = val; mappedTo = 'acv'; }
         else if (stage === 'ch_alex') {
-          if (effectiveTargets.includes('inboundConversions') && currentState?.inboundLeads != null && currentState?.inboundConversions == null && val !== currentState.inboundLeads) {
+          // Parent-child bound: conversions must be < leads; not staff/office context
+          const alexLeads = currentState?.inboundLeads ?? Infinity;
+          const alexStaffCtx = /\b(?:staff|team|employee|people|office|person)\b/i.test(s);
+          if (effectiveTargets.includes('inboundConversions') && currentState?.inboundLeads != null && currentState?.inboundConversions == null && val !== currentState.inboundLeads && val < alexLeads && !alexStaffCtx) {
             fields.inboundConversions = val; mappedTo = 'inboundConversions';
           } else if (effectiveTargets.includes('inboundLeads') && currentState?.inboundLeads == null) {
             fields.inboundLeads = val; mappedTo = 'inboundLeads';
           }
         }
         else if (stage === 'ch_chris') {
-          if (effectiveTargets.includes('webConversions') && currentState?.webLeads != null && currentState?.webConversions == null && val !== currentState.webLeads) {
+          // Parent-child bound: conversions must be < webLeads; not staff/office context
+          const chrisLeads = currentState?.webLeads ?? Infinity;
+          const chrisStaffCtx = /\b(?:staff|team|employee|people|office|person)\b/i.test(s);
+          if (effectiveTargets.includes('webConversions') && currentState?.webLeads != null && currentState?.webConversions == null && val !== currentState.webLeads && val < chrisLeads && !chrisStaffCtx) {
             fields.webConversions = val; mappedTo = 'webConversions';
           } else if (effectiveTargets.includes('webLeads') && currentState?.webLeads == null) {
             fields.webLeads = val; mappedTo = 'webLeads';
           }
         }
         else if (stage === 'ch_maddie') {
-          if (effectiveTargets.includes('missedCalls') && currentState?.phoneVolume != null && currentState?.missedCalls == null && val !== currentState.phoneVolume) {
+          // Parent-child bound: missed calls must be <= phoneVolume; not staff/office context
+          const maddieVolume = currentState?.phoneVolume ?? Infinity;
+          const maddieStaffCtx = /\b(?:staff|team|employee|people|office|person)\b/i.test(s);
+          if (effectiveTargets.includes('missedCalls') && currentState?.phoneVolume != null && currentState?.missedCalls == null && val !== currentState.phoneVolume && val <= maddieVolume && !maddieStaffCtx) {
             fields.missedCalls = val; mappedTo = 'missedCalls';
           } else if (effectiveTargets.includes('phoneVolume') && currentState?.phoneVolume == null) {
             fields.phoneVolume = val; mappedTo = 'phoneVolume';
@@ -702,11 +780,17 @@ export function extractFromTranscript(
     }
   }
 
-  // ── Just Demo detection (wow only) ──
-  if (stage === 'wow') {
-    if (/\b(just show me|skip .{0,15}number|no numbers|just demo|just see it|don'?t need.{0,15}number|skip.{0,15}math|just.{0,10}overview)\b/.test(s)) {
-      fields._just_demo = true;
-    }
+  // ── 24/7 phone coverage detection (cross-stage — fires regardless of stage) ──
+  if (/\b(24.?7|twenty.?four.?seven|always.?(?:someone|covered|answer(?:ed|ing|s)?|staff(?:ed)?|open)|call.?cent[re]{2}|never.?miss(?:ed)?|always.?pick.?up)\b/i.test(transcript)) {
+    fields.maddieSkip = true;
+    normalized.maddieSkip = 'regex_24_7';
+    console.log(`[EXTRACT_24_7] regex detected in stage=${stage} transcript="${transcript.slice(0, 80)}"`);
+  }
+
+  // ── Just Demo detection (all stages — prospect may opt out of numbers at any point) ──
+  if (/\b(just show me|skip .{0,15}number|no numbers|just demo|just see it|don'?t need.{0,15}number|skip.{0,15}math|just.{0,10}overview|just.{0,10}look around|just.{0,10}explore|don'?t worry about.{0,15}number)\b/.test(s)) {
+    fields._just_demo = true;
+    console.log(`[JUST_DEMO_DETECTED] stage=${stage} transcript="${transcript.slice(0, 80)}"`);
   }
 
   // ── Source-check routing fields (wow stage, wow_8 step) ──
@@ -803,6 +887,22 @@ function invalidateCalculatorOnCorrection(state: ConversationState, field: strin
   }
 }
 
+// ─── Monthly normalization ───────────────────────────────────────────────────
+
+/** Volume/count fields eligible for monthly→weekly normalization. */
+const VOLUME_FIELDS: ReadonlySet<string> = new Set([
+  'inboundLeads', 'inboundConversions', 'webLeads', 'webConversions',
+  'phoneVolume', 'missedCalls', 'oldLeads', 'newCustomersPerWeek',
+]);
+
+const MONTHLY_PATTERN = /\b(a|per|each|every)\s*(month|monthly)\b/i;
+
+/** Detect monthly unit from regex-normalized match context. Returns null if ambiguous. */
+function detectFieldUnit(normalizedMatch: string): 'weekly' | 'monthly' | null {
+  if (MONTHLY_PATTERN.test(normalizedMatch)) return 'monthly';
+  return null;
+}
+
 // ─── Apply extraction to V2 state ───────────────────────────────────────────
 
 /** Writable V2 scalar field names on ConversationState */
@@ -842,11 +942,52 @@ export function applyExtraction(
       console.log(`[EXTRACT_GUARD_SKIP] webConversions=${value} mirrors webLeads but Gemini provided it — trusting Gemini`);
     }
 
+    // ── maddieSkip: write-once boolean (only write true, never revert to false) ──
+    if (field === 'maddieSkip') {
+      if (value === true && !state.maddieSkip) {
+        state.maddieSkip = true;
+        applied.push('maddieSkip');
+        console.log(`[MADDIE_SKIP] 24/7 coverage detected — maddieSkip set to true`);
+      }
+      // value===false or already true → no-op (write-once)
+      continue;
+    }
+
     if (V2_SCALAR_FIELDS.has(field)) {
       const current = (state as any)[field];
+
+      // ── ACV write-once guard: once set during anchor_acv, NEVER overwrite.
+      // The correction-broadening can pick up dollar values from conversation context
+      // (e.g., prospect repeating Bella's ROI figure) and corrupt the anchored ACV.
+      if (field === 'acv' && current != null && state.completedStages?.includes('anchor_acv')) {
+        console.log(`[ACV_GUARD] Rejected acv=${value} — already anchored at ${current} (correction from non-ACV stage)`);
+        continue;
+      }
+
       // Correction-aware: overwrite if correction detected, otherwise only write if null/undefined/false
       if (result.correctionDetected || current == null || current === false) {
         (state as any)[field] = value;
+
+        // ── Monthly→weekly normalization for volume fields ──
+        if (VOLUME_FIELDS.has(field) && typeof value === 'number') {
+          const geminiUnit = result.fields[`${field}_unit`] as string | null | undefined;
+          const regexNorm = result.normalized[field] ?? '';
+          const detectedUnit = geminiUnit === 'monthly' ? 'monthly'
+            : geminiUnit === 'weekly' ? 'weekly'
+            : detectFieldUnit(regexNorm);
+
+          if (detectedUnit === 'monthly') {
+            const raw = value;
+            const normalized = Math.round(raw / 4.33);
+            (state as any)[field] = normalized;
+            state.detectedInputUnits[field] = 'monthly';
+            console.log(`[NORMALIZE_MONTHLY] field=${field} raw=${raw}/mo → ${normalized}/wk`);
+          } else if (detectedUnit === 'weekly') {
+            state.detectedInputUnits[field] = 'weekly';
+          }
+          // null detectedUnit = no metadata recorded, value passes through as-is
+        }
+
         applied.push(field);
         if (result.correctionDetected && current != null) {
           console.log(`[EXTRACT_CORRECT] field=${field} old=${current} new=${value}`);

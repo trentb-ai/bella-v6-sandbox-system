@@ -1,9 +1,12 @@
 /**
- * call-brain-do/src/moves.ts — v4.0.0-final-script-aligned
+ * call-brain-do/src/moves.ts — v4.1.0-audit1-parity
  * V2 directive builder: buildStageDirective.
  *
  * Chunk 4A: greeting, wow (8 WowStepId steps), recommendation (4 variants), anchor_acv.
  * Chunk 4B: ch_alex, ch_chris, ch_maddie, roi_delivery, optional_side_agents, close.
+ *
+ * v4.1.0 AUDIT-1 fixes: icpNarrative, convNarrative, bellaCheckLine priorities,
+ * audit framing in wow_5, normaliseBizName in biz(), ttsAcronym for TTS safety.
  *
  * No V1 compat — all consumers migrated to buildStageDirective.
  */
@@ -44,17 +47,49 @@ function fn(state: ConversationState): string {
   return fast?.core_identity?.first_name ?? fast?.firstName ?? '';
 }
 
-/** Resolve full business name. */
-function biz(state: ConversationState): string {
-  if (state.business) return state.business;
-  const fast = state.intel.fast as any;
-  const cons = (state.intel.consultant as any) ?? {};
-  return fast?.core_identity?.business_name
-    ?? cons?.businessIdentity?.correctedName
-    ?? 'your business';
+/**
+ * ttsAcronym: "AMP" → "A. M. P.", "KPMG" → "K. P. M. G."
+ * Deepgram TTS reads all-caps 2-4 letter names as words.
+ * Letter-spacing forces letter-by-letter pronunciation.
+ */
+function ttsAcronym(name: string): string {
+  if (!name || name.length < 2 || name.length > 4) return name;
+  if (!/^[A-Z]+$/.test(name)) return name;
+  return name.split('').join('. ') + '.';
 }
 
-/** Short business name — strip stop words, take first 3 meaningful words. */
+/**
+ * normaliseBizName: strip Australian city suffixes and legal suffixes
+ * so Bella says "Pitcher Partners" not "Pitcher Partners Sydney Pty Ltd".
+ * Ported from bridge (deepgram-bridge-v11/src/index.ts).
+ */
+function normaliseBizName(raw: string): string {
+  if (!raw || raw === 'your business') return raw;
+  let name = raw.trim();
+  // Strip legal first, then city (order matters: "Foo Sydney Pty Ltd" → "Foo Sydney" → "Foo")
+  name = name.replace(/\s+(?:Pty\.?\s*Ltd\.?|Ltd\.?|Inc\.?|LLC|Co\.?|Corp\.?|Limited|Proprietary)\s*$/i, '').trim();
+  name = name.replace(/\s+(?:Sydney|Melbourne|Brisbane|Perth|Adelaide|Canberra|Hobart|Darwin|Gold Coast|Geelong|Newcastle|Wollongong|Cairns|Townsville|Toowoomba|Ballarat|Bendigo|Mandurah|Launceston|Mackay|Rockhampton|Bunbury|Bundaberg|Hervey Bay|Wagga Wagga|Mildura|Shepparton|Gladstone|Albury|Australia|AU|NZ|New Zealand)\s*$/i, '').trim();
+  // Safety: if we stripped everything, return original
+  return name.length >= 2 ? name : raw.trim();
+}
+
+/** Resolve full business name — normalised for speech and TTS-safe. */
+function biz(state: ConversationState): string {
+  let rawName: string;
+  if (state.business) {
+    rawName = state.business;
+  } else {
+    const fast = state.intel.fast as any;
+    const cons = (state.intel.consultant as any) ?? {};
+    rawName = fast?.core_identity?.business_name
+      ?? cons?.businessIdentity?.correctedName
+      ?? 'your business';
+  }
+  if (rawName === 'your business') return rawName;
+  return ttsAcronym(normaliseBizName(rawName));
+}
+
+/** Short business name — strip stop words, take first 3 meaningful words, TTS-safe. */
 function shortBiz(state: ConversationState): string {
   const full = biz(state);
   if (full === 'your business') return full;
@@ -65,7 +100,8 @@ function shortBiz(state: ConversationState): string {
     'australia', 'sydney', 'melbourne', 'brisbane', 'perth', 'adelaide',
   ]);
   const meaningful = words.filter((w: string) => !stopWords.has(w.toLowerCase()) && w.length > 1);
-  return meaningful.slice(0, 3).join(' ') || full.slice(0, 30);
+  const short = meaningful.slice(0, 3).join(' ') || full.slice(0, 30);
+  return ttsAcronym(short);
 }
 
 /** Consultant intel blob. */
@@ -187,6 +223,7 @@ function buildWowDirective(
       }
 
       console.log(`[WOW2_RESOLVE] ts=${new Date().toISOString()} branch=FIRE rating=${googleRating} reviews=${googleReviews} biz=${business.slice(0, 30)}`);
+      state.trialMentioned = true;
       return {
         objective: 'Leverage reputation for free trial mention.',
         allowedMoves: ['advance:wow_3_icp_problem_solution'],
@@ -200,6 +237,7 @@ function buildWowDirective(
     }
 
     case 'wow_3_icp_problem_solution': {
+      const icpAnalysis = c.icpAnalysis ?? {};
       const rawIcpGuess = (fills.icp_guess ?? '').trim();
       let icpGuess = rawIcpGuess;
       if (icpGuess) {
@@ -213,27 +251,51 @@ function buildWowDirective(
           .replace(/[.!?]+$/, '')
           .trim();
       }
-      const icpProblems: unknown[] = c.icpAnalysis?.icpProblems ?? [];
-      const icpSolutions: unknown[] = c.icpAnalysis?.icpSolutions ?? [];
+      const icpProblems: unknown[] = icpAnalysis.icpProblems ?? [];
+      const icpSolutions: unknown[] = icpAnalysis.icpSolutions ?? [];
       const referenceOffer = fills.reference_offer ?? '';
       const cleanProblems = cleanFacts(icpProblems);
       const cleanSolutions = cleanFacts(icpSolutions);
 
+      // AUDIT-1 Fix 1: icpNarrative — consultant pre-built spoken ICP line (Priority 1)
+      const icpNarrative: string = (icpAnalysis.icpNarrative ?? '').trim();
+      // AUDIT-1 Fix 3: bellaCheckLine — consultant fallback before generic (Priority 4)
+      const bellaCheckLine: string = (icpAnalysis.bellaCheckLine ?? '').trim();
+
       let insightText: string;
       let wow3Branch: string;
-      if (icpGuess && cleanProblems.length >= 2 && cleanSolutions.length >= 2) {
+
+      // Priority 1: icpNarrative — consultant pre-built spoken line (best quality)
+      if (icpNarrative && icpNarrative.length > 30) {
+        wow3Branch = 'ICP_NARRATIVE';
+        insightText = icpNarrative;
+        // Ensure it ends with a confirmation question if it doesn't already
+        if (!/\?/.test(insightText.slice(-20))) {
+          insightText += ' Does that sound right?';
+        }
+      // Priority 2: ICP_FULL — mechanical stitch from icpGuess + problems + solutions
+      } else if (icpGuess && cleanProblems.length >= 2 && cleanSolutions.length >= 2) {
         wow3Branch = 'ICP_FULL';
         insightText = `It looks like you mainly serve ${icpGuess}. The main problems they come to you with are ${cleanProblems[0]} and ${cleanProblems[1]}, and you solve those through ${cleanSolutions[0]} and ${cleanSolutions[1]}. Does that sound right?`;
+      // Priority 3: REF_OFFER — referenceOffer + audience
       } else if (referenceOffer) {
         wow3Branch = 'REF_OFFER';
         const industryAudience = icpGuess || lang.pluralOutcome;
         insightText = `From your website, it looks like your positioning is centred around ${referenceOffer}, and it seems like you're speaking mainly to ${industryAudience}. Does that sound right?`;
+      // Priority 4: BELLA_CHECK — consultant-written fallback line
+      } else if (bellaCheckLine && bellaCheckLine.length > 20) {
+        wow3Branch = 'BELLA_CHECK';
+        insightText = bellaCheckLine;
+        if (!/\?/.test(insightText.slice(-20))) {
+          insightText += ' Does that sound right?';
+        }
+      // Priority 5: GENERIC — last resort
       } else {
         wow3Branch = 'GENERIC';
         insightText = `The site does a strong job of positioning what ${shortBiz(state)} does. Does that sound right?`;
       }
 
-      console.log(`[WOW3_RESOLVE] ts=${new Date().toISOString()} branch=${wow3Branch} raw_icp="${rawIcpGuess.slice(0, 60)}" cleaned_icp="${icpGuess.slice(0, 40)}" problems=${cleanProblems.length} solutions=${cleanSolutions.length} refOffer=${!!referenceOffer}`);
+      console.log(`[WOW3_RESOLVE] ts=${new Date().toISOString()} branch=${wow3Branch} raw_icp="${rawIcpGuess.slice(0, 60)}" cleaned_icp="${icpGuess.slice(0, 40)}" problems=${cleanProblems.length} solutions=${cleanSolutions.length} refOffer=${!!referenceOffer} icpNarrative=${!!icpNarrative} bellaCheckLine=${!!bellaCheckLine}`);
 
       return {
         objective: 'Confirm ICP, problems, and solutions.',
@@ -254,6 +316,8 @@ function buildWowDirective(
       const ctaType = (cea.ctaType ?? '').toLowerCase().trim();
       const agentTrainingLine = (cea.agentTrainingLine ?? '').trim();
       const ceaBellaLine = (cea.bellaLine ?? '').trim();
+      // AUDIT-1 Fix 2: convNarrative — consultant pre-built spoken conversion line (Priority 0)
+      const convNarrative: string = (cea.conversionNarrative ?? '').trim();
 
       // Classify CTA type for type-specific speech
       const ctaTypeLabel = classifyCTAType(ctaType, primaryCTA);
@@ -261,8 +325,12 @@ function buildWowDirective(
       let conversionLine: string;
       let wow4Branch: string;
 
-      if (agentTrainingLine && agentTrainingLine.length > 30) {
-        // Best path: consultant produced a Bella-ready line referencing all CTAs
+      // Priority 0: convNarrative — consultant pre-built spoken line (best quality)
+      if (convNarrative && convNarrative.length > 30) {
+        wow4Branch = 'CONV_NARRATIVE';
+        conversionLine = `${convNarrative} Is that the right focus?`;
+      // Priority 1: agentTrainingLine — consultant-produced Bella-ready line
+      } else if (agentTrainingLine && agentTrainingLine.length > 30) {
         wow4Branch = 'TRAINING_LINE';
         conversionLine = `${agentTrainingLine} Is that the right focus?`;
       } else if (ceaBellaLine && ceaBellaLine.length > 20) {
@@ -288,7 +356,7 @@ function buildWowDirective(
         wow4Branch = 'GENERIC';
         conversionLine = `And looking at how your site is set up to convert visitors into ${lang.pluralOutcome}, that's exactly the kind of action we train your AI agents to drive more of. Is that the right focus?`;
       }
-      console.log(`[WOW4_RESOLVE] ts=${new Date().toISOString()} branch=${wow4Branch} ctaType="${ctaType || 'none'}" ctaLabel=${ctaTypeLabel} cta="${(primaryCTA || 'none').slice(0, 40)}" hasTrainingLine=${!!agentTrainingLine} hasBellaLine=${!!ceaBellaLine}`);
+      console.log(`[WOW4_RESOLVE] ts=${new Date().toISOString()} branch=${wow4Branch} ctaType="${ctaType || 'none'}" ctaLabel=${ctaTypeLabel} cta="${(primaryCTA || 'none').slice(0, 40)}" hasConvNarrative=${!!convNarrative} hasTrainingLine=${!!agentTrainingLine} hasBellaLine=${!!ceaBellaLine}`);
 
       return {
         objective: 'Align conversion events with agent capabilities.',
@@ -303,21 +371,37 @@ function buildWowDirective(
       };
     }
 
-    case 'wow_5_alignment_bridge':
+    case 'wow_5_alignment_bridge': {
+      // AUDIT-1 Fix 4: Add audit framing to prepare prospect for the numbers section.
+      // Bridge had: "I've just got a couple of quick opportunity-audit questions so I can
+      // work out which agent mix would be most valuable for {biz}."
+      let wow5Speak = `Great — that helps confirm your agents are dialled in around the highest-value opportunities. I've just got a few quick questions so I can size which combination would create the most value for ${shortBiz(state)}.`;
+      if (!state.trialMentioned) {
+        wow5Speak += ` And by the way, if you'd like to activate a free trial at any point during the demo, just let me know — I can set that up for you.`;
+        state.trialMentioned = true;
+        console.log(`[WOW5_RESOLVE] ts=${new Date().toISOString()} trialReOffer=true`);
+      }
       return {
         objective: 'Confirm agents are dialled in.',
         allowedMoves: ['advance:wow_6_scraped_observation'],
         requiredData: [],
-        speak: `Great — that helps confirm your agents are dialled in around the highest-value opportunities.`,
+        speak: wow5Speak,
         ask: false,
         waitForUser: false,
         canSkip: false,
         advanceOn: ['wow_6_scraped_observation'],
       };
+    }
 
     case 'wow_6_scraped_observation': {
       const scrapedSummary = fills.scrapedDataSummary ?? '';
       const mostImpressiveLine = (c.mostImpressive?.[0]?.bellaLine ?? '').trim();
+
+      // Hiring data from deep intel and consultant
+      const hiringData = d.hiring ?? {};
+      const hiringMatches: any[] = hiringData.hiring_agent_matches ?? [];
+      const topHiringWedge = (c.hiringAnalysis?.topHiringWedge ?? '').trim();
+      const isHiring = !!(hiringData.is_hiring || hiringMatches.length > 0);
 
       let observationLine: string;
       let wow6Source: string;
@@ -328,12 +412,23 @@ function buildWowDirective(
         wow6Source = 'MOST_IMPRESSIVE';
         const cleaned = mostImpressiveLine.replace(/[.!]+$/, '');
         observationLine = `Also ${name}, ${cleaned} — and that tells us there's a real opportunity for automation to drive even more value for ${business}.`;
+      } else if (topHiringWedge) {
+        wow6Source = 'HIRING_WEDGE_CONSULTANT';
+        observationLine = `Also ${name}, ${topHiringWedge} That's exactly the kind of workload our agents can take on for ${business}.`;
+      } else if (isHiring && hiringMatches.length > 0) {
+        wow6Source = 'HIRING_WEDGE_MATCH';
+        const topMatch = hiringMatches[0];
+        const role = topMatch.role || topMatch.title || 'a role';
+        observationLine = `Also ${name}, I noticed you're hiring for ${role}, which is interesting because that's exactly the kind of workload one of our agents can often absorb for a fraction of the cost.`;
+      } else if (isHiring) {
+        wow6Source = 'HIRING_WEDGE_GENERIC';
+        observationLine = `Also ${name}, I noticed you're actively hiring — some of those roles are exactly what our AI agents handle, often starting from day one.`;
       } else {
         wow6Source = 'GENERIC';
         observationLine = `Also ${name}, from what we can already see on your site, there looks to be a clear opportunity to improve how inbound demand gets captured and converted.`;
       }
 
-      console.log(`[WOW6_RESOLVE] ts=${new Date().toISOString()} source=${wow6Source} scrapedSummary=${!!scrapedSummary} mostImpressive="${mostImpressiveLine.slice(0, 60)}" speak_preview="${observationLine.slice(0, 80)}"`);
+      console.log(`[WOW6_RESOLVE] ts=${new Date().toISOString()} source=${wow6Source} scrapedSummary=${!!scrapedSummary} mostImpressive="${mostImpressiveLine.slice(0, 60)}" isHiring=${isHiring} hiringMatches=${hiringMatches.length} topHiringWedge=${!!topHiringWedge} speak_preview="${observationLine.slice(0, 80)}"`);
 
       return {
         objective: 'Connect scraped observation to automation upside.',
@@ -441,6 +536,18 @@ function buildRecommendationDirective(state: ConversationState): StageDirective 
     recLine = `Based on what we've found so far, there are a few agents that could add real value for ${business}. If you want, I can work out what that could be worth.`;
   }
 
+  // Hiring reference append — when hiring data exists, mention alignment
+  const recDeep = deep(state);
+  const recHiringMatches: any[] = recDeep.hiring?.hiring_agent_matches ?? [];
+  if (recHiringMatches.length > 0) {
+    const topMatch = recHiringMatches[0];
+    const agentName = topMatch.agents?.[0] ?? '';
+    if (agentName) {
+      recLine += ` And I noticed you're hiring for roles that ${agentName} can start handling immediately.`;
+      console.log(`[REC_HIRING] agent=${agentName} role=${topMatch.role || topMatch.title || 'unknown'}`);
+    }
+  }
+
   return {
     objective: 'Recommend agents and bridge to ROI calculation.',
     allowedMoves: ['advance:anchor_acv'],
@@ -529,13 +636,26 @@ function buildAlexDirective(intel: MergedIntel, state: ConversationState): Stage
   let extractFields: string[];
   let channelScope: string;
 
+  // ── Slot-attempt guard (surrogate contract) ──
+  // qCount maps to asked-slot progression: Q1=leads, Q2=conversions, Q3=speed.
+  // Once the conversions slot has been attempted (qCount >= 2) and extraction
+  // still returned null, we move to the next slot instead of re-asking.
+  // This prevents verbatim re-ask loops when Gemini/regex miss conversational answers.
+  const conversionsSlotAttempted = state.questionCounts.ch_alex >= 2;
+  const conversionsSlotUnresolved = state.inboundConversions == null && state.inboundConversionRate == null;
+  const skipConversions = conversionsSlotAttempted && conversionsSlotUnresolved;
+
+  if (skipConversions) {
+    console.log(`[SLOT_ADVANCE] stage=ch_alex reason=attempted_unresolved slot=inboundConversions qCount=${state.questionCounts.ch_alex}`);
+  }
+
   if (adsPath) {
     // Ads-scoped — ask about ad/campaign lead volume
     channelScope = 'ads/campaign';
     if (state.inboundLeads == null) {
       questionText = `Roughly how many leads are your ads generating in a typical week?`;
       extractFields = ['inboundLeads'];
-    } else if (state.inboundConversions == null && state.inboundConversionRate == null) {
+    } else if (!skipConversions && conversionsSlotUnresolved) {
       questionText = `And how many of those are turning into paying ${lang.pluralOutcome}?`;
       extractFields = ['inboundConversions', 'inboundConversionRate'];
     } else {
@@ -548,7 +668,7 @@ function buildAlexDirective(intel: MergedIntel, state: ConversationState): Stage
     if (state.inboundLeads == null) {
       questionText = `Roughly how many enquiries are coming through your website in a typical week?`;
       extractFields = ['inboundLeads'];
-    } else if (state.inboundConversions == null && state.inboundConversionRate == null) {
+    } else if (!skipConversions && conversionsSlotUnresolved) {
       questionText = `And how many of those are turning into paying ${lang.pluralOutcome}?`;
       extractFields = ['inboundConversions', 'inboundConversionRate'];
     } else {
@@ -562,7 +682,7 @@ function buildAlexDirective(intel: MergedIntel, state: ConversationState): Stage
     if (state.inboundLeads == null) {
       questionText = `Roughly how many online enquiries or leads need follow-up in a typical week?`;
       extractFields = ['inboundLeads'];
-    } else if (state.inboundConversions == null && state.inboundConversionRate == null) {
+    } else if (!skipConversions && conversionsSlotUnresolved) {
       questionText = `And how many of those are turning into paying ${lang.pluralOutcome}?`;
       extractFields = ['inboundConversions', 'inboundConversionRate'];
     } else {
@@ -652,6 +772,29 @@ function buildChrisDirective(state: ConversationState): StageDirective {
   let questionText: string;
   let extractFields: string[];
 
+  // ── Slot-attempt guard (surrogate contract) ──
+  // Chris has 2 slots: Q1=webLeads, Q2=webConversions/Rate.
+  // If Q2 was attempted (qCount >= 2) and conversion still null,
+  // force-advance instead of re-asking the same slot.
+  const chrisConvAttempted = state.questionCounts.ch_chris >= 2;
+  const chrisConvUnresolved = state.webConversions == null && state.webConversionRate == null;
+
+  if (chrisConvAttempted && chrisConvUnresolved) {
+    console.log(`[SLOT_ADVANCE] stage=ch_chris reason=attempted_unresolved slot=webConversions qCount=${state.questionCounts.ch_chris}`);
+    return {
+      objective: 'Chris conversions slot unresolved after attempt — advance with available data.',
+      allowedMoves: ['compute:chris', 'advance:next_channel'],
+      requiredData: [],
+      speak: `Let me size Chris based on what we have.`,
+      ask: false,
+      waitForUser: false,
+      canSkip: true,
+      skipReason: 'Conversions slot attempted but unresolved — advancing with available data.',
+      calculatorKey: policy.calculatorKey,
+      notes: policy.fallbackPolicy,
+    };
+  }
+
   // Chris needs only 2 inputs: webLeads + webConversions/Rate.
   // No follow-up-speed question — Chris uplift is conversion-rate-based, not speed-based.
   if (state.webLeads == null) {
@@ -682,6 +825,21 @@ function buildChrisDirective(state: ConversationState): StageDirective {
  * Maddie directive: missed call recovery.
  */
 function buildMaddieDirective(state: ConversationState): StageDirective {
+  // ── 24/7 skip: prospect confirmed full phone coverage ──
+  if (state.maddieSkip) {
+    console.log(`[MADDIE_SKIP_DIRECTIVE] maddieSkip=true — returning skip directive`);
+    return {
+      objective: 'Skip Maddie — prospect confirmed 24/7 phone coverage.',
+      allowedMoves: ['advance:next_channel'],
+      requiredData: [],
+      speak: `Since you've got full coverage on the phones, let's focus on where the bigger opportunity is.`,
+      ask: false,
+      waitForUser: false,
+      canSkip: true,
+      skipReason: 'Prospect confirmed 24/7 phone coverage — Maddie missed call recovery not applicable.',
+    };
+  }
+
   const lang = lp(state);
   const policy = STAGE_POLICIES.ch_maddie;
   const forceAdvance = shouldForceAdvance('ch_maddie', state);
@@ -740,6 +898,29 @@ function buildMaddieDirective(state: ConversationState): StageDirective {
   // ── Collect inputs mode ──
   let questionText: string;
   let extractFields: string[];
+
+  // ── Slot-attempt guard (surrogate contract) ──
+  // Maddie has 2 slots: Q1=phoneVolume, Q2=missedCalls/Rate.
+  // If Q2 was attempted (qCount >= 2) and missed calls still null,
+  // force-advance instead of re-asking the same slot.
+  const maddieMissedAttempted = state.questionCounts.ch_maddie >= 2;
+  const maddieMissedUnresolved = state.missedCalls == null && state.missedCallRate == null;
+
+  if (maddieMissedAttempted && maddieMissedUnresolved) {
+    console.log(`[SLOT_ADVANCE] stage=ch_maddie reason=attempted_unresolved slot=missedCalls qCount=${state.questionCounts.ch_maddie}`);
+    return {
+      objective: 'Maddie missed calls slot unresolved after attempt — advance with available data.',
+      allowedMoves: ['compute:maddie', 'advance:next_channel'],
+      requiredData: [],
+      speak: `Let me size Maddie based on what we have.`,
+      ask: false,
+      waitForUser: false,
+      canSkip: true,
+      skipReason: 'Missed calls slot attempted but unresolved — advancing with available data.',
+      calculatorKey: policy.calculatorKey,
+      notes: policy.fallbackPolicy,
+    };
+  }
 
   if (state.phoneVolume == null) {
     questionText = `Roughly how many inbound calls do you get in a typical week?`;
@@ -805,11 +986,28 @@ function buildCombinedRoiDirective(state: ConversationState): StageDirective {
     agentSummary = `${agentClauses.slice(0, -1).join(', ')}, and ${agentClauses[agentClauses.length - 1]}`;
   }
 
+  // Build speak: core recurring total first, then optional separate mentions
+  let speak = `So ${name}, if we add that up, we've got ${agentSummary}. That's a combined total of roughly ${totalWeeklyValue.toLocaleString()} dollars a week in additional revenue, and those are conservative numbers.`;
+
+  // Sarah: pool value, NOT weekly recurring — mention separately if computed
+  const sarahResult = state.calculatorResults.sarah;
+  if (sarahResult && sarahResult.weeklyValue > 0) {
+    speak += ` And separately, Sarah could unlock around ${sarahResult.weeklyValue.toLocaleString()} dollars from your dormant database.`;
+  }
+
+  // James: optional, NOT part of core recurring total — mention separately if computed
+  const jamesResult = state.calculatorResults.james;
+  if (jamesResult && jamesResult.weeklyValue > 0) {
+    speak += ` And James could add around ${jamesResult.weeklyValue.toLocaleString()} dollars a week through reputation uplift.`;
+  }
+
+  speak += ` Does that all make sense?`;
+
   return {
     objective: 'Deliver combined ROI total — conservative, core agents only.',
     allowedMoves: ['advance:optional_side_agents', 'advance:close'],
     requiredData: [],
-    speak: `So ${name}, if we add that up, we've got ${agentSummary}. That's a combined total of roughly ${totalWeeklyValue.toLocaleString()} dollars a week in additional revenue, and those are conservative numbers. Does that all make sense?`,
+    speak,
     ask: true,
     waitForUser: true,
     canSkip: false,
@@ -840,7 +1038,7 @@ function buildSarahDirective(state: ConversationState): StageDirective {
         objective: 'Deliver Sarah database reactivation ROI.',
         allowedMoves: ['advance:next_channel'],
         requiredData: [],
-        speak: `So you've got around ${state.oldLeads} old leads sitting in your database. Even at a conservative five percent reactivation rate, Sarah could bring back around ${result.weeklyValue.toLocaleString()} dollars a week in found revenue — and these are people who already know ${state.business || 'your business'}. Does that make sense?`,
+        speak: `So you've got around ${state.oldLeads} old leads sitting in your database. Even at a conservative five percent reactivation rate, that's a dormant pipeline worth around ${result.weeklyValue.toLocaleString()} dollars that Sarah could help you unlock — and these are people who already know ${state.business || 'your business'}. Does that make sense?`,
         ask: true,
         waitForUser: true,
         canSkip: false,
@@ -1030,6 +1228,22 @@ function buildOptionalSideAgentsDirective(state: ConversationState): StageDirect
 // ─── Close ──────────────────────────────────────────────────────────────────
 
 function buildCloseDirective(state: ConversationState): StageDirective {
+  // ── just_demo variant: prospect opted out of numbers path ──
+  if (state.proceedToROI === false) {
+    console.log(`[JUST_DEMO_CLOSE] delivering just_demo close variant`);
+    return {
+      objective: 'Close for trial setup — just_demo path (no ROI delivery).',
+      allowedMoves: ['extract:closeDecision', 'end'],
+      requiredData: [],
+      speak: `No worries at all — you can explore everything on the page at your own pace. If you'd like to activate the free trial, it takes about ten minutes, no credit card required. Would you like me to set that up?`,
+      ask: true,
+      waitForUser: true,
+      canSkip: false,
+      extract: ['closeDecision'],
+      advanceOn: ['user_replied'],
+    };
+  }
+
   return {
     objective: 'Close for trial setup.',
     allowedMoves: ['extract:closeDecision', 'end'],

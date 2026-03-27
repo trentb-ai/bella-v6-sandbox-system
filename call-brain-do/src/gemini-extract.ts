@@ -12,6 +12,20 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GE
 const GEMINI_TIMEOUT_MS = 8000; // 8s — Gemini cold start can take 3-5s, voice call can absorb this on collection turns
 
 /**
+ * Gemini 2.5 Flash has thinking ON by default. When it thinks,
+ * parts[0] is { thought: true, text: "..." } — the model's internal reasoning.
+ * The actual JSON response is in a later part. This extracts the last non-thought part.
+ */
+function extractContentFromParts(parts: any[]): string | undefined {
+  if (!parts || parts.length === 0) return undefined;
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (!parts[i].thought && parts[i].text) return parts[i].text;
+  }
+  // All parts are thought parts — fall back to last part
+  return parts[parts.length - 1]?.text;
+}
+
+/**
  * Strip preamble text, code fences, and trailing text from Gemini's JSON response.
  * Gemini often wraps JSON in: "Here is the JSON requested:\n```json\n{...}\n```"
  * This extracts just the JSON object between the first { and last }.
@@ -44,7 +58,7 @@ const STAGE_SCHEMAS: Record<string, Record<string, FieldSpec>> = {
   anchor_acv: {
     acv: {
       type: 'NUMBER', nullable: true,
-      description: 'Average client/customer value in dollars. Convert spoken: "five thousand"=5000, "ten k"=10000, "a grand"=1000, "quarter mil"=250000, "two fifty"=250, "about 500"=500. Return null if not stated.',
+      description: 'Average client/customer value in dollars. Convert spoken numbers: "five thousand"=5000, "ten k"=10000, "a grand"=1000, "quarter mil"=250000, "about 500"=500. For ambiguous amounts without explicit units (like "two fifty" or "five hundred"), return the literal number. Return null if not stated.',
     },
   },
 
@@ -56,7 +70,7 @@ const STAGE_SCHEMAS: Record<string, Record<string, FieldSpec>> = {
     },
     inboundConversions: {
       type: 'NUMBER', nullable: true,
-      description: 'How many leads convert to paying clients per week. "about five become clients"=5, "maybe three"=3, "two or three"=2. Return null if not stated.',
+      description: 'How many leads convert to paying clients per week. Accept ANY conversational count the prospect gives when answering about conversions: "about five"=5, "maybe three"=3, "two or three"=2, "roughly six"=6, "probably around five"=5, "yeah maybe two"=2, "not sure maybe around five"=5. If they gave ANY number in response to a question about conversions or clients won, ALWAYS return it. Return null ONLY if they refused, deflected, or gave no number at all.',
     },
     inboundConversionRate: {
       type: 'NUMBER', nullable: true,
@@ -66,6 +80,16 @@ const STAGE_SCHEMAS: Record<string, Record<string, FieldSpec>> = {
       type: 'STRING', nullable: true,
       enum: ['under_30_seconds', 'under_5_minutes', '5_to_30_minutes', '30_minutes_to_2_hours', '2_to_24_hours', 'next_day_plus'],
       description: 'How fast they follow up leads. Map: "instantly/straight away"→under_30_seconds, "few minutes/pretty quick"→under_5_minutes, "within half hour/15-20 min"→5_to_30_minutes, "hour or two/within the hour"→30_minutes_to_2_hours, "same day/few hours/end of day"→2_to_24_hours, "next day/tomorrow/day or two"→next_day_plus. Return null if not stated.',
+    },
+    inboundLeads_unit: {
+      type: 'STRING', nullable: true,
+      enum: ['weekly', 'monthly'],
+      description: 'Time unit the prospect used for inbound leads. "per month"/"a month"/"monthly"=monthly, "per week"/"a week"/"weekly"=weekly. Return null if no time unit stated.',
+    },
+    inboundConversions_unit: {
+      type: 'STRING', nullable: true,
+      enum: ['weekly', 'monthly'],
+      description: 'Time unit the prospect used for conversions. "per month"/"a month"/"monthly"=monthly, "per week"/"a week"/"weekly"=weekly. Return null if no time unit stated.',
     },
   },
 
@@ -77,11 +101,21 @@ const STAGE_SCHEMAS: Record<string, Record<string, FieldSpec>> = {
     },
     webConversions: {
       type: 'NUMBER', nullable: true,
-      description: 'Website leads converting to paying clients per week. Return null if not stated.',
+      description: 'Website leads converting to paying clients per week. Accept ANY conversational count: "about five"=5, "maybe three"=3, "two or three"=2, "roughly six"=6, "probably around five"=5. If they gave ANY number in response to a question about conversions, ALWAYS return it. Return null ONLY if they refused, deflected, or gave no number at all.',
     },
     webConversionRate: {
       type: 'NUMBER', nullable: true,
       description: 'Website conversion rate as decimal ONLY if percentage stated. Return null if count given instead.',
+    },
+    webLeads_unit: {
+      type: 'STRING', nullable: true,
+      enum: ['weekly', 'monthly'],
+      description: 'Time unit the prospect used for web leads. "per month"/"a month"/"monthly"=monthly, "per week"/"a week"/"weekly"=weekly. Return null if no time unit stated.',
+    },
+    webConversions_unit: {
+      type: 'STRING', nullable: true,
+      enum: ['weekly', 'monthly'],
+      description: 'Time unit the prospect used for web conversions. "per month"/"a month"/"monthly"=monthly, "per week"/"a week"/"weekly"=weekly. Return null if no time unit stated.',
     },
   },
 
@@ -93,11 +127,25 @@ const STAGE_SCHEMAS: Record<string, Record<string, FieldSpec>> = {
     },
     missedCalls: {
       type: 'NUMBER', nullable: true,
-      description: 'Missed or unanswered calls per week. Return null if not stated.',
+      description: 'Missed or unanswered calls per week. Accept ANY conversational count: "about five"=5, "maybe three"=3, "a few"=3, "probably around ten"=10, "quite a few maybe fifteen"=15. If they gave ANY number in response to a question about missed calls, ALWAYS return it. Return null ONLY if they refused, deflected, or gave no number at all.',
     },
     missedCallRate: {
       type: 'NUMBER', nullable: true,
       description: 'Missed call rate as decimal ONLY if percentage stated. "30 percent"=0.3. Return null if count given instead.',
+    },
+    phoneVolume_unit: {
+      type: 'STRING', nullable: true,
+      enum: ['weekly', 'monthly'],
+      description: 'Time unit the prospect used for phone volume. "per month"/"a month"/"monthly"=monthly, "per week"/"a week"/"weekly"=weekly. Return null if no time unit stated.',
+    },
+    missedCalls_unit: {
+      type: 'STRING', nullable: true,
+      enum: ['weekly', 'monthly'],
+      description: 'Time unit the prospect used for missed calls. "per month"/"a month"/"monthly"=monthly, "per week"/"a week"/"weekly"=weekly. Return null if no time unit stated.',
+    },
+    maddieSkip: {
+      type: 'BOOLEAN', nullable: true,
+      description: 'True ONLY if prospect explicitly states they have 24/7 phone coverage, a call centre, always have someone answering, never miss calls, or always pick up. Must be a clear, unambiguous statement of full phone coverage. Return null if not stated or ambiguous.',
     },
   },
 
@@ -106,6 +154,11 @@ const STAGE_SCHEMAS: Record<string, Record<string, FieldSpec>> = {
     oldLeads: {
       type: 'NUMBER', nullable: true,
       description: 'Number of old/dormant/past leads or contacts in their database. "a few hundred"=300, "about a thousand"=1000, "maybe 500"=500, "couple thousand"=2000. Return null if not stated.',
+    },
+    oldLeads_unit: {
+      type: 'STRING', nullable: true,
+      enum: ['weekly', 'monthly'],
+      description: 'Time unit the prospect used for old leads count. "per month"/"a month"/"monthly"=monthly, "per week"/"a week"/"weekly"=weekly. Return null if no time unit stated.',
     },
   },
 
@@ -122,6 +175,11 @@ const STAGE_SCHEMAS: Record<string, Record<string, FieldSpec>> = {
     hasReviewSystem: {
       type: 'BOOLEAN', nullable: true,
       description: 'Whether they currently have a system for collecting/managing reviews. "yes we use Google reviews"=true, "no not really"=false, "we send follow-up emails asking for reviews"=true. Return null if not mentioned.',
+    },
+    newCustomersPerWeek_unit: {
+      type: 'STRING', nullable: true,
+      enum: ['weekly', 'monthly'],
+      description: 'Time unit the prospect used for new customers. "per month"/"a month"/"monthly"=monthly, "per week"/"a week"/"weekly"=weekly. Return null if no time unit stated.',
     },
   },
 
@@ -190,7 +248,8 @@ const SYSTEM_PROMPT = `You extract structured data from a voice sales call trans
 - Filler ("yeah", "sure", "ok", "sounds good", "go ahead") = null for ALL fields
 - "about"/"roughly"/"around"/"maybe" qualifiers = still extract the number
 - If TWO numbers in one answer ("20 leads and 5 become clients"), extract BOTH to their respective fields
-- Do NOT assign the same number to multiple fields`;
+- Do NOT assign the same number to multiple fields
+- For volume fields (leads, conversions, calls, missed calls, customers, old leads), also extract the time unit if stated: "per month"/"a month"/"monthly"=monthly, "per week"/"a week"/"weekly"=weekly. Return null for the _unit field if no time unit was mentioned.`;
 
 const HISTORY_SYSTEM_PROMPT = `You extract structured data from a voice sales call CONVERSATION HISTORY.
 This contains multiple user statements from different points in the call.
@@ -204,7 +263,8 @@ Rules:
 - Filler ("yeah", "sure", "ok", "sounds good", "go ahead") = null for ALL fields.
 - "about"/"roughly"/"around"/"maybe" qualifiers = still extract the number.
 - If TWO numbers in one answer ("20 leads and 5 become clients"), extract BOTH to their respective fields.
-- Do NOT assign the same number to multiple fields.`;
+- Do NOT assign the same number to multiple fields.
+- For volume fields, also extract the time unit if stated (weekly/monthly). Return null for the _unit field if no time unit was mentioned.`;
 
 // ─── Result type ────────────────────────────────────────────────────────────
 
@@ -270,15 +330,16 @@ export async function geminiExtract(
     }
 
     const data = await res.json() as any;
-    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const parts = data?.candidates?.[0]?.content?.parts || [];
+    const raw = extractContentFromParts(parts);
     if (!raw) {
-      console.error(`[GEMINI_EXTRACT_ERR] no text in response ms=${ms}`);
+      console.error(`[GEMINI_EXTRACT_ERR] no text in response parts=${parts.length} thought=${parts[0]?.thought ?? false} ms=${ms}`);
       return null;
     }
 
     let parsed: Record<string, any>;
     try { parsed = JSON.parse(cleanJsonResponse(raw)); } catch {
-      console.error(`[GEMINI_EXTRACT_ERR] bad JSON: ${raw.slice(0, 200)} ms=${ms}`);
+      console.error(`[GEMINI_EXTRACT_ERR] bad JSON: ${raw.slice(0, 200)} parts=${parts.length} ms=${ms}`);
       return null;
     }
 
@@ -344,15 +405,16 @@ export async function geminiExtractHistory(
     }
 
     const data = await res.json() as any;
-    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const parts = data?.candidates?.[0]?.content?.parts || [];
+    const raw = extractContentFromParts(parts);
     if (!raw) {
-      console.error(`[GEMINI_HISTORY_ERR] no text in response ms=${ms}`);
+      console.error(`[GEMINI_HISTORY_ERR] no text in response parts=${parts.length} thought=${parts[0]?.thought ?? false} ms=${ms}`);
       return null;
     }
 
     let parsed: Record<string, any>;
     try { parsed = JSON.parse(cleanJsonResponse(raw)); } catch {
-      console.error(`[GEMINI_HISTORY_ERR] bad JSON: ${raw.slice(0, 200)} ms=${ms}`);
+      console.error(`[GEMINI_HISTORY_ERR] bad JSON: ${raw.slice(0, 200)} parts=${parts.length} ms=${ms}`);
       return null;
     }
 

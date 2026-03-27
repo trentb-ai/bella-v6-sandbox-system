@@ -229,3 +229,79 @@ describe('close stage', () => {
     expect(d.ask).toBe(true);
   });
 });
+
+// ─── Slot-advance guards (no re-ask loops) ──────────────────────────────────
+
+describe('slot-advance guards', () => {
+  it('ch_alex: does NOT re-ask conversions when qCount >= 2 and slot unresolved', () => {
+    const d = directive({
+      stage: 'ch_alex',
+      state: mockState({
+        currentStage: 'ch_alex',
+        inboundLeads: 50,
+        inboundConversions: null,
+        inboundConversionRate: null,
+        questionCounts: { ch_alex: 2, ch_chris: 0, ch_maddie: 0, ch_sarah: 0, ch_james: 0 },
+        alexEligible: true, chrisEligible: false, maddieEligible: false,
+        topAgents: ['alex'], currentQueue: [],
+      }),
+    });
+    // Should ask about response speed, NOT re-ask conversions
+    expect(d.speak).not.toContain('paying');
+    expect(d.speak).toContain('follow');
+    expect(d.extract).toContain('responseSpeedBand');
+  });
+
+  it('ch_alex: DOES ask conversions when qCount < 2', () => {
+    const d = directive({
+      stage: 'ch_alex',
+      state: mockState({
+        currentStage: 'ch_alex',
+        inboundLeads: 50,
+        inboundConversions: null,
+        inboundConversionRate: null,
+        questionCounts: { ch_alex: 1, ch_chris: 0, ch_maddie: 0, ch_sarah: 0, ch_james: 0 },
+        alexEligible: true, chrisEligible: false, maddieEligible: false,
+        topAgents: ['alex'], currentQueue: [],
+      }),
+    });
+    expect(d.speak).toContain('paying');
+    expect(d.extract).toContain('inboundConversions');
+  });
+
+  it('ch_chris: does NOT re-ask conversions when qCount >= 2 and slot unresolved', () => {
+    const d = directive({
+      stage: 'ch_chris',
+      state: mockState({
+        currentStage: 'ch_chris',
+        webLeads: 30,
+        webConversions: null,
+        webConversionRate: null,
+        questionCounts: { ch_alex: 0, ch_chris: 2, ch_maddie: 0, ch_sarah: 0, ch_james: 0 },
+        alexEligible: false, chrisEligible: true, maddieEligible: false,
+        topAgents: ['chris'], currentQueue: [],
+      }),
+    });
+    // Should return a skip/advance directive, not ask about conversions again
+    expect(d.speak).not.toContain('paying');
+    expect(d.canSkip).toBe(true);
+  });
+
+  it('ch_maddie: does NOT re-ask missed calls when qCount >= 2 and slot unresolved', () => {
+    const d = directive({
+      stage: 'ch_maddie',
+      state: mockState({
+        currentStage: 'ch_maddie',
+        phoneVolume: 40,
+        missedCalls: null,
+        missedCallRate: null,
+        questionCounts: { ch_alex: 0, ch_chris: 0, ch_maddie: 2, ch_sarah: 0, ch_james: 0 },
+        alexEligible: false, chrisEligible: false, maddieEligible: true,
+        topAgents: ['maddie'], currentQueue: [],
+      }),
+    });
+    // Should return a skip/advance directive, not ask about missed calls again
+    expect(d.speak).not.toContain('missed');
+    expect(d.canSkip).toBe(true);
+  });
+});

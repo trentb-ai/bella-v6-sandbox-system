@@ -543,7 +543,28 @@ async function runFastIntel(
   ]);
 
   let fc = firecrawlResult;
-  if (!fc && directHtml) {
+  // Firecrawl can return 200 with empty markdown (LLM extract works but renderer fails).
+  // Treat as failed if no usable page content — merge tech_stack from Firecrawl into directHtml fallback.
+  const fcHasContent = fc && ((fc.markdown?.length ?? 0) > 100 || (fc.html?.length ?? 0) > 100);
+  if (fc && !fcHasContent && directHtml) {
+    log("FALLBACK", `Firecrawl returned 200 but empty content (md=${fc.markdown?.length ?? 0} html=${(fc as any).html?.length ?? 0}) — using direct fetch (${directHtml.length} chars)`);
+    const savedTechStack = fc.tech_stack;
+    const meta = extractMetaFromHtml(directHtml, websiteUrl);
+    fc = {
+      markdown:       "",
+      html:           directHtml,
+      title:          meta.title,
+      h1:             meta.h1,
+      h2:             "",
+      description:    meta.description,
+      ogTitle:        meta.ogTitle,
+      ogDescription:  meta.ogDescription,
+      ogImage:        "",
+      links:          [],
+      raw_text:       directHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 8000),
+      tech_stack:     { ...detectTechStack(directHtml, {}), ...savedTechStack },
+    } as any;
+  } else if (!fc && directHtml) {
     log("FALLBACK", `Firecrawl failed, using direct fetch (${directHtml.length} chars)`);
     const meta = extractMetaFromHtml(directHtml, websiteUrl);
     fc = {

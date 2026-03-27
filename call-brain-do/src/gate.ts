@@ -170,10 +170,16 @@ export function deriveEligibility(intel: MergedIntel, state: ConversationState):
     || state.websiteRelevant
   );
 
-  const maddieEligible = phoneSignals && (
+  let maddieEligible = phoneSignals && (
     state.leadSourceDominant === 'phone'
     || state.phoneRelevant
   );
+
+  // 24/7 coverage override: skip Maddie if prospect confirmed full phone coverage
+  if (state.maddieSkip) {
+    maddieEligible = false;
+    console.log(`[GATE_SKIP] maddieEligible forced false — maddieSkip=true (24/7 coverage)`);
+  }
 
   const whyRecommended: string[] = [];
   if (alexEligible) whyRecommended.push('Alex: inbound demand signals detected — speed-to-lead uplift likely.');

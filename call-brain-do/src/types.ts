@@ -252,6 +252,9 @@ export interface ConversationState {
   chrisEligible: boolean;
   maddieEligible: boolean;
 
+  // ── 24/7 phone coverage skip ──
+  maddieSkip: boolean;
+
   // ── Flow control ──
   proceedToROI?: boolean | null;
   trialMentioned: boolean;
@@ -329,11 +332,17 @@ export interface ConversationState {
   // ── Scribe note tracking (per-turnIndex accepted IDs) ──
   scribeProcessed?: Record<number, string[]>;
 
+  // ── Monthly normalization tracking ──
+  detectedInputUnits: Record<string, 'weekly' | 'monthly'>;
+
   // ── Flow harness (Chunk 1 scaffold) ──
   pendingDelivery: PendingDelivery | null;
   flowLog: FlowEntry[];
   flowSeq: number;
   consecutiveTimeouts: number;
+
+  // ── KV export versioning (H1 stale-write prevention) ──
+  kvExportVersion: number;
 }
 
 // ─── Transcript & Memory ────────────────────────────────────────────────────
@@ -459,7 +468,7 @@ export type FlowAction =
   | 'stale_event'
   | 'call_degraded';
 
-export type CompletionMode = 'complete' | 'budget_exhausted' | 'stuck_escape';
+export type CompletionMode = 'complete' | 'budget_exhausted' | 'stuck_escape' | 'skipped_24_7' | 'just_demo_skip';
 
 export interface FlowEntry {
   seq: number;
@@ -469,26 +478,35 @@ export interface FlowEntry {
   ts: string;
   detail?: string;
   completionMode?: CompletionMode;
+  source?: 'turn' | 'alarm' | 'event' | 'scribe';
 }
 
 export interface FlowResult {
   directive: StageDirective;
   moveId: string;
   advanced: boolean;
+  /** True when the delivery gate just cleared a failed delivery — question was never spoken */
+  clearedFailedDelivery?: boolean;
+}
+
+// ─── Compliance Checks (M3: observability-only delivery verification) ────────
+
+export interface ComplianceChecks {
+  mustContainPhrases: string[];
 }
 
 // ─── BrainEvent (workflow/services → DO) ─────────────────────────────────────
 
 export type BrainEvent =
-  | { type: 'session_init'; leadId: string; starterIntel?: Record<string, unknown> }
-  | { type: 'fast_intel_ready'; payload: Record<string, unknown>; version: number }
-  | { type: 'consultant_ready'; payload: Record<string, unknown>; version: number }
-  | { type: 'deep_ready'; payload: Record<string, unknown>; version: number }
-  | { type: 'user_turn'; transcript: string; turnId: string; ts: string }
-  | { type: 'llm_reply_done'; spokenText: string; moveId: string; deliveryId?: string; ts: string }
-  | { type: 'delivery_barged_in'; deliveryId: string; moveId: string; ts: string }
-  | { type: 'delivery_failed'; deliveryId: string; moveId: string; errorCode?: string; ts: string }
-  | { type: 'call_end'; reason: string; ts: string };
+  | { type: 'session_init'; leadId: string; starterIntel?: Record<string, unknown>; eventId?: string }
+  | { type: 'fast_intel_ready'; payload: Record<string, unknown>; version: number; eventId?: string }
+  | { type: 'consultant_ready'; payload: Record<string, unknown>; version: number; eventId?: string }
+  | { type: 'deep_ready'; payload: Record<string, unknown>; version: number; eventId?: string }
+  | { type: 'user_turn'; transcript: string; turnId: string; ts: string; eventId?: string }
+  | { type: 'llm_reply_done'; spokenText: string; moveId: string; deliveryId?: string; ts: string; eventId?: string }
+  | { type: 'delivery_barged_in'; deliveryId: string; moveId: string; ts: string; eventId?: string }
+  | { type: 'delivery_failed'; deliveryId: string; moveId: string; errorCode?: string; ts: string; eventId?: string }
+  | { type: 'call_end'; reason: string; ts: string; eventId?: string };
 
 // ─── Env binding ─────────────────────────────────────────────────────────────
 
