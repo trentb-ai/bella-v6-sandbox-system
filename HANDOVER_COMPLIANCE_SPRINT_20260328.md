@@ -885,3 +885,249 @@ Sprint 6:  Stats KB — detect-trigger.ts + select-stat.ts + notes[] slot + move
   5. hiringAnalysis.topHiringWedge      (existing)
   6. hiringMatches[0]                   (existing)
   7. GENERIC                            (last resort)
+
+---
+
+## COMPLETE DATA ACTIVATION MAP — FINAL (post full audit, 28 Mar 2026)
+
+This section supersedes the partial field lists above. It is the definitive, complete account
+of every consultant field, what it is, where it goes, and exactly how to wire it.
+
+Audited against the full consultant-v9 OUTPUT JSON schema — every field accounted for.
+
+---
+
+### FIELDS ADDED IN THIS REVISION (were missing from previous versions)
+
+#### businessIdentity.businessModel
+What: "B2B or B2C or Both — based on who their customers are from the copy"
+Where: criticalFacts[] optional slot
+Why: Meaningfully affects every agent pitch. B2B = selling to businesses. B2C = consumers.
+     Gemini needs this to frame language correctly across all channel stages.
+How: buildCriticalFacts() — add after hiringWedge if slot available:
+     const bizModel = c.businessIdentity?.businessModel;
+     if (bizModel) raw.push(`This is a ${bizModel} business.`);
+
+#### businessIdentity.serviceArea
+What: "Where they operate — national, state-wide, or local"
+Where: criticalFacts[] optional slot OR fold into marketPositionNarrative
+Why: A local plumber in eastern Sydney vs a national SaaS — Bella should reference scale.
+How: buildCriticalFacts() — single sentence:
+     const serviceArea = c.businessIdentity?.serviceArea;
+     if (serviceArea) raw.push(`They operate ${serviceArea}.`);
+
+#### copyAnalysis.strongestLine
+What: "The single most compelling verbatim line from the entire site"
+Where: wow_1 research intro — speak string, as proof Bella actually read the site
+Why: Specific quote = credibility. Generic "we've researched your business" = weak.
+How: In buildWow1Directive() in moves.ts, add priority after bella_opener:
+     const strongestLine = c.copyAnalysis?.strongestLine;
+     if (strongestLine) observationLine = `I noticed you lead with "${strongestLine}" —
+       that's a strong positioning statement.`;
+
+#### scriptFills.website_positive_comment
+What: "A specific STRATEGIC observation about their positioning — NOT a generic compliment.
+       An INSIGHT that would make the owner think 'they actually understand our business'."
+Where: wow_1 research intro — speak string, priority 1 (highest quality personalisation)
+Why: This field is specifically designed for wow_1. It's not a compliment — it's an insight.
+     Currently wow_1 uses a generic "we've researched X" opener. This replaces it.
+How: In buildWow1Directive() in moves.ts:
+     Priority 1: scriptFills.website_positive_comment (strategic insight)
+     Priority 2: copyAnalysis.strongestLine (verbatim quote approach)
+     Priority 3: existing generic opener (current fallback)
+
+#### hiringAnalysis.matchedRoles[*].wedge
+What: Per-role spoken replacement pitch for each matched hiring role.
+      e.g. "You're hiring a customer service rep for $55K — Alex follows up every lead
+      instantly from day one, no salary, no sick days."
+Where: ch_alex, ch_maddie, ch_sarah channel directives — deliver stage speak string
+Why: topHiringWedge covers the single best one. But if there are 3 matched roles,
+     there are 3 specific wedge lines. The most urgent role's wedge should appear in
+     the relevant agent's deliver directive.
+How: In build[Agent]Directive() deliver mode:
+     const matchedRole = (c.hiringAnalysis?.matchedRoles ?? [])
+       .filter(r => r.ourAgent === 'Alex' && r.urgency === 'high')[0];
+     if (matchedRole?.wedge) — inject into speak string priority 2 (after ROI, before generic)
+     Map: Alex roles → ch_alex, Maddie roles → ch_maddie, Sarah roles → ch_sarah
+
+---
+
+### PARTIAL FIELDS — NOW COMPLETE
+
+#### conversationHooks[0] — ALL THREE sub-fields
+Previous: "compose from .topic + .data"
+CORRECTED: Use all three sub-fields: topic, data, AND how
+How: In wow_6 priority 4 (conversationHooks):
+     const hook = c.conversationHooks?.[0];
+     if (hook?.topic && hook?.data) {
+       observationLine = hook.how
+         ? `${hook.how} — ${hook.data}`
+         : `${hook.topic} — ${hook.data}`;
+     }
+The .how field tells Bella HOW to bring it up ("casually mention" vs "ask directly" vs
+"reference as an observation"). Use it as framing, not as the spoken line itself.
+
+#### secondaryRecommendations[0].whySecond — now included in recommendation colour
+Previous: "parked — subsumed by routing.reasoning"
+CORRECTED: Not the same. routing.reasoning is internal logic. whySecond is a Bella-ready
+spoken sentence. Different content, different purpose. Add as third colour sentence.
+How: In buildRecommendationDirective() after alexColour/chrisColour/maddieColour:
+     const secondaryRec = c.secondaryRecommendations?.[0];
+     const secondaryColour = secondaryRec?.whySecond
+       ? ' ' + secondaryRec.whySecond.split('.')[0] + '.'
+       : '';
+     Append secondaryColour only if it adds new info not already in agent colours.
+     GUARD: Never change who is recommended. Colour only.
+
+#### landingPageVerdict.verdictLine — now in criticalFacts[] optional
+Previous: "fully parked"
+CORRECTED: verdictLine is a single punchy sentence — exactly right for criticalFacts[].
+           Gives Gemini landing page quality context for off-script responses about the website.
+How: buildCriticalFacts() — add as optional final slot (only if budget permits):
+     const verdictLine = c.landingPageVerdict?.verdictLine;
+     if (verdictLine) raw.push(verdictLine);
+     Priority: lower than businessModel/serviceArea. Only include if under 6-item cap.
+
+---
+
+### COMPLETE SESSION B FILE CHANGES (updated)
+
+moves.ts changes:
+  1. buildCriticalFacts() — add businessModel, serviceArea, verdictLine to pool
+  2. buildWow1Directive() — add website_positive_comment (priority 1) + strongestLine (priority 2)
+  3. buildWow6Directive() — updated priority stack (all 7 tiers, hooks uses .how field)
+  4. buildWow4Directive() — ctaAgentMapping priority 0
+  5. buildRecommendationDirective() — add secondaryRecommendations[0].whySecond as third colour
+  6. build[Alex/Maddie/Sarah]Directive() — inject matchedRoles[*].wedge in deliver mode
+  7. shortBiz() helper — use businessIdentity.spokenName as priority 1
+
+---
+
+### COMPLETE criticalFacts[] POOL (final, hard cap 6)
+
+ALWAYS (2 slots):
+  1. icpAnalysis.marketPositionNarrative
+  2. valuePropAnalysis.strongestBenefit
+
+STAGE-SPECIFIC (1-2 slots):
+  3. routing.reasoning.<current_agent> first sentence
+  4. hiringAnalysis.topHiringWedge first sentence (if present)
+
+OPTIONAL — pick highest-value available within cap (0-2 slots):
+  5. businessIdentity.businessModel ("This is a B2B business.")
+  6. businessIdentity.serviceArea ("They operate locally in Sydney.")
+  7. conversionEventAnalysis.ctaAgentMapping one sentence (rec/close only)
+  8. One redFlags item (if protects against bad claim)
+  9. landingPageVerdict.verdictLine (lowest priority — only if cap allows)
+
+HARD CAP 6: cleanFacts(raw).slice(0, 6)
+Priority within optional slots: businessModel > serviceArea > ctaAgentMapping > redFlags > verdictLine
+
+OMIT PERMANENTLY:
+  copyAnalysis.messagingStrength/Weakness/toneAndVoice
+  valuePropAnalysis.statedBenefits/missingBenefits/bellaLine
+  icpAnalysis.whoTheyTarget/howTheyKnow/icpConfidenceLevel/problemSolutionMapping
+  conversionEventAnalysis.ctaClarity/conversionStrength/frictionPoints/allConversionEvents/ctaBreakdown
+  websiteCompliments (intentionally removed from script)
+  landingPageVerdict.heroEffectiveness/ctaClarity/conversionBarriers/trustSignals/verdictLine2
+  businessIdentity.industry (already used in buildIndustryLanguagePack())
+  secondaryRecommendations (spoken via colour, not facts)
+  routing.questions_to_brush_over
+
+---
+
+### COMPLETE wow_1 PRIORITY STACK (new — was not defined before)
+
+  Priority 1: scriptFills.website_positive_comment (strategic insight — best personalisation)
+  Priority 2: copyAnalysis.strongestLine (verbatim quote — shows specific research)
+  Priority 3: existing bella_opener from fast-intel (current fallback)
+  Priority 4: generic "we've researched {business}" opener (last resort)
+
+---
+
+### COMPLETE FIELD ACTIVATION TABLE (every consultant field, final status)
+
+businessIdentity.correctedName          -> biz() helper (already wired)
+businessIdentity.spokenName             -> shortBiz() priority 1 (Session B fix)
+businessIdentity.industry               -> buildIndustryLanguagePack() (already wired)
+businessIdentity.businessModel          -> criticalFacts[] optional slot 5 (NEW — Session B)
+businessIdentity.serviceArea            -> criticalFacts[] optional slot 6 (NEW — Session B)
+
+scriptFills.website_positive_comment    -> wow_1 priority 1 (NEW — Session B)
+scriptFills.hero_header_quote           -> wow_1 fallback context (already present in fills)
+scriptFills.reference_offer             -> wow_3 fallback (already wired)
+scriptFills.icp_guess                   -> wow_3 (already wired)
+scriptFills.campaign_summary            -> wow_8 (already wired via tech_stack)
+scriptFills.rep_commentary              -> wow_2 optional (PARKED — covered by googleMaps path)
+scriptFills.recent_review_snippet       -> wow_2 optional (PARKED — covered by googleMaps path)
+scriptFills.rep_quality_assessment      -> PARKED
+scriptFills.top_2_website_ctas          -> PARKED (covered by ctaAgentMapping)
+scriptFills.scrapedDataSummary          -> wow_6 priority 1 (NEW — needs prompt + delivery wire)
+
+copyAnalysis.messagingStrength          -> PARKED
+copyAnalysis.messagingWeakness          -> PARKED
+copyAnalysis.strongestLine              -> wow_1 priority 2 (NEW — Session B)
+copyAnalysis.toneAndVoice               -> PARKED
+copyAnalysis.bellaLine                  -> PARKED (too similar to website_positive_comment)
+
+icpAnalysis.whoTheyTarget               -> PARKED
+icpAnalysis.howTheyKnow                 -> PARKED
+icpAnalysis.icpConfidenceLevel          -> PARKED
+icpAnalysis.icpProblems/Solutions       -> wow_3 (already wired)
+icpAnalysis.problemSolutionMapping      -> PARKED
+icpAnalysis.bellaCheckLine              -> wow_3 priority 4 (already wired)
+icpAnalysis.marketPositionNarrative     -> criticalFacts[] slot 1 always (Session B)
+icpAnalysis.icpNarrative                -> wow_3 priority 1 (already wired)
+
+valuePropAnalysis.statedBenefits        -> PARKED
+valuePropAnalysis.strongestBenefit      -> criticalFacts[] slot 2 always (Session B)
+valuePropAnalysis.missingBenefits       -> PARKED
+valuePropAnalysis.bellaLine             -> PARKED
+
+conversionEventAnalysis.primaryCTA      -> wow_4 (already wired)
+conversionEventAnalysis.ctaType         -> wow_4 CTA classification (already wired)
+conversionEventAnalysis.ctaClarity      -> PARKED
+conversionEventAnalysis.frictionPoints  -> PARKED
+conversionEventAnalysis.conversionStrength -> PARKED
+conversionEventAnalysis.bellaLine       -> wow_4 priority 2 (already wired)
+conversionEventAnalysis.allConversionEvents -> PARKED
+conversionEventAnalysis.ctaBreakdown    -> PARKED
+conversionEventAnalysis.conversionNarrative -> wow_4 priority 0 (already wired)
+conversionEventAnalysis.agentTrainingLine   -> wow_4 priority 1 (already wired)
+conversionEventAnalysis.ctaAgentMapping -> wow_4 priority 0 + criticalFacts[] optional (Session B)
+
+routing.priority_agents/skip_agents     -> queue building (already wired)
+routing.lower_priority_agents           -> PARKED
+routing.reasoning.alex/chris/maddie     -> recommendation colour (Session B)
+routing.reasoning.sarah/james           -> PARKED
+routing.questions_to_prioritise         -> recommendation notes[] (Sprint 6 deferred)
+routing.questions_to_brush_over         -> PARKED
+
+secondaryRecommendations[0].whySecond   -> recommendation third colour sentence (NEW — Session B)
+secondaryRecommendations[1].whyNotFirst -> PARKED
+
+hiringAnalysis.matchedRoles[*].wedge    -> channel deliver directives (NEW — Session B)
+hiringAnalysis.matchedRoles[*].jobTitle/salary -> wow_5/wow_6 context (PARKED)
+hiringAnalysis.topHiringWedge           -> wow_6 priority 5 + criticalFacts[] slot 4 (already + Session B)
+
+websiteCompliments[*].bellaLine         -> PARKED (intentionally removed from script)
+mostImpressive[0].bellaLine             -> wow_6 priority 3 (already wired)
+mostImpressive[1].bellaLine             -> PARKED (wow_6 already uses [0])
+
+googlePresence[0].bellaLine             -> wow_6 priority 2 (Session B)
+googlePresence[0].insight/data          -> PARKED (bellaLine covers it)
+googlePresence[1].bellaLine/bestQuote   -> PARKED
+
+conversationHooks[0] (topic+data+how)   -> wow_6 priority 4 — use all 3 sub-fields (Session B)
+conversationHooks[1-2]                  -> PARKED
+
+redFlags[0]                             -> criticalFacts[] optional slot 8 (Session B)
+redFlags[1+]                            -> PARKED
+
+landingPageVerdict.verdictLine          -> criticalFacts[] optional slot 9 lowest priority (Session B)
+landingPageVerdict.verdictLine2         -> PARKED
+landingPageVerdict.heroEffectiveness    -> PARKED
+landingPageVerdict.ctaClarity           -> PARKED
+landingPageVerdict.conversionBarriers   -> PARKED
+landingPageVerdict.trustSignals         -> PARKED
+
