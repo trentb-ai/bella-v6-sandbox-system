@@ -681,3 +681,207 @@ a stat verbatim. Add a compliance exemption: notes[] content is never checked.
   call-brain-do/src/moves.ts                       MODIFY (inject stat into notes[])
 
 Do NOT modify stats KB files themselves — Phase 1 is complete and correct.
+
+---
+
+## FINAL LOCKED DECISIONS — Post Perplexity Review (28 Mar 2026)
+
+Perplexity reviewed the full plan and accepted all corrections from the Opus analysis.
+The plan is now locked. These decisions are non-negotiable in CC execution.
+
+### DECISION 1: Six real prompt slots only — no invented channels
+
+The Gemini system prompt has exactly these slots (confirmed from buildDOTurnPrompt()):
+  1. MANDATORY SCRIPT      <- speak string — what Bella says verbatim
+  2. CONFIRMED THIS CALL   <- extracted state (acv, leads, etc)
+  3. LIVE ROI              <- dollar figures for channel stages
+  4. CONTEXT               <- criticalFacts[] — the ONLY non-spoken grounding slot
+  5. ACTIVE MEMORY         <- commitment notes from memoryNotes[]
+  6. STYLE                 <- tone + industryTerms
+
+There is NO contextDocuments[], NO silent grounding channel, NO Bella V2 architecture.
+Any consultant field not routed through the speak string or criticalFacts[] is Gemini-blind.
+
+### DECISION 2: criticalFacts[] priority order — LOCKED, hard cap 6 items
+
+ALWAYS (2 slots — every stage):
+  1. icpAnalysis.marketPositionNarrative
+  2. valuePropAnalysis.strongestBenefit
+
+STAGE-SPECIFIC (1-2 slots — only the relevant one):
+  3. routing.reasoning.<current_agent> first sentence
+     (ch_alex → alex, ch_chris → chris, ch_maddie → maddie, recommendation → alex)
+  4. hiringAnalysis.topHiringWedge first sentence (only if present in intel)
+
+OPTIONAL (0-1 slots — only if materially relevant to current stage):
+  5. ctaAgentMapping one-sentence summary (recommendation and close stages only)
+  6. One redFlags item (only if it protects against a likely bad claim or weak recommendation)
+
+HARD CAP: 6 items maximum. Never exceed.
+Use cleanFacts().slice(0, 6) — already exists in moves.ts.
+
+OMIT BY DEFAULT (diminishing returns, not worth the slot cost):
+  copyAnalysis.* (all fields)
+  full landingPageVerdict.*
+  full secondaryRecommendations
+  googlePresence beyond what goes in speak string
+  conversationHooks beyond what goes in speak string
+
+### DECISION 3: notes[] — add to DONextTurnPacket and render in bridge (Option A)
+
+notes[] exists in StageDirective (types.ts line 436) but is NOT transmitted via
+DONextTurnPacket and is NOT rendered in buildDOTurnPrompt(). Confirmed by code read.
+
+Decision: ADD notes[] as a real transmitted slot for Sprint 6 Stats KB.
+
+Rationale: Keeping stat guidance structurally separate from business facts is cleaner.
+Gemini performs better when instruction sections are clearly separated. A labelled
+STAT_GUIDANCE section avoids ambiguity vs CONTEXT facts.
+
+Implementation (Sprint 6 — ~5 lines in bridge):
+  DONextTurnPacket: add notes?: string[]
+  buildDOTurnPrompt(): add notes section after CONTEXT:
+    const notesSection = packet.notes?.length
+      ? '\nSTAT_GUIDANCE (deploy if opportunity arises — use Three-Beat pattern):\n'
+        + packet.notes.map(n => `- ${n}`).join('\n') + '\n'
+      : '';
+  Insert notesSection between contextSection and memorySection.
+
+This change is DEFERRED to Sprint 6 (Stats KB). Do NOT add to Sprint 1/2 or Session B.
+
+### DECISION 4: complianceLog structure — LOCKED (lean, no content previews)
+
+  { stage, ts, score, driftType, judgeCompliant, missedPhrases, reason }
+
+Do NOT add: severity, directivePreview, spokenPreview, judgeRan.
+Reason: DO state has size constraints. Content already exists in transcriptLog.
+judgeRan is implicit — if judgeCompliant is defined, judge ran.
+
+### DECISION 5: wow_* stages — checkType: 'none' — NO compliance check
+
+wow_1 through wow_8 are high-variance content-rich stages.
+Phrase-level compliance would generate constant false drifts.
+Policy: zero compliance checking on any wow stage.
+Log [COMPLIANCE_SKIP] if needed for observability but run no check.
+
+### DECISION 6: Session grouping — FINAL
+
+Session A (CC): string match + async judge + complianceLog + eval-bella C1-C6
+Session B (CC): buildCriticalFacts() + scrapedDataSummary + full data activation + recommendation colour
+Sprint 6 (separate CC session): Stats KB — detect-trigger.ts + select-stat.ts
+                                             + notes[] slot added to packet/bridge
+                                             + inject into moves.ts build[Agent]Directive()
+
+### DECISION 7: Updated wow_6 priority stack — LOCKED
+
+  1. fills.scrapedDataSummary              (new — Sprint 4 core)
+  2. googlePresence[0].bellaLine           (new — Google-data observation)
+  3. mostImpressive[0].bellaLine           (existing)
+  4. conversationHooks[0] (topic + data)   (new — specific hook)
+  5. hiringAnalysis.topHiringWedge         (existing)
+  6. hiringMatches[0]                      (existing)
+  7. GENERIC                               (last resort only)
+
+### DECISION 8: Perplexity access to Brain
+
+Brain D1 ID: 2001aba8-d651-41c0-9bd0-8d98866b057c
+Cloudflare Account ID: 9488d0601315a70cac36f9bd87aa4e82
+Perplexity can query via Cloudflare MCP if connected to same account.
+Key docs to pull: doc-bella-intelligence-verification-sprint-20260328,
+doc-loop-and-harness-system-20260327, doc-bella-morgans-canary-eval-20260327,
+doc-bella-step-module-architecture-20260328.
+
+---
+HANDOVER DOC STATUS: FINAL AND LOCKED. No further changes before CC execution.
+Total lines: see wc -l HANDOVER_COMPLIANCE_SPRINT_20260328.md
+
+---
+
+## FINAL LOCKED DECISIONS — Post Perplexity Review (28 Mar 2026)
+
+Perplexity reviewed the full plan, accepted all Opus corrections, and converged correctly.
+Plan is now locked. These decisions are non-negotiable in CC execution.
+
+### DECISION 1: Six real prompt slots only — no invented channels
+
+The Gemini system prompt has exactly these slots (confirmed from buildDOTurnPrompt()):
+  1. MANDATORY SCRIPT      <- speak string — what Bella says verbatim
+  2. CONFIRMED THIS CALL   <- extracted state (acv, leads, etc)
+  3. LIVE ROI              <- dollar figures for channel stages
+  4. CONTEXT               <- criticalFacts[] — the ONLY non-spoken grounding slot
+  5. ACTIVE MEMORY         <- commitment notes from memoryNotes[]
+  6. STYLE                 <- tone + industryTerms
+
+There is NO contextDocuments[], NO silent grounding channel, NO Bella V2 architecture.
+Any consultant field not routed through the speak string or criticalFacts[] is Gemini-blind.
+
+### DECISION 2: criticalFacts[] priority order — LOCKED, hard cap 6 items
+
+ALWAYS (2 slots — every stage):
+  1. icpAnalysis.marketPositionNarrative
+  2. valuePropAnalysis.strongestBenefit
+
+STAGE-SPECIFIC (1-2 slots):
+  3. routing.reasoning.<current_agent> first sentence only
+     (ch_alex->alex, ch_chris->chris, ch_maddie->maddie, recommendation->alex)
+  4. hiringAnalysis.topHiringWedge first sentence (only if present)
+
+OPTIONAL (0-1 slots — only if materially relevant):
+  5. ctaAgentMapping one sentence (recommendation + close stages only)
+  6. One redFlags item (only if protects against likely bad claim)
+
+HARD CAP: 6 items. Use cleanFacts().slice(0, 6) — already exists in moves.ts.
+
+OMIT BY DEFAULT:
+  copyAnalysis.* (all), full landingPageVerdict.*, full secondaryRecommendations,
+  googlePresence beyond what goes in speak string,
+  conversationHooks beyond what goes in speak string.
+
+### DECISION 3: notes[] — add to DONextTurnPacket and render in bridge (Sprint 6)
+
+notes[] exists in StageDirective (types.ts line 436) but is NOT in DONextTurnPacket
+and NOT rendered in buildDOTurnPrompt(). Confirmed by code read.
+
+Decision: ADD notes[] as a real transmitted slot — but ONLY in Sprint 6 (Stats KB).
+Do NOT add in Session A or Session B. Deferred.
+
+Rationale: Keeping stat guidance structurally separate from criticalFacts[] is cleaner.
+Gemini performs better when sections are clearly labelled. A STAT_GUIDANCE block avoids
+ambiguity with CONTEXT facts. The bridge change is ~5 lines.
+
+Sprint 6 implementation:
+  DONextTurnPacket: add   notes?: string[]
+  buildDOTurnPrompt(): add after contextSection:
+    const notesSection = packet.notes?.length
+      ? '\nSTAT_GUIDANCE (deploy if opportunity arises — use Three-Beat pattern):\n'
+        + packet.notes.map(n => '- ' + n).join('\n') + '\n'
+      : '';
+
+### DECISION 4: complianceLog structure — LOCKED (lean)
+
+  { stage, ts, score, driftType, judgeCompliant, missedPhrases, reason }
+
+NOT included: severity, directivePreview, spokenPreview, judgeRan.
+judgeRan is implicit — if judgeCompliant is defined, judge ran.
+Content previews excluded — DO state has size constraints, content exists in transcriptLog.
+
+### DECISION 5: wow_* stages — checkType none — zero compliance checking
+
+wow_1 through wow_8: high-variance content, phrase matching generates false drifts.
+Policy: zero compliance checks on any wow stage. No exceptions.
+
+### DECISION 6: Session grouping — FINAL
+
+Session A: string match + async judge + complianceLog + eval-bella C1-C6
+Session B: buildCriticalFacts() + scrapedDataSummary + full data activation + rec colour
+Sprint 6:  Stats KB — detect-trigger.ts + select-stat.ts + notes[] slot + moves.ts wiring
+
+### DECISION 7: wow_6 priority stack — LOCKED
+
+  1. fills.scrapedDataSummary           (new — Sprint 4 core)
+  2. googlePresence[0].bellaLine        (new — Google-data observation)
+  3. mostImpressive[0].bellaLine        (existing)
+  4. conversationHooks[0]               (new — specific hook with topic + data)
+  5. hiringAnalysis.topHiringWedge      (existing)
+  6. hiringMatches[0]                   (existing)
+  7. GENERIC                            (last resort)
