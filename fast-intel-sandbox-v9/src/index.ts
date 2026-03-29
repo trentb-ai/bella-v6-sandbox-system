@@ -36,7 +36,7 @@ import { Env, FastIntelResult, ConsultantPayload } from "./types";
 
 export { Env };
 
-const VERSION = "1.11.0"; // Stub consultant fallback: attempt Gemini enrichment even when all scrapers fail
+const VERSION = "1.12.0"; // Wire scrapedDataSummary from consultant into scriptFills
 // KV_TTL removed — data persists permanently
 
 const CORS = {
@@ -868,6 +868,7 @@ async function runFastIntel(
       recent_review_snippet:    sf.recent_review_snippet || null,
       rep_quality_assessment:   sf.rep_quality_assessment || null,
       top_2_website_ctas:       sf.top_2_website_ctas  || null,
+      scrapedDataSummary:       sf.scrapedDataSummary   || null,
     },
 
     // Routing — which agents are likely strongest
@@ -1192,6 +1193,67 @@ function inferIndustry(fc: Record<string, any>): string {
   return "business";
 }
 
+// ─── Sprint 3: Google Places category-based industry override ────────────────
+// Google Places types/primaryType are ground truth for multi-service businesses.
+// An accounting firm with wealth management content gets "accounting" from Places
+// categories, not "finance" from keyword matching on homepage text.
+
+function mapGoogleCategoriesToIndustry(categories: string[]): string | null {
+  const CATEGORY_MAP: Record<string, string> = {
+    'accounting':       'accounting and advisory',
+    'accountant':       'accounting and advisory',
+    'tax':              'accounting and advisory',
+    'financial':        'financial advisory and wealth management',
+    'insurance':        'insurance',
+    'law':              'legal services',
+    'lawyer':           'legal services',
+    'attorney':         'legal services',
+    'real_estate':      'real estate',
+    'medical':          'healthcare',
+    'doctor':           'healthcare',
+    'dentist':          'dental',
+    'dental':           'dental',
+    'physiotherapist':  'physiotherapy',
+    'plumber':          'construction and trades',
+    'electrician':      'construction and trades',
+    'construction':     'construction and trades',
+    'restaurant':       'hospitality',
+    'cafe':             'hospitality',
+    'retail':           'retail',
+    'marketing':        'marketing agency',
+  };
+
+  for (const cat of categories) {
+    const lower = cat.toLowerCase().replace(/\s+/g, '_');
+    for (const [key, industry] of Object.entries(CATEGORY_MAP)) {
+      if (lower.includes(key)) return industry;
+    }
+  }
+  return null;
+}
+
+function resolveIndustry(
+  llmGuess: string,
+  googleCategories: string[] | undefined,
+  primaryType: string | undefined,
+): string {
+  // Combine primaryType with types array for maximum signal
+  const allCategories = [...(googleCategories ?? [])];
+  if (primaryType && !allCategories.includes(primaryType)) {
+    allCategories.unshift(primaryType);
+  }
+
+  if (allCategories.length > 0) {
+    const mapped = mapGoogleCategoriesToIndustry(allCategories);
+    if (mapped) {
+      if (mapped !== llmGuess) {
+        log("INDUSTRY", `Google override: "${llmGuess}" → "${mapped}" (categories: ${allCategories.slice(0, 3).join(', ')})`);
+      }
+      return mapped;
+    }
+  }
+  return llmGuess;
+}
 
 // ─── Google Places Text Search cross-ref (P2-T1) ────────────────────────────
 // Calls Places API to verify business name and grab rating + review count.
@@ -1205,6 +1267,8 @@ interface PlacesResult {
   placeId: string;
   verified: boolean;
   formattedAddress?: string;
+  types?: string[];
+  primaryType?: string;
 }
 
 async function crossRefGooglePlaces(
@@ -1224,7 +1288,7 @@ async function crossRefGooglePlaces(
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": "places.displayName,places.rating,places.userRatingCount,places.id,places.formattedAddress,places.websiteUri",
+        "X-Goog-FieldMask": "places.displayName,places.rating,places.userRatingCount,places.id,places.formattedAddress,places.websiteUri,places.types,places.primaryType",
       },
       body: JSON.stringify({ textQuery: query, maxResultCount: 3 }),
       signal: AbortSignal.timeout(3000),
@@ -1285,9 +1349,11 @@ async function crossRefGooglePlaces(
       placeId: best.id ?? "",
       verified: bestScore >= 5,
       formattedAddress: best.formattedAddress ?? "",
+      types: best.types ?? [],
+      primaryType: best.primaryType ?? undefined,
     };
 
-    log("PLACES", `MATCH "${result.name}" rating=${result.rating} reviews=${result.reviewCount} score=${bestScore} verified=${result.verified} (${Date.now() - t0}ms)`);
+    log("PLACES", `MATCH "${result.name}" rating=${result.rating} reviews=${result.reviewCount} score=${bestScore} verified=${result.verified} types=${(result.types ?? []).slice(0, 3).join(',')} primary=${result.primaryType ?? 'none'} (${Date.now() - t0}ms)`);
     return result;
   } catch (e: any) {
     log("PLACES", `Error: ${e.message} (${Date.now() - t0}ms)`);
@@ -1481,6 +1547,12 @@ export default {
             fastIntel.core_identity.business_name = places.name;
             log("PLACES_NAME", `"${oldName}" → "${places.name}" (verified)`);
           }
+          // Sprint 3: Use Places categories to resolve industry for multi-service businesses
+          fastIntel.core_identity.industry = resolveIndustry(
+            fastIntel.core_identity.industry,
+            places.types,
+            places.primaryType,
+          );
           // Always store rating + reviews if Places returned them
           if (places.rating > 0 || places.reviewCount > 0) {
             (fastIntel as any).places = {
@@ -1490,6 +1562,8 @@ export default {
               place_id: places.placeId,
               verified: places.verified,
               address: places.formattedAddress,
+              types: places.types,
+              primaryType: places.primaryType,
             };
             // Enrich flags with early review signals
             if (places.reviewCount > 0) {

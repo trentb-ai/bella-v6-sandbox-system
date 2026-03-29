@@ -549,7 +549,8 @@ describe('Group 5: Flow Harness', () => {
       inboundLeads: 50,
       inboundConversions: 5,
       responseSpeedBand: 'next_day_plus',
-      spoken: { moveIds: ['v2_ch_alex'], factsUsed: [] },
+      // Sprint 1A: semantic moveIds — synthesis must be marked as spoken for advancement
+      spoken: { moveIds: ['v2_ch_alex', 'v2_ch_alex_synthesis'], factsUsed: [] },
       pendingDelivery: null,
       flowSeq: 5,
       questionCounts: { ch_alex: 3, ch_chris: 0, ch_maddie: 0, ch_sarah: 0, ch_james: 0 },

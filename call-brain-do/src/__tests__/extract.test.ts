@@ -95,6 +95,35 @@ describe('extractFromTranscript — responseSpeedBand mapping', () => {
   it('maps "next day" → next_day_plus', () => {
     expect(extractBand('usually the next day')).toBe('next_day_plus');
   });
+
+  // Numeric hours — FIX 1: bare "N hours" patterns
+  it('maps "8 hours" → 2_to_24_hours', () => {
+    expect(extractBand('probably about 8 hours')).toBe('2_to_24_hours');
+  });
+
+  it('maps "3 hours" → 2_to_24_hours', () => {
+    expect(extractBand('around 3 hours')).toBe('2_to_24_hours');
+  });
+
+  it('maps "1 hour" → 30_minutes_to_2_hours', () => {
+    expect(extractBand('about 1 hour')).toBe('30_minutes_to_2_hours');
+  });
+
+  it('maps "2 hours" → 30_minutes_to_2_hours', () => {
+    expect(extractBand('roughly 2 hours')).toBe('30_minutes_to_2_hours');
+  });
+
+  it('maps "24 hours" → 2_to_24_hours', () => {
+    expect(extractBand('within 24 hours')).toBe('2_to_24_hours');
+  });
+
+  it('maps "48 hours" → next_day_plus', () => {
+    expect(extractBand('probably 48 hours')).toBe('next_day_plus');
+  });
+
+  it('maps "6 hours" → 2_to_24_hours', () => {
+    expect(extractBand('takes about 6 hours')).toBe('2_to_24_hours');
+  });
 });
 
 // ─── Field extraction by stage ──────────────────────────────────────────────

@@ -27,6 +27,8 @@ import type {
   AnyAgent,
   CoreAgent,
 } from './types';
+import { CRITICAL_STAGES } from './types';
+import { buildCorrectionPrefix } from './compliance';
 
 import { buildStageDirective } from './moves';
 import {
@@ -41,7 +43,7 @@ import {
   hasSarahMinimumData,
   hasJamesMinimumData,
 } from './gate';
-import { WOW_STEP_ORDER, DELIVERY_TIMEOUT_MS, MAX_DELIVERY_ATTEMPTS, MAX_CONSECUTIVE_TIMEOUTS, DELIVERY_MIN_WINDOW_MS } from './flow-constants';
+import { WOW_STEP_ORDER, DELIVERY_TIMEOUT_MS, MAX_DELIVERY_ATTEMPTS, MAX_CONSECUTIVE_TIMEOUTS, DELIVERY_MIN_WINDOW_MS, getDeliveryTimeoutMs } from './flow-constants';
 import type { AuditSource } from './flow-audit';
 import {
   auditDirectiveIssued,
@@ -58,6 +60,7 @@ import {
   computeSarahRoi,
   computeJamesRoi,
 } from './roi';
+import { extractWowSentiment } from './helpers/sentiment';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -167,6 +170,12 @@ interface GateResult {
   action: 'open' | 'hold';
   /** True when the gate cleared a failed/timed_out delivery — question was never heard by user */
   clearedFailed: boolean;
+  /** True when the gate cleared a drifted delivery on a critical stage (needs retry or advance) */
+  clearedDrifted: boolean;
+  /** Missed phrases from the drifted delivery (for correction prefix) */
+  driftedMissedPhrases: string[];
+  /** Drift count from the drifted delivery (for retry-exhausted check) */
+  driftCount: number;
 }
 
 function resolveDeliveryGate(
@@ -174,16 +183,20 @@ function resolveDeliveryGate(
   transcript: string,
   source: AuditSource = 'turn',
 ): GateResult {
+  const DEFAULT: GateResult = { action: 'open', clearedFailed: false, clearedDrifted: false, driftedMissedPhrases: [], driftCount: 0 };
   const p = state.pendingDelivery;
-  if (!p) return { action: 'open', clearedFailed: false };
+  if (!p) return DEFAULT;
 
   // Already resolved by event handler or alarm — just clear
   if (p.status !== 'pending') {
     const wasFailed = p.status === 'failed';
+    const wasDrifted = p.status === 'drifted';
+    const missedPhrases = wasDrifted ? (p.missedPhrases ?? []) : [];
+    const driftCount = wasDrifted ? (p.driftCount ?? 0) : 0;
     auditDeliveryResolved(state, p.stage, p.wowStep,
       `gate_clear status=${p.status} resolution=${p.resolution ?? 'none'} moveId=${p.moveId}`, source);
     state.pendingDelivery = null;
-    return { action: 'open', clearedFailed: wasFailed };
+    return { action: 'open', clearedFailed: wasFailed, clearedDrifted: wasDrifted, driftedMissedPhrases: missedPhrases, driftCount };
   }
 
   // Still pending — user spoke on /turn → implicit confirmation
@@ -195,17 +208,17 @@ function resolveDeliveryGate(
       // Too soon — this is residual speech, not a response to the new directive.
       // Do NOT clear, advance, or overwrite. Let llm_reply_done handle it naturally.
       console.log(`[DELIVERY_GATE_HOLD] moveId=${p.moveId} elapsed=${elapsed}ms < min=${DELIVERY_MIN_WINDOW_MS}ms — holding delivery`);
-      return { action: 'hold', clearedFailed: false };
+      return { action: 'hold', clearedFailed: false, clearedDrifted: false, driftedMissedPhrases: [], driftCount: 0 };
     }
     auditDeliveryResolved(state, p.stage, p.wowStep, `implicit_user_spoke moveId=${p.moveId}`, source);
     state.consecutiveTimeouts = 0;
     state.pendingDelivery = null;
-    return { action: 'open', clearedFailed: false };
+    return DEFAULT;
   }
 
   // Edge case: empty transcript on /turn (shouldn't happen, handle gracefully)
   state.pendingDelivery = null;
-  return { action: 'open', clearedFailed: false };
+  return DEFAULT;
 }
 
 // ─── Set Pending Delivery ───────────────────────────────────────────────────
@@ -219,12 +232,14 @@ function setPendingDelivery(
   directive: StageDirective,
   moveId: string,
   source: AuditSource = 'turn',
+  isSynthesis: boolean = false,
 ): void {
   if (state.pendingDelivery && state.pendingDelivery.status === 'pending') {
     console.warn(`[FLOW_WARN] overwriting unresolved pendingDelivery moveId=${state.pendingDelivery.moveId} deliveryId=${state.pendingDelivery.deliveryId} with ${moveId}`);
   }
 
   const deliveryId = `${moveId}_${state.flowSeq}`;
+  const timeoutMs = getDeliveryTimeoutMs(state.currentStage, directive.waitForUser, isSynthesis);
 
   state.pendingDelivery = {
     deliveryId,
@@ -236,9 +251,10 @@ function setPendingDelivery(
     seq: state.flowSeq,
     status: 'pending',
     attempts: 1,
+    timeoutMs,
   };
 
-  auditDirectiveIssued(state, state.currentStage, state.currentWowStep, `moveId=${moveId} deliveryId=${deliveryId}`, source);
+  auditDirectiveIssued(state, state.currentStage, state.currentWowStep, `moveId=${moveId} deliveryId=${deliveryId} timeoutMs=${timeoutMs}`, source);
 }
 
 // ─── Delivery Resolution Functions ─────────────────────────────────────────
@@ -509,6 +525,39 @@ export function processFlow(
   const clearedFailedDelivery = gateResult.clearedFailed;
 
   // ═════════════════════════════════════════════════════════════════════════
+  // PHASE 1.5: DRIFT BRANCH (Sprint A2 — compliance retry)
+  // ═════════════════════════════════════════════════════════════════════════
+
+  if (gateResult.clearedDrifted) {
+    const isCritical = CRITICAL_STAGES.includes(state.currentStage);
+
+    if (isCritical && gateResult.driftCount < 1) {
+      // Decision X: ONE retry — rebuild directive with correction prefix
+      const retryDirective = buildStageDirective({
+        stage: state.currentStage,
+        wowStep: state.currentWowStep,
+        intel,
+        state,
+      });
+      const correctedSpeak = buildCorrectionPrefix(gateResult.driftedMissedPhrases, retryDirective.speak);
+      const correctedDirective: StageDirective = { ...retryDirective, speak: correctedSpeak };
+      const moveId = `v2_${state.currentStage}${state.currentWowStep ? '_' + state.currentWowStep : ''}_retry`;
+
+      setPendingDelivery(state, correctedDirective, moveId, 'turn');
+      console.log(`[COMPLIANCE_RETRY] stage=${state.currentStage} driftCount=${gateResult.driftCount} missed=${gateResult.driftedMissedPhrases.length}`);
+      return { directive: correctedDirective, moveId, advanced: false, clearedFailedDelivery: false };
+    }
+
+    if (isCritical && gateResult.driftCount >= 1) {
+      // Retry exhausted — continue normally, do NOT block the call
+      console.log(`[COMPLIANCE_RETRY_EXHAUSTED] stage=${state.currentStage} driftCount=${gateResult.driftCount} — advancing normally`);
+    } else {
+      // Non-critical drift — log only, no retry
+      console.log(`[COMPLIANCE_DRIFT_NONCRITICAL] stage=${state.currentStage} — no retry for non-critical`);
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
   // PHASE 2: ADVANCEMENT — deterministic state machine
   // ═════════════════════════════════════════════════════════════════════════
 
@@ -599,6 +648,33 @@ export function processFlow(
 
       // Advance to next WOW step
       if (cleanTranscript.length > 0) {
+        // ── Sprint 2 (Issue 8): Sentiment check for wow_3/wow_4 ──
+        // Detect negative sentiment (rejection/correction) and adapt flow.
+        // wow_3 negative → skip wow_4, jump to wow_5
+        // wow_4 negative → record but continue normally
+        const SENTIMENT_STEPS: Set<string> = new Set(['wow_3_icp_problem_solution', 'wow_4_conversion_action']);
+        if (state.currentWowStep && SENTIMENT_STEPS.has(state.currentWowStep)) {
+          const sentiment = extractWowSentiment(cleanTranscript);
+          state.lastWowSentiment = sentiment;
+          console.log(`[WOW_SENTIMENT] step=${state.currentWowStep} sentiment=${sentiment} transcript="${cleanTranscript.slice(0, 60)}"`);
+
+          if (sentiment === 'negative') {
+            state.rejectedWowSteps.push(state.currentWowStep);
+
+            if (state.currentWowStep === 'wow_3_icp_problem_solution') {
+              // wow_3 rejected → skip wow_4 entirely, jump to wow_5
+              state.completedWowSteps.push('wow_3_icp_problem_solution');
+              state.completedWowSteps.push('wow_4_conversion_action');
+              state.currentWowStep = 'wow_5_alignment_bridge';
+              advanced = true;
+              auditStageAdvanced(state, 'wow', 'wow', 'wow3_rejected → skip wow_4 → wow_5', undefined, 'turn');
+              console.log(`[WOW_REJECTION_SKIP] wow_3 rejected → skipping wow_4 → wow_5_alignment_bridge`);
+              break;
+            }
+            // wow_4 negative → record but continue normal advancement below
+          }
+        }
+
         if (state.currentWowStep) {
           // Spoken-gate: verify non-waitForUser steps were actually spoken before completing
           const expectedMoveId = `v2_wow_${state.currentWowStep}`;
@@ -737,12 +813,23 @@ export function processFlow(
         }
 
         const hasResult = !!state.calculatorResults[agent];
-        const hasSpoken = state.spoken.moveIds.includes(`v2_${stage}`);
+        // Sprint 1A (Issue 1): semantic moveId check — synthesis must be spoken before advancing.
+        // Previously used flat `v2_ch_alex` for both questions AND synthesis, causing
+        // stage to advance as soon as any question was spoken + calculator had a result.
+        const synthesisMoveId = `v2_${stage}_synthesis`;
+        const synthesisSeen = state.spoken.moveIds.includes(synthesisMoveId);
         // Anti-churn: if stuck past budget + 1 turn, force-advance regardless
         const isStuck = budgetDone && state.questionCounts[qKey] > maxQ;
 
-        if ((hasResult && hasSpoken) || (budgetDone && !hasResult) || isStuck) {
-          const completionMode: CompletionMode = isStuck ? 'stuck_escape' : (hasResult && hasSpoken) ? 'complete' : 'budget_exhausted';
+        // CRITICAL (Sprint 1A): if calculator has result but synthesis not spoken yet,
+        // HOLD this stage so Phase 3 builds the synthesis/ROI directive.
+        if (hasResult && !synthesisSeen && !isStuck) {
+          console.log(`[SYNTHESIS_HOLD] ${stage} — hasResult=true synthesisSeen=false → holding for synthesis delivery`);
+          break;
+        }
+
+        if ((hasResult && synthesisSeen) || (budgetDone && !hasResult) || isStuck) {
+          const completionMode: CompletionMode = isStuck ? 'stuck_escape' : (hasResult && synthesisSeen) ? 'complete' : 'budget_exhausted';
           state.completedStages.push(stage);
           // Optional agents return to optional_side_agents; core agents follow the queue
           if (stage === 'ch_sarah' || stage === 'ch_james') {
@@ -751,8 +838,8 @@ export function processFlow(
             state.currentStage = nextChannelFromQueue(state);
           }
           advanced = true;
-          auditStageAdvanced(state, stage, state.currentStage, `hasResult=${hasResult} hasSpoken=${hasSpoken} budgetDone=${budgetDone} isStuck=${isStuck} qCount=${state.questionCounts[qKey]}`, completionMode, 'turn');
-          console.log(`[ADVANCE] ${stage} → ${state.currentStage} (${completionMode}) (hasResult=${hasResult} hasSpoken=${hasSpoken} budgetDone=${budgetDone} isStuck=${isStuck} qCount=${state.questionCounts[qKey]})`);
+          auditStageAdvanced(state, stage, state.currentStage, `hasResult=${hasResult} synthesisSeen=${synthesisSeen} budgetDone=${budgetDone} isStuck=${isStuck} qCount=${state.questionCounts[qKey]}`, completionMode, 'turn');
+          console.log(`[ADVANCE] ${stage} → ${state.currentStage} (${completionMode}) (hasResult=${hasResult} synthesisSeen=${synthesisSeen} budgetDone=${budgetDone} isStuck=${isStuck} qCount=${state.questionCounts[qKey]})`);
         }
         // Otherwise the directive will show ROI this turn — don't advance yet
       }
@@ -814,13 +901,30 @@ export function processFlow(
     state,
   });
 
-  const moveId = `v2_${state.currentStage}${state.currentWowStep ? '_' + state.currentWowStep : ''}`;
+  // Sprint 1A: context-aware moveId — channel stages get `_synthesis` suffix
+  // when the directive is delivering ROI results. This prevents the flat moveId
+  // from conflating question delivery with synthesis delivery.
+  const CHANNEL_STAGES: Set<StageId> = new Set(['ch_alex', 'ch_chris', 'ch_maddie', 'ch_sarah', 'ch_james']);
+  const AGENT_FOR_STAGE: Record<string, string> = { ch_alex: 'alex', ch_chris: 'chris', ch_maddie: 'maddie', ch_sarah: 'sarah', ch_james: 'james' };
+  let moveId: string;
+  let isSynthesis = false;
+
+  if (CHANNEL_STAGES.has(state.currentStage)) {
+    const agentKey = AGENT_FOR_STAGE[state.currentStage];
+    const hasRoi = !!(agentKey && state.calculatorResults[agentKey as keyof typeof state.calculatorResults]);
+    isSynthesis = hasRoi;
+    moveId = hasRoi
+      ? `v2_${state.currentStage}_synthesis`
+      : `v2_${state.currentStage}`;
+  } else {
+    moveId = `v2_${state.currentStage}${state.currentWowStep ? '_' + state.currentWowStep : ''}`;
+  }
 
   // ═════════════════════════════════════════════════════════════════════════
   // PHASE 4: SET PENDING DELIVERY
   // ═════════════════════════════════════════════════════════════════════════
 
-  setPendingDelivery(state, directive, moveId, 'turn');
+  setPendingDelivery(state, directive, moveId, 'turn', isSynthesis);
 
   return { directive, moveId, advanced, clearedFailedDelivery };
 }

@@ -110,6 +110,13 @@ export function initState(callId: string, leadId: string): ConversationState {
     questionCounts: { ch_alex: 0, ch_chris: 0, ch_maddie: 0, ch_sarah: 0, ch_james: 0 },
     calculatorResults: {},
 
+    // ── Cross-channel canonical store (Sprint 1B) ──
+    unifiedState: {},
+
+    // ── WOW rejection tracking (Sprint 2) ──
+    rejectedWowSteps: [],
+    lastWowSentiment: null,
+
     // ── Optional agent flags ──
     prospectAskedAboutSarah: false,
     prospectAskedAboutJames: false,
@@ -153,6 +160,16 @@ export function initState(callId: string, leadId: string): ConversationState {
 
     // ── KV export versioning ──
     kvExportVersion: 0,
+
+    // ── Observability: last-turn intelligence context (FIX 5) ──
+    lastCriticalFacts: null,
+    lastContextNotes: null,
+
+    // ── Rolling transcript buffer (Sprint E1) ──
+    recentUserTranscripts: [],
+
+    // ── Compliance log ──
+    complianceLog: [],
   };
 }
 
@@ -171,6 +188,9 @@ export async function loadState(storage: DurableObjectStorage): Promise<Conversa
   if (!state.detectedInputUnits) state.detectedInputUnits = {};
   if (typeof state.kvExportVersion !== 'number') state.kvExportVersion = 0;
   if (typeof state.maddieSkip !== 'boolean') state.maddieSkip = false;
+  if (!Array.isArray(state.recentUserTranscripts)) state.recentUserTranscripts = [];
+  if (!Array.isArray(state.rejectedWowSteps)) state.rejectedWowSteps = [];
+  if (state.lastWowSentiment === undefined) state.lastWowSentiment = null;
 
   // Backward-compat: Chunk 3 PendingDelivery field migration
   if (state.pendingDelivery) {
@@ -680,6 +700,13 @@ export function migrateV1toV2(old: any): ConversationState {
     questionCounts: { ch_alex: 0, ch_chris: 0, ch_maddie: 0, ch_sarah: 0, ch_james: 0 },
     calculatorResults: {},
 
+    // ── Cross-channel canonical store (Sprint 1B) ──
+    unifiedState: {},
+
+    // ── WOW rejection tracking (Sprint 2) ──
+    rejectedWowSteps: [],
+    lastWowSentiment: null,
+
     // ── Optional agent flags ──
     prospectAskedAboutSarah: false,
     prospectAskedAboutJames: false,
@@ -735,5 +762,15 @@ export function migrateV1toV2(old: any): ConversationState {
 
     // ── KV export versioning ──
     kvExportVersion: 0,
+
+    // ── Observability: last-turn intelligence context (FIX 5) ──
+    lastCriticalFacts: null,
+    lastContextNotes: null,
+
+    // ── Rolling transcript buffer (Sprint E1) ──
+    recentUserTranscripts: [],
+
+    // ── Compliance log ──
+    complianceLog: [],
   };
 }

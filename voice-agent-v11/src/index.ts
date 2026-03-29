@@ -6,7 +6,7 @@
 
 import { Agent, routeAgentRequest } from "agents";
 
-const VERSION = "4.1.0-RECONNECT"; // Fix: auto-reconnect on DG close + browser notification
+const VERSION = "4.2.0-EOT-INJECT"; // Sprint E2A: high-reliability EOT + InjectAgentMessage infrastructure
 const log = (tag: string, msg: string, t0?: number) => {
   const elapsed = t0 !== undefined ? ` [+${Date.now() - t0}ms]` : "";
   console.log(`[BellaV4 ${VERSION}] [${tag}]${elapsed} ${msg}`);
@@ -696,8 +696,8 @@ VOICE CALL RULES:
               model: DG_STT_MODEL,  // flux-general-en
               // NO version field - Flux doesn't use it
               // NO smart_format - not compatible with Flux
-              eot_threshold: 0.7,          // default, good starting point
-              eot_timeout_ms: 1500,        // ms of silence before turn ends
+              eot_threshold: 0.85,         // High-reliability: fewer false turn finals, fewer SSE cancellations
+              eot_timeout_ms: 2500,        // Longer silence tolerance: natural phone pauses don't trigger false EOT
             },
           },
           think: {
@@ -796,8 +796,15 @@ VOICE CALL RULES:
           this.sendJSON(connection, { type: "error", message: msg.message ?? "Deepgram error" });
           break;
 
+        case "InjectionRefused":
+          log("INJECT", `refused: ${JSON.stringify(msg)}`, t0);
+          break;
+
         case "Warning":
           log("DG-WARN", JSON.stringify(msg), t0);
+          if (typeof msg.message === 'string' && msg.message.includes('INJECT_AGENT_MESSAGE')) {
+            log("INJECT-WARN", `${msg.message} — will retry on next silent window`, t0);
+          }
           break;
 
         case "Close":
@@ -945,6 +952,26 @@ VOICE CALL RULES:
       name: fnName,
       content: JSON.stringify(result),
     }));
+  }
+
+  /**
+   * Inject deterministic text into Deepgram Voice Agent TTS.
+   * Bypasses the think/LLM cycle entirely — goes straight to Aura-2.
+   * Must only be called in silent windows (after AgentAudioDone, before UserStartedSpeaking).
+   */
+  private injectDeterministicSpeech(text: string): boolean {
+    if (!this.dgSocket || this.dgSocket.readyState !== WebSocket.OPEN) {
+      log("INJECT", "failed — no DG socket");
+      return false;
+    }
+
+    this.dgSocket.send(JSON.stringify({
+      type: "InjectAgentMessage",
+      message: text,
+    }));
+
+    log("INJECT", `sent ${text.length} chars: "${text.slice(0, 80)}..."`);
+    return true;
   }
 
   private sendJSON(c: any, d: unknown) { c.send(JSON.stringify(d)); }

@@ -29,7 +29,11 @@ import type {
   MemoryCategory,
   MemoryNote,
   TranscriptEntry,
+  ComplianceLogEntry,
 } from './types';
+
+import { CRITICAL_STAGES } from './types';
+import { runLlmJudge } from './compliance';
 
 import {
   initState,
@@ -42,8 +46,9 @@ import {
 } from './state';
 import { extractFromTranscript, applyExtraction, appendTranscript, extractBellaMemoryNotes, commitmentKey, prescanForEarlyROI, inferAcvMultiplier } from './extract';
 import { geminiExtract, geminiExtractHistory } from './gemini-extract';
+import { deterministicExtract } from './deterministic-extract';
 import { mergeIntel, initQueueFromIntel, deepMerge } from './intel';
-import { buildStageDirective } from './moves';
+import { buildStageDirective, buildCriticalFacts, buildContextNotes } from './moves';
 import { deriveEligibility, maxQuestionsReached } from './gate';
 import {
   processFlow,
@@ -58,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v5.12.0-acv-guard';
+const VERSION = 'v6.1.0-intel-gap-fill';
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
@@ -316,21 +321,32 @@ function extractKeyPhrases(speakText: string): string[] {
 function directiveToPacket(
   directive: StageDirective,
   state: ConversationState,
+  moveId?: string,
 ): Record<string, any> {
   const coreAgents: CoreAgent[] = ['alex', 'chris', 'maddie'];
   const coreResults = Object.entries(state.calculatorResults)
     .filter(([k, v]) => v != null && coreAgents.includes(k as CoreAgent));
+
+  const criticalFacts = buildCriticalFacts(state);
+  const contextNotes = buildContextNotes(state.currentStage, state);
+
+  // Persist for /debug observability (FIX 5)
+  state.lastCriticalFacts = criticalFacts;
+  state.lastContextNotes = contextNotes;
 
   return {
     stage: state.currentStage,
     wowStall: state.currentStage === 'wow' ? wowStepToNumber(state.currentWowStep) : null,
     objective: directive.objective,
     chosenMove: {
-      id: `v2_${state.currentStage}${state.currentWowStep ? '_' + state.currentWowStep : ''}`,
+      // Sprint 1A: use semantic moveId from processFlow when provided (includes _synthesis suffix)
+      // Falls back to flat pattern for session_init and other non-flow paths.
+      id: moveId ?? `v2_${state.currentStage}${state.currentWowStep ? '_' + state.currentWowStep : ''}`,
       kind: directive.ask ? 'question' : directive.calculatorKey ? 'roi' : 'bridge',
       text: directive.speak,
     },
-    criticalFacts: [],
+    criticalFacts,
+    contextNotes,
     extractTargets: directive.extract ?? [],
     validation: {
       mustCaptureAny: directive.extract ?? [],
@@ -361,6 +377,12 @@ function directiveToPacket(
     complianceChecks: {
       mustContainPhrases: extractKeyPhrases(directive.speak),
     },
+    // E2A: mandatory flag — bridge must deliver text exactly, no LLM paraphrase
+    mandatory: !!(
+      state.currentStage === 'roi_delivery' ||
+      directive.calculatorKey ||
+      (coreResults.length > 0 && directive.speak.includes('$'))
+    ),
   };
 }
 
@@ -760,7 +782,9 @@ export class CallBrainDO {
 
       await persistState(this.state.storage, brain);
       await this.scheduleNextAlarm(brain);
+      // DIAG: Intel state at session creation — reveals timing gap between enrichment push and DO init
       console.log(`[INIT] callId=${this.state.id.toString()} leadId=${leadId} stage=${brain.currentStage} ts=${new Date().toISOString()} name=${brain.firstName ?? 'none'} biz=${(brain.business ?? 'none').slice(0, 30)} industry=${brain.industry ?? 'none'}`);
+      console.log(`[INIT_INTEL] callId=${this.state.id.toString()} fast=${!!brain.intel.fast} consultant=${!!brain.intel.consultant} deep=${!!(brain.intel.deep as any)?.status} mergedVersion=${brain.intel.mergedVersion} kvSources=${kvIntel ? 'hydrated' : 'empty'}`);
       return { brain, created: true };
     }
 
@@ -769,6 +793,8 @@ export class CallBrainDO {
     if (!brain.memoryNotes) brain.memoryNotes = [];
     if (!brain.spoken) brain.spoken = { moveIds: [], factsUsed: [] };
     if (!brain.scribeProcessed) brain.scribeProcessed = {};
+    if (!brain.complianceLog) brain.complianceLog = [];
+    if (!brain.recentUserTranscripts) brain.recentUserTranscripts = [];
 
     if (!brain.leadId) brain.leadId = leadId;
     if (starterIntel && !brain.intel.fast) {
@@ -776,7 +802,7 @@ export class CallBrainDO {
       brain.intel.mergedVersion = Math.max(brain.intel.mergedVersion, 1);
     }
     await persistState(this.state.storage, brain as any);
-    console.log(`[ENSURE] existing session — stage=${brain.currentStage} wowStep=${brain.currentWowStep} name=${brain.firstName ?? 'none'} biz=${(brain.business ?? 'none').slice(0, 30)}`);
+    console.log(`[ENSURE] existing session — stage=${brain.currentStage} wowStep=${brain.currentWowStep} name=${brain.firstName ?? 'none'} biz=${(brain.business ?? 'none').slice(0, 30)} fast=${!!brain.intel.fast} consultant=${!!brain.intel.consultant} deep=${!!(brain.intel.deep as any)?.status} mergedV=${brain.intel.mergedVersion}`);
     return { brain, created: false };
   }
 
@@ -796,6 +822,8 @@ export class CallBrainDO {
           rating?: number | null;
           reviewCount?: number;
           consultant?: Record<string, any> | null;
+          deep?: Record<string, any> | null;
+          fast?: Record<string, any> | null;
         };
       };
     }>();
@@ -865,16 +893,63 @@ export class CallBrainDO {
             console.log(`[SUPPLEMENT_SEED] consultant seeded=${seeded} keys=[${keys.join(',')}] source=bridge`);
           }
         }
+
+        // Deep intel seed — bridge forwards completed deep-scrape data
+        if (s.deep && typeof s.deep === 'object' && s.deep.status === 'done') {
+          const existingDeepStatus = (brain.intel.deep as any)?.status;
+          if (existingDeepStatus !== 'done') {
+            mergeIntel(brain, {
+              type: 'deep_ready',
+              payload: s.deep,
+              version: Date.now(),
+            });
+            console.log(`[SUPPLEMENT_SEED] deep_intel seeded googleMaps=${!!(s.deep as any).googleMaps} hiring=${!!(s.deep as any).hiring} source=bridge`);
+          }
+        }
+
+        // Fast intel seed — bridge forwards core fast-intel fields
+        if (s.fast && typeof s.fast === 'object' && !brain.intel.fast) {
+          mergeIntel(brain, {
+            type: 'fast_intel_ready',
+            payload: s.fast,
+            version: Date.now(),
+          });
+          console.log(`[SUPPLEMENT_SEED] fast_intel seeded biz=${((s.fast as any).core_identity?.business_name ?? 'none').slice(0, 40)} source=bridge`);
+        }
       }
     }
 
-    // ── 1. Extract from transcript — Gemini primary, regex fallback ──
+    // ── 0. Rolling transcript buffer — maintain last 12 user utterances ──
+    brain.recentUserTranscripts = brain.recentUserTranscripts || [];
+    brain.recentUserTranscripts.push(cleanTranscript);
+    if (brain.recentUserTranscripts.length > 12) {
+      brain.recentUserTranscripts = brain.recentUserTranscripts.slice(-12);
+    }
+
+    // ── 1. Extract from transcript — Deterministic > Gemini > Regex ──
     const v2Targets = extractTargetsForStage(brain.currentStage, brain.currentWowStep);
+
+    // ── 1a. Deterministic extraction — runs FIRST, no LLM needed, <1ms ──
+    const deterministicResult = deterministicExtract(cleanTranscript, brain.currentStage);
+    if (Object.keys(deterministicResult).length > 0) {
+      console.log(`[EXTRACT] source=deterministic stage=${brain.currentStage} fields=[${Object.keys(deterministicResult).join(',')}]`);
+    }
+
+    // ── 1b. Also extract from rolling buffer to catch missed/errored turns ──
+    const bufferText = brain.recentUserTranscripts.join('. ');
+    const bufferDeterministic = deterministicExtract(bufferText, brain.currentStage);
+    // Only use buffer results for fields that are STILL null in state AND not in current deterministic
+    for (const [k, v] of Object.entries(bufferDeterministic)) {
+      if (v != null && (brain as any)[k] == null && deterministicResult[k] == null) {
+        (brain as any)[k] = v;
+        console.log(`[EXTRACT] source=buffer-deterministic field=${k} value=${v}`);
+      }
+    }
 
     // Gemini key: prefer env, fall back to header injected by fetch handler
     const geminiKey = this.geminiKey;
 
-    // Try Gemini first (structured output, handles spoken numbers natively)
+    // ── 1c. Gemini extraction — demoted to fallback for fields deterministic missed ──
     let geminiResult: Awaited<ReturnType<typeof geminiExtract>> = null;
     if (geminiKey && cleanTranscript.length > 2) {
       try {
@@ -884,22 +959,32 @@ export class CallBrainDO {
       }
     }
 
-    // Regex runs always — provides memory notes + fallback fields
+    // ── 1d. Regex — always runs, provides memory notes + final fallback ──
     const regexResult = extractFromTranscript(cleanTranscript, v2Targets, brain.currentStage, brain.industryLanguage?.industryLabel, brain);
 
-    // Build final result: Gemini fields WIN over regex, regex provides memory notes
+    // ── 1e. Merge: deterministic > gemini > regex ──
+    // Deterministic is trusted (rules-based, no LLM hallucination).
+    // Gemini fills gaps deterministic missed. Regex provides memory notes + final fallback.
     const result = regexResult;
+    const geminiFieldFlags: Record<string, boolean> = {};
     if (geminiResult && Object.keys(geminiResult.fields).length > 0) {
-      // Gemini is primary — its fields REPLACE regex fields entirely
-      // Tag which fields came from Gemini so applyExtraction can trust them
-      const geminiFieldFlags: Record<string, boolean> = {};
       for (const k of Object.keys(geminiResult.fields)) geminiFieldFlags[k] = true;
-      result.fields = { ...regexResult.fields, ...geminiResult.fields, _geminiFields: geminiFieldFlags };
-      if (geminiResult.correctionDetected) result.correctionDetected = true;
-      console.log(`[EXTRACT] source=gemini stage=${brain.currentStage} fields=[${Object.keys(geminiResult.fields).join(',')}] ms=${geminiResult.latencyMs}`);
-    } else {
-      console.log(`[EXTRACT] source=regex stage=${brain.currentStage} gemini=${geminiResult === null ? 'skipped' : 'empty'} fields=[${Object.keys(regexResult.fields).filter(k => !k.startsWith('_')).join(',')}]`);
     }
+    // Build merged fields with correct priority
+    const mergedFields = {
+      ...regexResult.fields,                          // lowest priority: regex
+      ...(geminiResult?.fields ?? {}),                // middle priority: gemini
+      ...deterministicResult,                          // highest priority: deterministic (trusted)
+      _geminiFields: geminiFieldFlags,
+    };
+    result.fields = mergedFields;
+    if (geminiResult?.correctionDetected) result.correctionDetected = true;
+
+    // Log extraction sources
+    const detKeys = Object.keys(deterministicResult);
+    const gemKeys = geminiResult ? Object.keys(geminiResult.fields) : [];
+    const regKeys = Object.keys(regexResult.fields).filter(k => !k.startsWith('_'));
+    console.log(`[EXTRACT] stage=${brain.currentStage} det=[${detKeys.join(',')}] gemini=[${gemKeys.join(',')}]${geminiResult ? ` ms=${geminiResult.latencyMs}` : ''} regex=[${regKeys.join(',')}]`);
 
     // ── 1a-post. ACV industry multiplier (ported from bridge monolith) ──
     // Gemini returns literal parses for ambiguous values: "two fifty"→250, "five hundred"→500.
@@ -968,29 +1053,40 @@ export class CallBrainDO {
           }
         }
 
-        // 2. REGEX FALLBACK — primary targets only (existing, with ACV guards)
+        // 2. DETERMINISTIC EXTRACTION on historical text (Sprint E1)
+        const historyDeterministic = deterministicExtract(historicalText, brain.currentStage);
+
+        // 3. REGEX FALLBACK — ALL relevant targets per channel (Sprint E1: expanded)
         const primaryTargets: Record<string, string[]> = {
-          ch_alex: ['inboundLeads'],
-          ch_chris: ['webLeads'],
-          ch_maddie: ['phoneVolume'],
+          ch_alex: ['inboundLeads', 'responseSpeedBand', 'inboundConversions', 'inboundConversionRate'],
+          ch_chris: ['webLeads', 'webConversions', 'webConversionRate'],
+          ch_maddie: ['phoneVolume', 'missedCalls', 'missedCallRate'],
           ch_sarah: ['oldLeads'],
-          ch_james: ['newCustomersPerWeek'],
+          ch_james: ['newCustomersPerWeek', 'currentStars', 'hasReviewSystem'],
         };
         const reTargets = primaryTargets[brain.currentStage] ?? extractTargetsForStage(brain.currentStage, brain.currentWowStep);
-        const regexResult = extractFromTranscript(
+        const reRegexResult = extractFromTranscript(
           historicalText, reTargets, brain.currentStage,
           brain.industryLanguage?.industryLabel, brain,
         );
 
-        // 3. PRESCAN REGEX FALLBACK — keyword-aware cross-stage patterns
+        // 4. PRESCAN REGEX FALLBACK — keyword-aware cross-stage patterns
         //    (absorbed from flow.ts prescanForEarlyROI calls)
         const prescanFields = prescanForEarlyROI(brain);
 
-        // 4. MERGE — Gemini wins, then regex fills gaps
+        // 5. MERGE — deterministic > gemini > regex (same priority as /turn)
         //    prescanFields already wrote directly to state (write-once to null fields)
         const captured: string[] = [...prescanFields];
 
-        // Apply Gemini fields to null state fields (Gemini is primary)
+        // Apply deterministic fields first (highest priority, trusted)
+        for (const [k, v] of Object.entries(historyDeterministic)) {
+          if (v != null && (brain as any)[k] == null) {
+            (brain as any)[k] = v;
+            captured.push(`${k}=${v}(det-history)`);
+          }
+        }
+
+        // Apply Gemini fields to remaining null state fields
         if (historyGemini && Object.keys(historyGemini.fields).length > 0) {
           for (const [k, v] of Object.entries(historyGemini.fields)) {
             if (v != null && (brain as any)[k] == null) {
@@ -1001,8 +1097,8 @@ export class CallBrainDO {
           console.log(`[RE_EXTRACT] source=gemini fields=[${Object.keys(historyGemini.fields).filter(k => historyGemini!.fields[k] != null).join(',')}] ms=${historyGemini.latencyMs}`);
         }
 
-        // Apply regex fields to remaining null fields (fallback)
-        for (const [k, v] of Object.entries(regexResult.fields)) {
+        // Apply regex fields to remaining null fields (lowest priority fallback)
+        for (const [k, v] of Object.entries(reRegexResult.fields)) {
           if (k.startsWith('_')) continue;
           if (v != null && (brain as any)[k] == null) {
             (brain as any)[k] = v;
@@ -1047,7 +1143,10 @@ export class CallBrainDO {
     console.log(`[DIRECTIVE] ts=${new Date().toISOString()} stage=${brain.currentStage} wowStep=${brain.currentWowStep ?? 'none'} ask=${directive.ask} canSkip=${directive.canSkip} waitForUser=${directive.waitForUser} speak="${directive.speak.slice(0, 100)}"`);
 
     // ── 5. Build bridge-compat response ──
-    const packet = directiveToPacket(directive, brain);
+    // Sprint 1A: pass semantic moveId from processFlow so bridge sends it back in callDOLlmReplyDone.
+    // This ensures resolveDeliveryCompleted correlation check passes and spoken.moveIds gets the
+    // correct _synthesis suffix for Phase 2 advancement gating.
+    const packet = directiveToPacket(directive, brain, flowResult.moveId);
 
     // ── 7. Update watchdog ──
     brain.watchdog.lastTurnAt = new Date().toISOString();
@@ -1267,6 +1366,75 @@ export class CallBrainDO {
       // Match on moveId as fallback — audit when fallback matching is used
       console.log(`[DELIVERY_COMPAT] llm_reply_done matched on moveId=${event.moveId} (no deliveryId)`);
       resolveDeliveryCompleted(brain, brain.pendingDelivery.deliveryId, event.moveId);
+    }
+
+    // ── Compliance handling (Sprint A2) ──
+    const complianceStatus = event.compliance_status;
+    const complianceScore = event.compliance_score ?? 1.0;
+    const missedPhrases = event.missed_phrases ?? [];
+    const deliveryStage = brain.pendingDelivery?.stage ?? brain.currentStage;
+    const isCritical = CRITICAL_STAGES.includes(deliveryStage);
+    const isWow = deliveryStage.startsWith('wow') || deliveryStage === 'greeting';
+
+    if (complianceStatus && !isWow) {
+      console.log(`[COMPLIANCE_INPUT] stage=${deliveryStage} status=${complianceStatus} score=${complianceScore.toFixed(2)} missed=${missedPhrases.length} critical=${isCritical}`);
+
+      // Log entry (populated with judge results async later if judge runs)
+      const logEntry: ComplianceLogEntry = {
+        stage: deliveryStage,
+        ts: Date.now(),
+        score: complianceScore,
+        driftType: null,
+        judgeCompliant: null,
+        missedPhrases: missedPhrases.slice(0, 5),
+        reason: null,
+      };
+
+      if (complianceStatus === 'drift' && isCritical && brain.pendingDelivery) {
+        // Set delivery to drifted — flow.ts will handle retry/advance
+        brain.pendingDelivery.status = 'drifted';
+        brain.pendingDelivery.missedPhrases = missedPhrases.slice(0, 5);
+        brain.pendingDelivery.driftCount = (brain.pendingDelivery.driftCount ?? 0) + 1;
+        console.log(`[COMPLIANCE_DRIFT] stage=${deliveryStage} driftCount=${brain.pendingDelivery.driftCount} missed=${JSON.stringify(missedPhrases.slice(0, 3))}`);
+      } else if (complianceStatus === 'pass') {
+        console.log(`[COMPLIANCE_PASS] stage=${deliveryStage} score=${complianceScore.toFixed(2)}`);
+      } else if (complianceStatus === 'drift' && !isCritical) {
+        // Non-critical: log only, no state mutation
+        console.log(`[COMPLIANCE_DRIFT_NONCRITICAL] stage=${deliveryStage} score=${complianceScore.toFixed(2)} — log only`);
+      }
+
+      brain.complianceLog.push(logEntry);
+      // Cap compliance log at 50 entries
+      if (brain.complianceLog.length > 50) {
+        brain.complianceLog = brain.complianceLog.slice(-50);
+      }
+
+      // Fire async judge (Decision Y: never blocks, advisory only)
+      if (complianceStatus === 'drift' && this.geminiKey) {
+        const spokenForJudge = (event.spokenText ?? '').slice(0, 1000);
+        const stageForJudge = deliveryStage;
+        const envForJudge = { GEMINI_API_KEY: this.geminiKey } as Pick<Env, 'GEMINI_API_KEY'>;
+        const logIndex = brain.complianceLog.length - 1;
+
+        this.state.waitUntil((async () => {
+          try {
+            const judgeResult = await runLlmJudge(spokenForJudge, missedPhrases.join('; '), stageForJudge, envForJudge);
+            if (judgeResult) {
+              // Update the log entry with judge results (best-effort, state may have moved on)
+              const freshBrain = await loadState(this.state.storage) as ConversationState | null;
+              if (freshBrain && freshBrain.complianceLog[logIndex]) {
+                freshBrain.complianceLog[logIndex].judgeCompliant = judgeResult.compliant;
+                freshBrain.complianceLog[logIndex].driftType = judgeResult.driftType;
+                freshBrain.complianceLog[logIndex].reason = judgeResult.reason;
+                await persistState(this.state.storage, freshBrain as any);
+                console.log(`[JUDGE_OK] stage=${stageForJudge} compliant=${judgeResult.compliant} drift=${judgeResult.driftType} reason="${judgeResult.reason}"`);
+              }
+            }
+          } catch (err: any) {
+            console.log(`[JUDGE_ERR] stage=${stageForJudge} error=${err.message}`);
+          }
+        })());
+      }
     }
 
     // Track spoken move IDs
@@ -1523,6 +1691,26 @@ export class CallBrainDO {
     }
     filteredLog = filteredLog.slice(-limit);
 
+    // ── Compliance summary computation ──
+    const cLog = brain.complianceLog ?? [];
+    const overallScore = cLog.length > 0
+      ? cLog.reduce((sum, e) => sum + e.score, 0) / cLog.length
+      : null;
+    const driftCounts: Record<string, number> = {};
+    let judgeFiredCount = 0;
+    let judgeErrorCount = 0;
+    for (const entry of cLog) {
+      if (entry.driftType) {
+        driftCounts[entry.driftType] = (driftCounts[entry.driftType] ?? 0) + 1;
+      }
+      if (entry.judgeCompliant !== null) {
+        judgeFiredCount++;
+      } else if (entry.score < 1) {
+        // Judge should have fired (drift detected) but result is null → error
+        judgeErrorCount++;
+      }
+    }
+
     return json({
       version: VERSION,
       callId: brain.callId,
@@ -1538,6 +1726,33 @@ export class CallBrainDO {
       questionCounts: brain.questionCounts,
       calculatorResults: brain.calculatorResults,
       kvExportVersion: brain.kvExportVersion,
+      // FIX 5: Intelligence context observability
+      lastCriticalFacts: brain.lastCriticalFacts ?? null,
+      lastContextNotes: brain.lastContextNotes ?? null,
+      // Extracted inputs snapshot
+      extractedInputs: {
+        acv: brain.acv ?? null,
+        inboundLeads: brain.inboundLeads ?? null,
+        inboundConversions: brain.inboundConversions ?? null,
+        inboundConversionRate: brain.inboundConversionRate ?? null,
+        responseSpeedBand: brain.responseSpeedBand ?? null,
+        webLeads: brain.webLeads ?? null,
+        webConversions: brain.webConversions ?? null,
+        webConversionRate: brain.webConversionRate ?? null,
+        phoneVolume: brain.phoneVolume ?? null,
+        missedCalls: brain.missedCalls ?? null,
+        missedCallRate: brain.missedCallRate ?? null,
+      },
+      // Sprint E1: rolling transcript buffer for deterministic extraction
+      recentUserTranscripts: brain.recentUserTranscripts ?? [],
+      complianceLog: cLog,
+      complianceSummary: {
+        totalChecks: cLog.length,
+        overallScore,
+        driftCounts,
+        judgeFiredCount,
+        judgeErrorCount,
+      },
     });
   }
 
@@ -1550,9 +1765,11 @@ export class CallBrainDO {
     const now = Date.now();
 
     // ── Delivery timeout check (takes priority over watchdog) ──
+    // Sprint 1A (Issue 6): use type-aware timeout from pendingDelivery, fall back to default
     if (brain.pendingDelivery && brain.pendingDelivery.status === 'pending') {
       const elapsed = now - brain.pendingDelivery.issuedAt;
-      if (elapsed >= DELIVERY_TIMEOUT_MS) {
+      const effectiveTimeout = brain.pendingDelivery.timeoutMs ?? DELIVERY_TIMEOUT_MS;
+      if (elapsed >= effectiveTimeout) {
         // H1 idempotency guard: re-read state to catch concurrent resolution
         const freshBrain = await loadState(this.state.storage) as ConversationState | null;
         if (!freshBrain) return;
@@ -1596,6 +1813,64 @@ export class CallBrainDO {
         console.log(`[ALARM] Deep intel missing — escalation flagged callId=${brain.callId}`);
       }
 
+      // ── Intel gap fill: KV poll for missing intel (defense-in-depth) ──────
+      // Push events (fast-intel → DO, deep-scrape → DO) may fail silently if
+      // the DO wasn't created yet when the event was sent (404), or if service
+      // binding had a transient error. Re-read KV as a backup.
+      const callAgeMs = lastTurnMs ? now - lastTurnMs : 0;
+      const lid = brain.leadId;
+
+      // Consultant missing after 15s — re-read from fast-intel KV key
+      if (!brain.intel.consultant && callAgeMs > 15_000 && lid) {
+        try {
+          const fastIntelRaw = await this.env.LEADS_KV.get(`lead:${lid}:fast-intel`, 'json') as Record<string, any> | null;
+          if (fastIntelRaw?.consultant) {
+            mergeIntel(brain, {
+              type: 'consultant_ready',
+              payload: fastIntelRaw.consultant,
+              version: Date.now(),
+            });
+            console.log(`[ALARM_KV_FILL] consultant merged from KV poll lid=${lid} keys=${Object.keys(fastIntelRaw.consultant).join(',')}`);
+          }
+        } catch (err: any) {
+          console.error(`[ALARM_KV_FILL_ERR] consultant poll failed lid=${lid}: ${err.message}`);
+        }
+      }
+
+      // Fast intel missing after 10s — re-read from fast-intel KV key
+      if (!brain.intel.fast && callAgeMs > 10_000 && lid) {
+        try {
+          const fastIntelRaw = await this.env.LEADS_KV.get(`lead:${lid}:fast-intel`, 'json') as Record<string, any> | null;
+          if (fastIntelRaw) {
+            mergeIntel(brain, {
+              type: 'fast_intel_ready',
+              payload: fastIntelRaw,
+              version: Date.now(),
+            });
+            console.log(`[ALARM_KV_FILL] fast_intel merged from KV poll lid=${lid} biz=${(fastIntelRaw.business_name ?? 'none').slice(0, 40)}`);
+          }
+        } catch (err: any) {
+          console.error(`[ALARM_KV_FILL_ERR] fast_intel poll failed lid=${lid}: ${err.message}`);
+        }
+      }
+
+      // Deep intel missing after 30s — re-read from intel KV key (deep-scrape writes here)
+      if (!apifyDone && callAgeMs > 30_000 && lid) {
+        try {
+          const intelRaw = await this.env.LEADS_KV.get(`lead:${lid}:intel`, 'json') as Record<string, any> | null;
+          if (intelRaw?.deep?.status === 'done') {
+            mergeIntel(brain, {
+              type: 'deep_ready',
+              payload: intelRaw.deep,
+              version: Date.now(),
+            });
+            console.log(`[ALARM_KV_FILL] deep_intel merged from KV poll lid=${lid} googleMaps=${!!intelRaw.deep.googleMaps} hiring=${!!intelRaw.deep.hiring}`);
+          }
+        } catch (err: any) {
+          console.error(`[ALARM_KV_FILL_ERR] deep_intel poll failed lid=${lid}: ${err.message}`);
+        }
+      }
+
       // ── Call stale: no /turn for 120s ──
       // mustDeliverRoiNext was proposed but never implemented. Force-advance is
       // handled by gate.ts shouldForceAdvance() + maxQuestionsReached(). No
@@ -1636,9 +1911,11 @@ export class CallBrainDO {
     const now = Date.now();
     const times: number[] = [];
 
-    // Delivery timeout — pending delivery needs alarm at issuedAt + DELIVERY_TIMEOUT_MS
+    // Delivery timeout — pending delivery needs alarm at issuedAt + type-aware timeout
+    // Sprint 1A (Issue 6): use per-delivery timeoutMs, fall back to default
     if (brain.pendingDelivery && brain.pendingDelivery.status === 'pending') {
-      const timeoutAt = brain.pendingDelivery.issuedAt + DELIVERY_TIMEOUT_MS;
+      const effectiveTimeout = brain.pendingDelivery.timeoutMs ?? DELIVERY_TIMEOUT_MS;
+      const timeoutAt = brain.pendingDelivery.issuedAt + effectiveTimeout;
       // If already past, fire soon (100ms buffer)
       times.push(Math.max(timeoutAt, now + 100));
     }
@@ -1648,6 +1925,19 @@ export class CallBrainDO {
     const apifyDone = deepStatus === 'done';
     if (!apifyDone && !brain.watchdog.deepIntelMissingEscalation) {
       times.push(now + 20_000);
+    }
+
+    // KV gap fill — schedule alarm if any intel source is missing
+    // Consultant: poll at 15s, fast: poll at 10s, deep: poll at 30s
+    if (!brain.intel.consultant || !brain.intel.fast || !apifyDone) {
+      const lastMs = brain.watchdog.lastTurnAt ? new Date(brain.watchdog.lastTurnAt).getTime() : 0;
+      const callAge = lastMs ? now - lastMs : 0;
+      // Only schedule if call is active (has had at least one turn) and gap fill hasn't run yet
+      if (lastMs > 0) {
+        if (!brain.intel.fast && callAge < 10_000) times.push(lastMs + 10_000);
+        if (!brain.intel.consultant && callAge < 15_000) times.push(lastMs + 15_000);
+        if (!apifyDone && callAge < 30_000) times.push(lastMs + 30_000);
+      }
     }
 
     // Call stale — 120s after last turn

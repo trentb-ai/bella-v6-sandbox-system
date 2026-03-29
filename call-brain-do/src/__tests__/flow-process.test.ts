@@ -250,7 +250,8 @@ describe('processFlow', () => {
         inboundConversions: 5,
         responseSpeedBand: 'next_day_plus',
         currentQueue: queue,
-        spoken: { moveIds: ['v2_ch_alex'], factsUsed: [] },
+        // Sprint 1A: semantic moveIds — synthesis must be marked as spoken for advancement
+        spoken: { moveIds: ['v2_ch_alex', 'v2_ch_alex_synthesis'], factsUsed: [] },
         alexEligible: true,
         topAgents: ['alex'],
       });
@@ -323,7 +324,8 @@ describe('processFlow', () => {
         acv: 5000,
         oldLeads: 500,
         questionCounts: { ch_alex: 0, ch_chris: 0, ch_maddie: 0, ch_sarah: 2, ch_james: 0 },
-        spoken: { moveIds: ['v2_ch_sarah'], factsUsed: [] },
+        // Sprint 1A: semantic moveIds — synthesis must be marked as spoken for advancement
+        spoken: { moveIds: ['v2_ch_sarah', 'v2_ch_sarah_synthesis'], factsUsed: [] },
         prospectAskedAboutSarah: true,
       });
       const intel = mockIntel();

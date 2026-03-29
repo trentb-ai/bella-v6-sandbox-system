@@ -212,4 +212,29 @@ export function assertInvariants(state: ConversationState, context?: string): vo
       `INV-20${ctx}: currentStage=${state.currentStage} is not in currentQueue and not completed`,
     ).toBe(true);
   }
+
+  // ── INV-21: rejectedWowSteps must be valid WowStepIds ──
+  if (Array.isArray(state.rejectedWowSteps)) {
+    for (const step of state.rejectedWowSteps) {
+      expect(
+        WOW_STEP_ORDER,
+        `INV-21${ctx}: rejectedWowSteps contains invalid step: ${step}`,
+      ).toContain(step);
+    }
+  }
+
+  // ── INV-22: rejectedWowSteps must be a subset of completedWowSteps ──
+  if (Array.isArray(state.rejectedWowSteps)) {
+    for (const step of state.rejectedWowSteps) {
+      expect(
+        state.completedWowSteps,
+        `INV-22${ctx}: rejectedWowSteps has ${step} but it's not in completedWowSteps`,
+      ).toContain(step);
+    }
+  }
+
+  // ── INV-23: lastWowSentiment must be null when currentStage !== 'wow' ──
+  // After wow completes, sentiment is stale — should be cleared or tolerated.
+  // NOTE: We allow stale lastWowSentiment after wow exits (it's informational).
+  // Only rejectedWowSteps is structurally validated.
 }

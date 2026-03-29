@@ -176,6 +176,21 @@ export interface CombinedRoiResult {
   orderedAgents: CoreAgent[];
 }
 
+// ─── Cross-Channel State (Sprint 1B) ─────────────────────────────────────────
+
+/** Canonical cross-channel field store — prevents re-asking captured data. */
+export interface UnifiedLeadState {
+  inbound_volume_weekly?: number;
+  conversion_rate?: number;
+  avg_client_value?: number;
+  response_time_hours?: number;
+  // Timestamps for 2-minute correction window
+  inbound_volume_weekly_set_at?: number;
+  conversion_rate_set_at?: number;
+  avg_client_value_set_at?: number;
+  response_time_hours_set_at?: number;
+}
+
 // ─── Stage Policy ────────────────────────────────────────────────────────────
 
 export interface StagePolicy {
@@ -295,6 +310,13 @@ export interface ConversationState {
   currentStars?: number | null;
   hasReviewSystem?: boolean | null;
 
+  // ── Cross-channel canonical store (Sprint 1B) ──
+  unifiedState: UnifiedLeadState;
+
+  // ── WOW rejection tracking (Sprint 2 — Issue 8) ──
+  rejectedWowSteps: WowStepId[];
+  lastWowSentiment: 'positive' | 'neutral' | 'negative' | null;
+
   // ── Intel (loaded at init, updated via events) ──
   intel: {
     fast: Record<string, unknown> | null;
@@ -343,6 +365,16 @@ export interface ConversationState {
 
   // ── KV export versioning (H1 stale-write prevention) ──
   kvExportVersion: number;
+
+  // ── Observability: last-turn intelligence context (FIX 5) ──
+  lastCriticalFacts?: string[] | null;
+  lastContextNotes?: string[] | null;
+
+  // ── Rolling transcript buffer (Sprint E1: deterministic extraction) ──
+  recentUserTranscripts: string[];
+
+  // ── Compliance log (Sprint A2: closed-loop compliance) ──
+  complianceLog: ComplianceLogEntry[];
 }
 
 // ─── Transcript & Memory ────────────────────────────────────────────────────
@@ -438,7 +470,7 @@ export interface StageDirective {
 
 // ─── Flow Harness Types ──────────────────────────────────────────────────────
 
-export type DeliveryStatus = 'pending' | 'completed' | 'barged_in' | 'failed';
+export type DeliveryStatus = 'pending' | 'completed' | 'barged_in' | 'failed' | 'drifted';
 
 export interface DeliveryResolution {
   status: DeliveryStatus;
@@ -458,6 +490,10 @@ export interface PendingDelivery {
   resolution?: string;
   completedAt?: number;
   attempts: number;
+  missedPhrases?: string[];
+  driftCount?: number;
+  /** Type-aware timeout (ms) for this delivery. Falls back to DELIVERY_TIMEOUT_MS if absent. */
+  timeoutMs?: number;
 }
 
 export type FlowAction =
@@ -489,6 +525,35 @@ export interface FlowResult {
   clearedFailedDelivery?: boolean;
 }
 
+// ─── Compliance Types (Sprint A1: closed-loop compliance) ─────────────────────
+
+export interface ComplianceResult {
+  compliant: boolean;
+  score: number;
+  missedPhrases: string[];
+  dollarCompliant: boolean | null; // null if no dollar check needed
+}
+
+export interface ComplianceLogEntry {
+  stage: string;
+  ts: number;
+  score: number;
+  driftType: 'omission' | 'substitution' | 'hallucination' | 'false_claim' | null;
+  judgeCompliant: boolean | null; // null if judge didn't run or errored
+  missedPhrases: string[];
+  reason: string | null;
+}
+
+export interface JudgeResult {
+  compliant: boolean;
+  driftType: 'omission' | 'substitution' | 'hallucination' | 'false_claim' | null;
+  reason: string;
+}
+
+export const CRITICAL_STAGES: string[] = [
+  'recommendation', 'ch_alex', 'ch_chris', 'ch_maddie', 'roi_delivery', 'close',
+];
+
 // ─── Compliance Checks (M3: observability-only delivery verification) ────────
 
 export interface ComplianceChecks {
@@ -503,7 +568,7 @@ export type BrainEvent =
   | { type: 'consultant_ready'; payload: Record<string, unknown>; version: number; eventId?: string }
   | { type: 'deep_ready'; payload: Record<string, unknown>; version: number; eventId?: string }
   | { type: 'user_turn'; transcript: string; turnId: string; ts: string; eventId?: string }
-  | { type: 'llm_reply_done'; spokenText: string; moveId: string; deliveryId?: string; ts: string; eventId?: string }
+  | { type: 'llm_reply_done'; spokenText: string; moveId: string; deliveryId?: string; ts: string; eventId?: string; compliance_status?: 'pass' | 'drift'; compliance_score?: number; missed_phrases?: string[] }
   | { type: 'delivery_barged_in'; deliveryId: string; moveId: string; ts: string; eventId?: string }
   | { type: 'delivery_failed'; deliveryId: string; moveId: string; errorCode?: string; ts: string; eventId?: string }
   | { type: 'call_end'; reason: string; ts: string; eventId?: string };

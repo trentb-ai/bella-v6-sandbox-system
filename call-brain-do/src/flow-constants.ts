@@ -4,12 +4,48 @@
  * Additive only — no behavior changes.
  */
 
-import type { WowStepId } from './types';
+import type { WowStepId, StageId } from './types';
 
 // ─── Delivery Constants ──────────────────────────────────────────────────────
 
-/** Max time (ms) to wait for bridge to confirm delivery before marking stale */
+/** Default max time (ms) to wait for bridge to confirm delivery before marking stale */
 export const DELIVERY_TIMEOUT_MS = 15_000;
+
+/**
+ * Type-aware delivery timeouts (Sprint 1A — Issue 6).
+ * Shorter timeouts for short/statement directives prevent reissue storms
+ * when llm_reply_done arrives slightly late.
+ */
+const DELIVERY_TIMEOUT_BY_TYPE: Record<string, number> = {
+  wow_statement:       5_000,   // wow non-waitForUser (wow_2, wow_5, wow_6): short, no user reply expected
+  wow_question:        8_000,   // wow waitForUser (wow_1, wow_3, wow_4, wow_7, wow_8): awaiting user
+  channel_question:    8_000,   // ch_alex/chris/maddie question collection
+  channel_synthesis:   8_000,   // ROI delivery per agent — must be heard in full
+  roi_delivery:        8_000,   // combined ROI — critical delivery
+  greeting:            6_000,   // greeting — short opener
+  default:             8_000,   // everything else
+};
+
+/**
+ * Compute the delivery timeout for a given directive context.
+ * Called from flow.ts when setting pendingDelivery.
+ */
+export function getDeliveryTimeoutMs(
+  stage: StageId,
+  waitForUser: boolean,
+  isSynthesis: boolean,
+): number {
+  if (stage === 'greeting') return DELIVERY_TIMEOUT_BY_TYPE.greeting;
+  if (stage === 'wow') {
+    return waitForUser ? DELIVERY_TIMEOUT_BY_TYPE.wow_question : DELIVERY_TIMEOUT_BY_TYPE.wow_statement;
+  }
+  if (stage === 'roi_delivery') return DELIVERY_TIMEOUT_BY_TYPE.roi_delivery;
+  const channelStages: StageId[] = ['ch_alex', 'ch_chris', 'ch_maddie', 'ch_sarah', 'ch_james'];
+  if (channelStages.includes(stage)) {
+    return isSynthesis ? DELIVERY_TIMEOUT_BY_TYPE.channel_synthesis : DELIVERY_TIMEOUT_BY_TYPE.channel_question;
+  }
+  return DELIVERY_TIMEOUT_BY_TYPE.default;
+}
 
 /** Max consecutive timeouts before degrading the call */
 export const MAX_CONSECUTIVE_TIMEOUTS = 3;

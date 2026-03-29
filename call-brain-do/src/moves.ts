@@ -26,6 +26,7 @@ import type {
 
 import { GENERIC_INDUSTRY_PACK } from './state';
 import { STAGE_POLICIES, shouldForceAdvance, maxQuestionsReached } from './gate';
+import { getDeepIntelFallbackWow } from './helpers/deepIntelFallback';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -89,8 +90,16 @@ function biz(state: ConversationState): string {
   return ttsAcronym(normaliseBizName(rawName));
 }
 
-/** Short business name — strip stop words, take first 3 meaningful words, TTS-safe. */
+/** Short business name — spokenName priority 1, then strip stop words, take first 3 meaningful words, TTS-safe. */
 function shortBiz(state: ConversationState): string {
+  // Priority 1: consultant spokenName — already optimised for speech
+  const cons = (state.intel.consultant as any) ?? {};
+  const spokenName = cons?.businessIdentity?.spokenName;
+  if (spokenName && typeof spokenName === 'string' && spokenName.length >= 2) {
+    return ttsAcronym(spokenName);
+  }
+
+  // Fallback: strip stop words from full biz name
   const full = biz(state);
   if (full === 'your business') return full;
   const words = full.split(/\s+/);
@@ -145,7 +154,153 @@ function cleanFact(input: unknown): string | null {
 
 /** Clean an array of facts. */
 function cleanFacts(inputs: unknown[]): string[] {
-  return inputs.map(cleanFact).filter((x): x is string => Boolean(x)).slice(0, 5);
+  return inputs.map(cleanFact).filter((x): x is string => Boolean(x));
+}
+
+// ─── Critical Facts Builder (stable business truths — whole call) ────────────
+
+/**
+ * buildCriticalFacts — stable business truths that hold across the entire call.
+ * Hard cap: 6 items. No stage parameter — these never change mid-call.
+ */
+export function buildCriticalFacts(state: ConversationState): string[] {
+  const raw: string[] = [];
+  const keys: string[] = [];
+  const intel = consultant(state);
+  if (!intel || Object.keys(intel).length === 0) {
+    console.log(`[CRITICAL_FACTS] count=0 keys=NO_INTEL`);
+    return [];
+  }
+
+  const marketPosition = intel.icpAnalysis?.marketPositionNarrative;
+  if (marketPosition && typeof marketPosition === 'string') {
+    raw.push(marketPosition);
+    keys.push('marketPosition');
+  }
+
+  const strongestBenefit = intel.valuePropAnalysis?.strongestBenefit;
+  if (strongestBenefit && typeof strongestBenefit === 'string') {
+    raw.push(strongestBenefit);
+    keys.push('strongestBenefit');
+  }
+
+  const bizModel = intel.businessIdentity?.businessModel;
+  if (bizModel && typeof bizModel === 'string' && bizModel.length < 80) {
+    raw.push(bizModel);
+    keys.push('businessModel');
+  }
+
+  const serviceArea = intel.businessIdentity?.serviceArea;
+  if (serviceArea && typeof serviceArea === 'string' && serviceArea.length < 80) {
+    raw.push(serviceArea);
+    keys.push('serviceArea');
+  }
+
+  const topHiringWedge = intel.hiringAnalysis?.topHiringWedge;
+  if (topHiringWedge && typeof topHiringWedge === 'string') {
+    const firstSentence = topHiringWedge.split(/[.!?]/)[0]?.trim();
+    if (firstSentence) {
+      raw.push(firstSentence + '.');
+      keys.push('topHiringWedge');
+    }
+  }
+
+  const verdictLine = intel.landingPageVerdict?.verdictLine;
+  if (verdictLine && typeof verdictLine === 'string') {
+    raw.push(verdictLine);
+    keys.push('verdictLine');
+  }
+
+  const result = cleanFacts(raw).slice(0, 6);
+  console.log(`[CRITICAL_FACTS] count=${result.length} keys=${keys.slice(0, result.length).join(',')}`);
+  return result;
+}
+
+// ─── Context Notes Builder (stage-specific dynamic grounding) ────────────────
+
+/**
+ * buildContextNotes — dynamic, stage-specific context that changes every turn.
+ * Hard cap: 6 items. Requires stage parameter.
+ */
+export function buildContextNotes(stage: string, state: ConversationState): string[] {
+  const raw: string[] = [];
+  const keys: string[] = [];
+  const intel = consultant(state);
+  if (!intel || Object.keys(intel).length === 0) {
+    console.log(`[CONTEXT_NOTES] stage=${stage} count=0 keys=NO_INTEL`);
+    return [];
+  }
+
+  // Current agent reasoning — why this agent matters NOW
+  const agentMap: Record<string, string> = {
+    recommendation: 'alex',
+    ch_alex: 'alex', ch_chris: 'chris', ch_maddie: 'maddie',
+    ch_sarah: 'sarah', ch_james: 'james',
+  };
+  const currentAgent = agentMap[stage];
+  if (currentAgent && intel.routing?.reasoning?.[currentAgent]) {
+    const reasoning = intel.routing.reasoning[currentAgent];
+    if (typeof reasoning === 'string') {
+      const first = reasoning.split(/[.!?]/)[0]?.trim();
+      if (first) { raw.push(first + '.'); keys.push(`routing_${currentAgent}`); }
+    }
+  }
+
+  // CTA agent mapping — rec/close only
+  if (stage === 'recommendation' || stage === 'close') {
+    const cta = intel.conversionEventAnalysis?.ctaAgentMapping;
+    if (cta) {
+      const ctaStr = typeof cta === 'string' ? cta : JSON.stringify(cta);
+      const first = ctaStr.split(/[.!?]/)[0]?.trim();
+      if (first) { raw.push(first + '.'); keys.push('ctaAgentMapping'); }
+    }
+  }
+
+  // Protective red flag
+  const redFlag = intel.redFlags?.[0];
+  if (redFlag && typeof redFlag === 'string') { raw.push(redFlag); keys.push('redFlag'); }
+
+  // Strongest line as contextual evidence
+  const sl = intel.copyAnalysis?.strongestLine;
+  if (sl && typeof sl === 'string') { raw.push(sl); keys.push('strongestLine'); }
+
+  // Questions to prioritise
+  const qtp = intel.routing?.questions_to_prioritise;
+  if (qtp && typeof qtp === 'string') { raw.push(qtp); keys.push('questionsPrioritise'); }
+  else if (Array.isArray(qtp) && qtp.length > 0) { raw.push(qtp[0]); keys.push('questionsPrioritise'); }
+
+  const result = cleanFacts(raw).slice(0, 6);
+  console.log(`[CONTEXT_NOTES] stage=${stage} count=${result.length} keys=${keys.slice(0, result.length).join(',')}`);
+  return result;
+}
+
+// ─── Matched Roles Wedge Helper ──────────────────────────────────────────────
+
+/**
+ * getMatchedRoleWedge — returns a hiring wedge sentence for a specific agent
+ * in deliver mode, or null if none qualifies.
+ * Filters: ourAgent match + urgency=high + length < 150.
+ */
+function getMatchedRoleWedge(agentKey: string, state: ConversationState): string | null {
+  const matchedRoles = consultant(state).hiringAnalysis?.matchedRoles;
+  if (!matchedRoles?.length) {
+    console.log(`[MATCHED_ROLE_WEDGE] agent=${agentKey} injected=false reason=no_roles`);
+    return null;
+  }
+  const relevant = matchedRoles.filter(
+    (r: any) => r.ourAgent === agentKey && r.urgency === 'high',
+  );
+  if (relevant.length === 0) {
+    console.log(`[MATCHED_ROLE_WEDGE] agent=${agentKey} injected=false reason=no_match`);
+    return null;
+  }
+  const wedge = relevant[0].wedge;
+  if (!wedge || typeof wedge !== 'string' || wedge.length >= 150) {
+    console.log(`[MATCHED_ROLE_WEDGE] agent=${agentKey} injected=false reason=${!wedge ? 'no_wedge' : 'too_long'}`);
+    return null;
+  }
+  console.log(`[MATCHED_ROLE_WEDGE] agent=${agentKey} injected=true wedge="${wedge.slice(0, 60)}"`);
+  return wedge;
 }
 
 // ─── CTA Type Classification ─────────────────────────────────────────────────
@@ -189,19 +344,39 @@ function buildWowDirective(
   const fills = sf(state);
 
   switch (wowStep) {
-    case 'wow_1_research_intro':
-      console.log(`[WOW1_RESOLVE] ts=${new Date().toISOString()} name=${name} biz=${business.slice(0, 30)} industry=${lang.industryLabel}`);
+    case 'wow_1_research_intro': {
+      // wow_1 4-tier priority stack (LOCKED)
+      const copy = c.copyAnalysis ?? {};
+      let observationLine: string;
+      let wow1Source: string;
+
+      if (fills.website_positive_comment) {
+        observationLine = fills.website_positive_comment;
+        wow1Source = 'WEBSITE_POSITIVE_COMMENT';
+      } else if (copy.strongestLine) {
+        observationLine = copy.strongestLine;
+        wow1Source = 'STRONGEST_LINE';
+      } else if (fills.bella_opener) {
+        observationLine = fills.bella_opener;
+        wow1Source = 'BELLA_OPENER';
+      } else {
+        observationLine = `We've researched ${business}, and we use that to pre-train your agents around your ${lang.pluralOutcome}, your industry, and how you win business.`;
+        wow1Source = 'GENERIC';
+      }
+
+      console.log(`[WOW1_RESOLVE] ts=${new Date().toISOString()} source=${wow1Source} name=${name} biz=${business.slice(0, 30)} industry=${lang.industryLabel}`);
       return {
         objective: 'Demo frame + research intro, get permission to continue.',
         allowedMoves: ['advance:wow_2_reputation_trial'],
         requiredData: ['firstName', 'business', 'industry'],
-        speak: `So ${name}, your pre-trained agents are ready to go. You can play a prospective ${shortBiz(state)} ${lang.singularOutcome}, and they'll engage like they've worked for ${business} for years — answering questions, qualifying the opportunity, and moving people toward your key conversion point on autopilot. Now ${name}, I think you'll be impressed. We've researched ${business}, and we use that to pre-train your agents around your ${lang.pluralOutcome}, your industry, and how you win business. Before we begin, can I confirm a couple of findings so your agents are dialled in and aimed at the highest-value opportunities?`,
+        speak: `So ${name}, your pre-trained agents are ready to go. You can play a prospective ${shortBiz(state)} ${lang.singularOutcome}, and they'll engage like they've worked for ${business} for years — answering questions, qualifying the opportunity, and moving people toward your key conversion point on autopilot. Now ${name}, I think you'll be impressed. ${observationLine} Before we begin, can I confirm a couple of findings so your agents are dialled in and aimed at the highest-value opportunities?`,
         ask: true,
         waitForUser: true,
         canSkip: false,
         extract: ['research_permission'],
         advanceOn: ['wow_2_reputation_trial'],
       };
+    }
 
     case 'wow_2_reputation_trial': {
       const googleRating = d.googleMaps?.rating ?? null;
@@ -372,10 +547,21 @@ function buildWowDirective(
     }
 
     case 'wow_5_alignment_bridge': {
-      // AUDIT-1 Fix 4: Add audit framing to prepare prospect for the numbers section.
-      // Bridge had: "I've just got a couple of quick opportunity-audit questions so I can
-      // work out which agent mix would be most valuable for {biz}."
-      let wow5Speak = `Great — that helps confirm your agents are dialled in around the highest-value opportunities. I've just got a few quick questions so I can size which combination would create the most value for ${shortBiz(state)}.`;
+      // Sprint 2 (Issue 8): Adaptive opening when prospect rejected at wow_3 or wow_4.
+      // If rejection detected, acknowledge and pivot rather than assuming confirmation.
+      const rejected = state.rejectedWowSteps ?? [];
+      const wow3Rejected = rejected.includes('wow_3_icp_problem_solution');
+      const wow4Rejected = rejected.includes('wow_4_conversion_action');
+      let wow5Speak: string;
+
+      if (wow3Rejected || wow4Rejected) {
+        // Prospect pushed back — acknowledge correction, pivot to numbers
+        wow5Speak = `Got it — appreciate the correction, that's exactly the kind of detail that helps your agents perform better. Let me move into the numbers side — I've just got a few quick questions so I can size which combination would create the most value for ${shortBiz(state)}.`;
+        console.log(`[WOW5_RESOLVE] ts=${new Date().toISOString()} adaptive=true wow3Rejected=${wow3Rejected} wow4Rejected=${wow4Rejected}`);
+      } else {
+        wow5Speak = `Great — that helps confirm your agents are dialled in around the highest-value opportunities. I've just got a few quick questions so I can size which combination would create the most value for ${shortBiz(state)}.`;
+        console.log(`[WOW5_RESOLVE] ts=${new Date().toISOString()} adaptive=false`);
+      }
       if (!state.trialMentioned) {
         wow5Speak += ` And by the way, if you'd like to activate a free trial at any point during the demo, just let me know — I can set that up for you.`;
         state.trialMentioned = true;
@@ -394,41 +580,67 @@ function buildWowDirective(
     }
 
     case 'wow_6_scraped_observation': {
+      // wow_6 7-tier priority stack (LOCKED)
       const scrapedSummary = fills.scrapedDataSummary ?? '';
+      const googlePresence = c.googlePresence ?? [];
       const mostImpressiveLine = (c.mostImpressive?.[0]?.bellaLine ?? '').trim();
+      const hooks = c.conversationHooks ?? [];
+      const topHiringWedge = (c.hiringAnalysis?.topHiringWedge ?? '').trim();
 
-      // Hiring data from deep intel and consultant
+      // Hiring data from deep intel
       const hiringData = d.hiring ?? {};
       const hiringMatches: any[] = hiringData.hiring_agent_matches ?? [];
-      const topHiringWedge = (c.hiringAnalysis?.topHiringWedge ?? '').trim();
-      const isHiring = !!(hiringData.is_hiring || hiringMatches.length > 0);
 
       let observationLine: string;
       let wow6Source: string;
+
       if (scrapedSummary) {
+        // Priority 1: scrapedDataSummary (will be null until B2 wires consultant)
         wow6Source = 'SCRAPED_SUMMARY';
         observationLine = `Also ${name}, we noticed ${scrapedSummary}. That helps show where the biggest upside from automation could be for ${business}.`;
+      } else if (googlePresence[0]?.bellaLine) {
+        // Priority 2: googlePresence[0].bellaLine
+        wow6Source = 'GOOGLE_PRESENCE';
+        const cleaned = googlePresence[0].bellaLine.replace(/[.!]+$/, '');
+        observationLine = `Also ${name}, ${cleaned} — and that tells us there's a real opportunity for automation to drive even more value for ${business}.`;
       } else if (mostImpressiveLine) {
+        // Priority 3: mostImpressive[0].bellaLine (existing)
         wow6Source = 'MOST_IMPRESSIVE';
         const cleaned = mostImpressiveLine.replace(/[.!]+$/, '');
         observationLine = `Also ${name}, ${cleaned} — and that tells us there's a real opportunity for automation to drive even more value for ${business}.`;
+      } else if (hooks[0]) {
+        // Priority 4: conversationHooks[0] — use ALL THREE sub-fields: topic, data, how
+        wow6Source = 'HOOK';
+        const hook = hooks[0];
+        if (hook.how) {
+          observationLine = `Also ${name}, ${hook.how} — ${hook.data || hook.topic}. That's relevant because it points to a clear automation opportunity for ${business}.`;
+        } else {
+          observationLine = `Also ${name}, we noticed ${hook.topic}: ${hook.data}. That's relevant because it points to a clear automation opportunity for ${business}.`;
+        }
       } else if (topHiringWedge) {
-        wow6Source = 'HIRING_WEDGE_CONSULTANT';
+        // Priority 5: topHiringWedge (existing)
+        wow6Source = 'HIRING';
         observationLine = `Also ${name}, ${topHiringWedge} That's exactly the kind of workload our agents can take on for ${business}.`;
-      } else if (isHiring && hiringMatches.length > 0) {
-        wow6Source = 'HIRING_WEDGE_MATCH';
+      } else if (hiringMatches.length > 0) {
+        // Priority 6: hiringMatches[0] (existing)
+        wow6Source = 'MATCH';
         const topMatch = hiringMatches[0];
         const role = topMatch.role || topMatch.title || 'a role';
         observationLine = `Also ${name}, I noticed you're hiring for ${role}, which is interesting because that's exactly the kind of workload one of our agents can often absorb for a fraction of the cost.`;
-      } else if (isHiring) {
-        wow6Source = 'HIRING_WEDGE_GENERIC';
-        observationLine = `Also ${name}, I noticed you're actively hiring — some of those roles are exactly what our AI agents handle, often starting from day one.`;
       } else {
-        wow6Source = 'GENERIC';
-        observationLine = `Also ${name}, from what we can already see on your site, there looks to be a clear opportunity to improve how inbound demand gets captured and converted.`;
+        // Priority 7: Deep intel direct fallback (Sprint 2 — Issue 3/4)
+        const deepFallback = getDeepIntelFallbackWow(state, name, business);
+        if (deepFallback) {
+          wow6Source = deepFallback.source;
+          observationLine = deepFallback.line;
+        } else {
+          // Priority 8: GENERIC (last resort)
+          wow6Source = 'GENERIC';
+          observationLine = `Also ${name}, from what we can already see on your site, there looks to be a clear opportunity to improve how inbound demand gets captured and converted.`;
+        }
       }
 
-      console.log(`[WOW6_RESOLVE] ts=${new Date().toISOString()} source=${wow6Source} scrapedSummary=${!!scrapedSummary} mostImpressive="${mostImpressiveLine.slice(0, 60)}" isHiring=${isHiring} hiringMatches=${hiringMatches.length} topHiringWedge=${!!topHiringWedge} speak_preview="${observationLine.slice(0, 80)}"`);
+      console.log(`[WOW6_RESOLVE] ts=${new Date().toISOString()} source=${wow6Source} scrapedSummary=${!!scrapedSummary} googlePresence=${!!googlePresence[0]?.bellaLine} mostImpressive="${mostImpressiveLine.slice(0, 60)}" hooks=${hooks.length} topHiringWedge=${!!topHiringWedge} hiringMatches=${hiringMatches.length} speak_preview="${observationLine.slice(0, 80)}"`);
 
       return {
         objective: 'Connect scraped observation to automation upside.',
@@ -548,6 +760,45 @@ function buildRecommendationDirective(state: ConversationState): StageDirective 
     }
   }
 
+  // ── Recommendation colour (Sprint B2) — ADDITIVE ONLY, eligibility UNCHANGED ──
+  const routing = c.routing ?? {};
+  const secondary = c.secondaryRecommendations ?? [];
+
+  // Determine which agents are recommended from existing eligibility
+  const recommendedAgents: string[] = [];
+  if (alexEligible) recommendedAgents.push('alex');
+  if (chrisEligible) recommendedAgents.push('chris');
+  if (maddieEligible) recommendedAgents.push('maddie');
+
+  const colourLines: string[] = [];
+  for (const agent of recommendedAgents) {
+    const reasoning = routing.reasoning?.[agent];
+    if (reasoning && typeof reasoning === 'string') {
+      const firstSentence = reasoning.split(/[.!?]/)[0]?.trim();
+      if (firstSentence && firstSentence.length > 15) colourLines.push(firstSentence + '.');
+    }
+  }
+
+  // Secondary recommendation colour
+  const whySecond = secondary[0]?.whySecond;
+  if (whySecond && typeof whySecond === 'string') {
+    const firstSentence = whySecond.split(/[.!?]/)[0]?.trim();
+    if (firstSentence) colourLines.push(firstSentence + '.');
+  }
+
+  // Append colour — guard against excessive length
+  if (colourLines.length > 0) {
+    const colourText = colourLines.join(' ');
+    if (recLine.length + colourText.length + 1 <= 800) {
+      recLine += ' ' + colourText;
+    } else {
+      // Truncate to first colour line only
+      recLine += ' ' + colourLines[0];
+    }
+  }
+
+  console.log(`[REC_COLOUR] primary=${recommendedAgents[0] || 'unknown'} agents=${recommendedAgents.join(',')} colourLines=${colourLines.length} secondary=${!!whySecond}`);
+
   return {
     objective: 'Recommend agents and bridge to ROI calculation.',
     allowedMoves: ['advance:anchor_acv'],
@@ -579,11 +830,15 @@ function buildAlexDirective(intel: MergedIntel, state: ConversationState): Stage
 
     if (result) {
       // ROI already computed by controller — deliver it
+      let alexSpeak = `So with an average ${lang.singularOutcome} value of ${state.acv} dollars, around ${state.inboundLeads} inbound leads a week, and a response time of ${bandToSpokenLabel(state.responseSpeedBand)}, Alex could conservatively add around ${result.weeklyValue.toLocaleString()} dollars a week just by tightening speed-to-lead and follow-up consistency.`;
+      const alexWedge = getMatchedRoleWedge('alex', state);
+      if (alexWedge) alexSpeak += ` ${alexWedge}`;
+      alexSpeak += ` Does that make sense?`;
       return {
         objective: 'Deliver Alex speed-to-lead ROI.',
         allowedMoves: ['advance:next_channel'],
         requiredData: [],
-        speak: `So with an average ${lang.singularOutcome} value of ${state.acv} dollars, around ${state.inboundLeads} inbound leads a week, and a response time of ${bandToSpokenLabel(state.responseSpeedBand)}, Alex could conservatively add around ${result.weeklyValue.toLocaleString()} dollars a week just by tightening speed-to-lead and follow-up consistency. Does that make sense?`,
+        speak: alexSpeak,
         ask: true,
         waitForUser: true,
         canSkip: false,
@@ -797,9 +1052,23 @@ function buildChrisDirective(state: ConversationState): StageDirective {
 
   // Chris needs only 2 inputs: webLeads + webConversions/Rate.
   // No follow-up-speed question — Chris uplift is conversion-rate-based, not speed-based.
+
+  // Sprint 1B: cross-channel dedup — if Alex already captured lead volume, auto-populate
+  // webLeads and skip directly to the conversion question. Prevents re-asking "how many
+  // enquiries?" when the prospect already answered during ch_alex.
+  const knownVolume = state.unifiedState?.inbound_volume_weekly;
+  if (state.webLeads == null && knownVolume != null) {
+    state.webLeads = knownVolume;
+    console.log(`[CHRIS_DEDUP] inbound_volume_weekly already known: ${knownVolume} — auto-populated webLeads, skipping re-ask`);
+  }
+
   if (state.webLeads == null) {
     questionText = `Roughly how many website enquiries are you getting in a typical week?`;
     extractFields = ['webLeads'];
+  } else if (knownVolume != null) {
+    // Sprint 1B: volume was auto-populated from Alex — reference it naturally
+    questionText = `You mentioned around ${knownVolume} enquiries a week earlier. Of those coming through the website, roughly how many are turning into paying ${lang.pluralOutcome}?`;
+    extractFields = ['webConversions', 'webConversionRate'];
   } else {
     questionText = `And how many of those turn into paying ${lang.pluralOutcome}?`;
     extractFields = ['webConversions', 'webConversionRate'];
@@ -856,11 +1125,16 @@ function buildMaddieDirective(state: ConversationState): StageDirective {
           ? `missing about ${Math.round(state.missedCallRate * 100)}%`
           : 'missing some';
 
+      let maddieSpeak = `So if you're getting around ${state.phoneVolume} inbound calls a week and ${missedDesc}, that's a meaningful number of live opportunities at risk. When people hit voicemail, a lot of them just try the next option. That's why Maddie is so valuable — she captures and qualifies more of those calls before they disappear. Conservatively, that could mean around ${result.weeklyValue.toLocaleString()} dollars a week in recovered revenue.`;
+      const maddieWedge = getMatchedRoleWedge('maddie', state);
+      if (maddieWedge) maddieSpeak += ` ${maddieWedge}`;
+      maddieSpeak += ` Does that track?`;
+
       return {
         objective: 'Deliver Maddie missed call recovery ROI.',
         allowedMoves: ['advance:next_channel'],
         requiredData: [],
-        speak: `So if you're getting around ${state.phoneVolume} inbound calls a week and ${missedDesc}, that's a meaningful number of live opportunities at risk. When people hit voicemail, a lot of them just try the next option. That's why Maddie is so valuable — she captures and qualifies more of those calls before they disappear. Conservatively, that could mean around ${result.weeklyValue.toLocaleString()} dollars a week in recovered revenue. Does that track?`,
+        speak: maddieSpeak,
         ask: true,
         waitForUser: true,
         canSkip: false,
@@ -1034,11 +1308,16 @@ function buildSarahDirective(state: ConversationState): StageDirective {
     const result = state.calculatorResults.sarah;
 
     if (result) {
+      let sarahSpeak = `So you've got around ${state.oldLeads} old leads sitting in your database. Even at a conservative five percent reactivation rate, that's a dormant pipeline worth around ${result.weeklyValue.toLocaleString()} dollars that Sarah could help you unlock — and these are people who already know ${state.business || 'your business'}.`;
+      const sarahWedge = getMatchedRoleWedge('sarah', state);
+      if (sarahWedge) sarahSpeak += ` ${sarahWedge}`;
+      sarahSpeak += ` Does that make sense?`;
+
       return {
         objective: 'Deliver Sarah database reactivation ROI.',
         allowedMoves: ['advance:next_channel'],
         requiredData: [],
-        speak: `So you've got around ${state.oldLeads} old leads sitting in your database. Even at a conservative five percent reactivation rate, that's a dormant pipeline worth around ${result.weeklyValue.toLocaleString()} dollars that Sarah could help you unlock — and these are people who already know ${state.business || 'your business'}. Does that make sense?`,
+        speak: sarahSpeak,
         ask: true,
         waitForUser: true,
         canSkip: false,

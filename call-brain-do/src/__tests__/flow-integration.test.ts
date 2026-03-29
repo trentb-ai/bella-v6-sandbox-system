@@ -209,6 +209,8 @@ describe('flow-integration', () => {
       state.inboundConversions = 5;
       state.responseSpeedBand = 'next_day_plus';
       state.spoken.moveIds.push('v2_ch_alex');
+      // Sprint 1A: synthesis delivery must also be confirmed before advancement
+      state.spoken.moveIds.push('v2_ch_alex_synthesis');
 
       // Turn 11: ch_alex → roi_delivery (force advance with data)
       flowAndAssert(state, intel, 'yeah makes sense', 'turn_11', NOW);

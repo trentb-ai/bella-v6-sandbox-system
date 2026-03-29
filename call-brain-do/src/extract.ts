@@ -31,6 +31,7 @@
 import type {
   ExtractionResult,
   ConversationState,
+  UnifiedLeadState,
   StageId,
   ResponseSpeedBand,
   TranscriptEntry,
@@ -218,9 +219,27 @@ function extractResponseSpeedBand(text: string): ResponseSpeedBand | null {
   if (/(?:instant|immediate|right away|straight away|within.*seconds?|under.*seconds?)/i.test(s)) return 'under_30_seconds';
   if (/(?:within.*minute|couple.*minute|under.*(?:five|5).*minute|pretty quick|minute or two)/i.test(s)) return 'under_5_minutes';
   if (/(?:within.*(?:half|30).*(?:hour|min)|10.*(?:to|-).*20.*min|under.*30.*min|(?:fifteen|15|twenty|20).*min)/i.test(s)) return '5_to_30_minutes';
+  // Numeric weeks: "2 weeks", "a week" etc. (after normalizeSpokenNumbers) — always next_day_plus
+  if (/\b(\d+)\s*weeks?\b/i.test(s) || /\b(?:a|one)\s+week\b/i.test(s)) return 'next_day_plus';
+  // Numeric days: "3 days", "1 day" etc. (after normalizeSpokenNumbers)
+  const daysMatch = s.match(/\b(\d+)\s*days?\b/);
+  if (daysMatch) {
+    const d = parseInt(daysMatch[1]);
+    if (d <= 1) return '2_to_24_hours'; // "1 day" ≈ same day
+    return 'next_day_plus';             // "2 days", "3 days", etc.
+  }
+  // Numeric hours: "8 hours", "3 hours", "24 hours" etc. (after normalizeSpokenNumbers)
+  // Must come BEFORE generic "within.*hour" to correctly classify "within 24 hours" as 2_to_24_hours
+  const hoursMatch = s.match(/\b(\d+)\s*hours?\b/);
+  if (hoursMatch) {
+    const h = parseInt(hoursMatch[1]);
+    if (h <= 2) return '30_minutes_to_2_hours';
+    if (h <= 24) return '2_to_24_hours';
+    return 'next_day_plus';
+  }
   if (/(?:within.*hour|couple.*hour|an hour|hour or two)/i.test(s)) return '30_minutes_to_2_hours';
   if (/(?:same day|few hours|later that day|end of day|half a day)/i.test(s)) return '2_to_24_hours';
-  if (/(?:next day|day or two|couple.*day|next business|24 hour|48 hour|few days|tomorrow)/i.test(s)) return 'next_day_plus';
+  if (/(?:next day|day or two|couple.*day|next business|few days|tomorrow)/i.test(s)) return 'next_day_plus';
   if (/(?:depends|varies|usually|generally|try to|we try)/i.test(s)) return '2_to_24_hours';
   return null;
 }
@@ -903,6 +922,101 @@ function detectFieldUnit(normalizedMatch: string): 'weekly' | 'monthly' | null {
   return null;
 }
 
+// ─── Sprint 1B: Cross-channel unifiedState write ────────────────────────────
+
+const UNIFIED_CORRECTION_WINDOW_MS = 120_000; // 2 minutes
+const ACV_CORRECTION_WINDOW_MS = 120_000; // 2 minutes
+
+/**
+ * Determine whether an ACV update should be allowed.
+ * First write always succeeds. Within the correction window, only values
+ * within 0.5x–2.0x of the current ACV are accepted (guards against Bella's
+ * ROI figures being misinterpreted as corrections while allowing genuine
+ * "I meant fifty thousand not fifty" fixes).
+ */
+export function canUpdateAcv(
+  state: ConversationState,
+  newValue: number
+): { allowed: boolean; reason: string } {
+  const current = state.acv;
+  const setAt = state.unifiedState?.avg_client_value_set_at;
+
+  if (!current || current <= 0) {
+    return { allowed: true, reason: 'Not yet set' };
+  }
+
+  // Within correction window
+  if (setAt && (Date.now() - setAt) < ACV_CORRECTION_WINDOW_MS) {
+    const lower = current * 0.5;
+    const upper = current * 2.0;
+    if (newValue >= lower && newValue <= upper) {
+      return { allowed: true, reason: 'Within correction window and range' };
+    }
+    return { allowed: false, reason: `Within window but value too far from current (${newValue} vs ${current}, range ${lower}-${upper})` };
+  }
+
+  return { allowed: false, reason: 'Correction window closed' };
+}
+
+/**
+ * Map from extraction field names to unifiedState canonical field names.
+ * Multiple extraction fields can map to the same canonical field (Alex and Chris
+ * both capture lead volume, for example).
+ */
+const UNIFIED_FIELD_MAP: Record<string, { field: keyof UnifiedLeadState; tsField: keyof UnifiedLeadState }> = {
+  inboundLeads:          { field: 'inbound_volume_weekly',  tsField: 'inbound_volume_weekly_set_at' },
+  webLeads:              { field: 'inbound_volume_weekly',  tsField: 'inbound_volume_weekly_set_at' },
+  inboundConversionRate: { field: 'conversion_rate',        tsField: 'conversion_rate_set_at' },
+  webConversionRate:     { field: 'conversion_rate',        tsField: 'conversion_rate_set_at' },
+  acv:                   { field: 'avg_client_value',       tsField: 'avg_client_value_set_at' },
+};
+
+/**
+ * Write a value to unifiedState with write-once + correction window semantics.
+ * First write always succeeds. Subsequent writes only succeed within the correction window.
+ */
+function writeUnifiedField(
+  state: ConversationState,
+  canonicalField: keyof UnifiedLeadState,
+  tsField: keyof UnifiedLeadState,
+  value: number,
+): void {
+  if (!state.unifiedState) state.unifiedState = {};
+
+  const existing = state.unifiedState[canonicalField] as number | undefined;
+  const setAt = state.unifiedState[tsField] as number | undefined;
+
+  if (existing == null) {
+    // First write — always succeeds
+    (state.unifiedState as Record<string, unknown>)[canonicalField] = value;
+    (state.unifiedState as Record<string, unknown>)[tsField] = Date.now();
+    console.log(`[UNIFIED_STATE] ${canonicalField}=${value} (first write)`);
+  } else if (setAt && (Date.now() - setAt) < UNIFIED_CORRECTION_WINDOW_MS) {
+    // Within correction window — allow update
+    (state.unifiedState as Record<string, unknown>)[canonicalField] = value;
+    (state.unifiedState as Record<string, unknown>)[tsField] = Date.now();
+    console.log(`[UNIFIED_STATE] ${canonicalField} corrected: ${existing} → ${value}`);
+  } else {
+    console.log(`[UNIFIED_STATE] ${canonicalField} blocked: already ${existing}, correction window closed`);
+  }
+}
+
+/**
+ * After standard field application, sync relevant fields to unifiedState.
+ * Called from applyExtraction after all V2 scalar fields are written.
+ */
+function syncToUnifiedState(state: ConversationState, appliedFields: string[]): void {
+  for (const field of appliedFields) {
+    const mapping = UNIFIED_FIELD_MAP[field];
+    if (!mapping) continue;
+
+    const value = (state as any)[field];
+    if (typeof value !== 'number' || value <= 0) continue;
+
+    writeUnifiedField(state, mapping.field, mapping.tsField, value);
+  }
+}
+
 // ─── Apply extraction to V2 state ───────────────────────────────────────────
 
 /** Writable V2 scalar field names on ConversationState */
@@ -956,12 +1070,16 @@ export function applyExtraction(
     if (V2_SCALAR_FIELDS.has(field)) {
       const current = (state as any)[field];
 
-      // ── ACV write-once guard: once set during anchor_acv, NEVER overwrite.
-      // The correction-broadening can pick up dollar values from conversation context
-      // (e.g., prospect repeating Bella's ROI figure) and corrupt the anchored ACV.
+      // ── ACV correction window: allows legitimate corrections within 2 min + 0.5x–2.0x range.
+      // After anchor_acv, stray dollar values (e.g., Bella's ROI figures) are rejected
+      // unless they fall within the correction window AND plausible range.
       if (field === 'acv' && current != null && state.completedStages?.includes('anchor_acv')) {
-        console.log(`[ACV_GUARD] Rejected acv=${value} — already anchored at ${current} (correction from non-ACV stage)`);
-        continue;
+        const acvCheck = canUpdateAcv(state, value as number);
+        if (!acvCheck.allowed) {
+          console.log(`[ACV_GUARD] Rejected acv=${value} — ${acvCheck.reason}`);
+          continue;
+        }
+        console.log(`[ACV_GUARD] Allowed acv correction ${current} → ${value} — ${acvCheck.reason}`);
       }
 
       // Correction-aware: overwrite if correction detected, otherwise only write if null/undefined/false
@@ -996,6 +1114,11 @@ export function applyExtraction(
         }
       }
     }
+  }
+
+  // Sprint 1B: sync applied fields to cross-channel unifiedState
+  if (applied.length > 0) {
+    syncToUnifiedState(state, applied);
   }
 
   // Handle _just_demo
@@ -1167,6 +1290,11 @@ export function prescanForEarlyROI(state: ConversationState): string[] {
       }
       // Ambiguous: skip — don't blindly assign to both channels
     }
+  }
+
+  // Sprint 1B: sync prescan writes to unified state
+  if (written.length > 0) {
+    syncToUnifiedState(state, written);
   }
 
   return written;

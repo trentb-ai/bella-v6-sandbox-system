@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.29.0-sanitize-morgans"; // DELIVER_THIS word-boundary fix + "My Name" hallucination + 8 new apology patterns
+const VERSION = "9.32.0-deterministic"; // Sprint E2A: deterministic ROI delivery + soft SSE cancellation handling
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -396,6 +396,15 @@ interface State {
   // T007: Just Demo branch — prospect says "just show me"
   just_demo: boolean;        // true = skip remaining channel stages, go to roi_delivery
   trial_reviews_done: boolean; // true if review-linked free trial was delivered (prevents repeat at stall 5)
+
+  // === SPRINT 0 EXTENSIONS — wired in Sprint 1A/1B/2 ===
+  // unifiedState?: UnifiedLeadState;
+  // rejectedWowSteps?: string[];
+  // lastWowSentiment?: 'positive' | 'negative' | 'neutral' | null;
+  // questionCache?: QuestionCacheEntry[];
+  // deepIntelReady?: boolean;
+  // deepIntelTs?: number | null;
+  // NOTE: These are commented out until Sprint 1A wires them in initialState()
 }
 
 // ─── BLANK INPUTS ─────────────────────────────────────────────────────────────
@@ -735,7 +744,15 @@ function stripApologies(text: string): string {
     .replace(/\bI appreciate you keeping me on track\b[.,]?\s*/gi, "")
     .replace(/\bthank you for the correction\b[.,]?\s*/gi, "")
     .replace(/\bfor the correction\b[.,]?\s*/gi, "")
-    .replace(/\bthank you for keeping me on track\b[.,]?\s*/gi, "");
+    .replace(/\bthank you for keeping me on track\b[.,]?\s*/gi, "")
+    // ── Deflection phrases — Gemini hedges instead of holding frame ──
+    .replace(/\bthanks for (?:the |that |your )?feedback\b[.,]?\s*/gi, "")
+    .replace(/\bthank you for (?:the |that |your )?feedback\b[.,]?\s*/gi, "")
+    .replace(/\bthat'?s (?:really )?(?:fair|valid|a fair point|a good point|a valid point)\b[.,]?\s*/gi, "")
+    .replace(/\bthat'?s (?:really )?helpful (?:to know|to hear|feedback)\b[.,]?\s*/gi, "")
+    .replace(/\bI appreciate (?:the |that |your )?(?:feedback|honesty|candour|candor|transparency)\b[.,]?\s*/gi, "")
+    .replace(/\bI hear you\b[.,]?\s*/gi, "")
+    .replace(/\bI understand (?:where you'?re coming from|your (?:concern|hesitation|perspective))\b[.,]?\s*/gi, "");
 }
 
 /** Check if text contains prompt artifacts; returns true if any were found */
@@ -1677,11 +1694,12 @@ function buildTurnPrompt(s: State, intel: Record<string, any>, convMemory: strin
 1. ONLY SPOKEN WORDS. No labels, headers, XML tags, markdown, code formatting, or symbols in the output.
 2. Use up to 3 statements and one question per turn, 4 sentences maximum.
 3. Say numbers naturally in spoken form. Say dollar amounts as "[number] dollars".
-4. NEVER APOLOGISE, NEVER BACKTRACK. If the prospect challenges a number, say "That's the conservative estimate from our model" and move to the current directive. Never say sorry, my mistake, good catch, I misspoke, you're right to pull me up, I missed the mark, I got ahead of myself, or any synonym of apology.
+4. NEVER APOLOGISE, NEVER BACKTRACK, NEVER DEFLECT. If the prospect challenges a number, say "That's the conservative estimate from our model" and move to the current directive. Never say sorry, my mistake, good catch, I misspoke, you're right to pull me up, I missed the mark, I got ahead of myself, or any synonym of apology. Never say "thanks for the feedback", "that's fair", "that's a valid point", "I appreciate the feedback", "I hear you", or any hedging deflection. Hold frame — acknowledge briefly then redirect to the directive.
 5. SCRIPT COMPLIANCE: Deliver the scripted instruction from the MANDATORY SCRIPT section exactly as written. You may add ONE brief natural sentence before it, but the scripted line must remain WORD-FOR-WORD unchanged. Do not recalculate, paraphrase, or break the scripted numbers into sub-calculations.
 6. QUESTION COMPLIANCE: If the prospect gives filler instead of answering a question, briefly acknowledge and re-ask. Do not pretend the question was answered.
 7. Do not mention missing data, internal systems, routing logic, controllers, calculators, or enrichment pipelines.
-8. Do not improvise ROI formulas or benchmark claims. Use ONLY the exact dollar figures from the LIVE ROI section and the DELIVER_THIS text. Never multiply, divide, or restate the math yourself.`;
+8. Do not improvise ROI formulas or benchmark claims. Use ONLY the exact dollar figures from the LIVE ROI section and the DELIVER_THIS text. Never multiply, divide, or restate the math yourself.
+9. NO PHANTOM ROI: If the LIVE ROI section is empty or absent, do NOT reference any dollar uplift, weekly/monthly value, or "conservative estimate". You have NO calculated numbers to cite — talk about the methodology and what the agents CAN do, not fabricated dollar amounts.`;
 
 
   return `====================================
@@ -2294,10 +2312,24 @@ async function streamToDeepgram(
         try { await doReplyCallback(sanitizedResponse); } catch { }
       }
     } catch (e) {
-      log("GEMINI_STREAM_ERR", `${e}`);
-      if (doFailureCallback && !failureSent) {
-        failureSent = true;
-        try { await doFailureCallback(`stream_error:${String(e).slice(0, 200)}`); } catch { }
+      const errStr = String(e);
+      const isCancel = errStr.includes('undefined') || errStr.includes('abort') || errStr.includes('cancel') || errStr.includes('network');
+
+      if (isCancel && responseText.length > 0) {
+        // Deepgram cancelled but we got partial response — treat as soft success
+        log("GEMINI_STREAM_CANCELLED", `partial=${responseText.length}chars chunks=${chunkCount}`);
+        const sanitizedResponse = stripApologies(responseText);
+        if (doReplyCallback && !replySent) {
+          replySent = true;
+          try { await doReplyCallback(sanitizedResponse); } catch { }
+        }
+      } else {
+        // True failure — no response at all or genuine Gemini error
+        log("GEMINI_STREAM_ERR", `${errStr}`);
+        if (doFailureCallback && !failureSent) {
+          failureSent = true;
+          try { await doFailureCallback(`stream_error:${errStr.slice(0, 200)}`); } catch { }
+        }
       }
     }
     finally { writer.close().catch(() => { }); }
@@ -2312,6 +2344,70 @@ async function streamToDeepgram(
   });
 }
 
+// ─── DETERMINISTIC DELIVERY (Sprint E2A) ─────────────────────────────────────
+// Returns pre-built text as Chat Completions SSE — no Gemini call, no hallucination.
+// Voice Agent doesn't care whether the response came from a real LLM.
+
+function streamDeterministicResponse(
+  text: string,
+  doReplyCallback?: (spokenText: string) => Promise<void> | void,
+): Response {
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const enc = new TextEncoder();
+
+  (async () => {
+    try {
+      const id = `det-${Date.now()}`;
+      // Content chunk
+      const chunk = {
+        id,
+        object: "chat.completion.chunk",
+        model: MODEL,
+        choices: [{
+          index: 0,
+          delta: { role: "assistant", content: text },
+          finish_reason: null,
+        }],
+      };
+      await writer.write(enc.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+
+      // Finish chunk
+      const finishChunk = {
+        id,
+        object: "chat.completion.chunk",
+        model: MODEL,
+        choices: [{
+          index: 0,
+          delta: {},
+          finish_reason: "stop",
+        }],
+      };
+      await writer.write(enc.encode(`data: ${JSON.stringify(finishChunk)}\n\n`));
+      await writer.write(enc.encode("data: [DONE]\n\n"));
+
+      log("DETERMINISTIC_DELIVERY", `streamed ${text.length} chars`);
+      log("BELLA_SAID", text.slice(0, 2000));
+
+      // Fire reply callback with exact text — DO gets the precise spoken text
+      if (doReplyCallback) {
+        try { await doReplyCallback(text); } catch { }
+      }
+    } finally {
+      writer.close().catch(() => {});
+    }
+  })();
+
+  return new Response(readable, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
+}
+
 // ─── DO BRAIN INTEGRATION (Phase C) ──────────────────────────────────────────
 
 // NextTurnPacket shape (mirrors call-brain-do/src/types.ts)
@@ -2321,11 +2417,14 @@ interface DONextTurnPacket {
   objective: string;
   chosenMove: { id: string; kind: string; text: string };
   criticalFacts: string[];
+  contextNotes?: string[];
   extractTargets: string[];
   validation: { mustCaptureAny: string[]; advanceOnlyIf: string[]; doNotAdvanceIf: string[] };
   style: { tone: string; industryTerms: string[]; maxSentences: number; noApology: boolean };
   roi?: { agentValues: Record<string, number>; totalValue: number };
   activeMemory?: string[];
+  complianceChecks?: { mustContainPhrases: string[] };
+  mandatory?: boolean;  // true = bridge must deliver text exactly, no LLM paraphrase
 }
 
 interface DOTurnResponse {
@@ -2377,9 +2476,15 @@ STAGE: ${packet.stage.toUpperCase()} ${packet.wowStall != null ? `| STALL: ${pac
     ? `\nLIVE ROI:\n${Object.entries(packet.roi.agentValues).map(([agent, val]) => `- ${agent}: $${val.toLocaleString()}/week`).join('\n')}\n- TOTAL: $${packet.roi.totalValue.toLocaleString()}/week\n`
     : '';
 
-  // ── CONTEXT — labelled "do not read aloud" ──
-  const contextSection = packet.criticalFacts.length > 0
-    ? `\nCONTEXT (use to inform your response — do not read aloud):\n${packet.criticalFacts.slice(0, 8).map(f => `- ${f}`).join('\n')}\n`
+  // ── CRITICAL FACTS — stable truths about the business (whole call) ──
+  const criticalFactsSection = packet.criticalFacts.length > 0
+    ? `\nCRITICAL FACTS (stable truths about this business — always valid, never change mid-call):\n${packet.criticalFacts.slice(0, 6).map(f => `- ${f}`).join('\n')}\n`
+    : '';
+
+  // ── CONTEXT — stage-specific dynamic grounding (changes each turn) ──
+  const contextNotes = packet.contextNotes ?? [];
+  const contextSection = contextNotes.length > 0
+    ? `\nCONTEXT (stage-specific grounding — relevant right now):\n${contextNotes.slice(0, 6).map(f => `- ${f}`).join('\n')}\n`
     : '';
 
   // ── ACTIVE MEMORY — things the prospect or Bella have said that matter ──
@@ -2393,14 +2498,15 @@ STAGE: ${packet.stage.toUpperCase()} ${packet.wowStall != null ? `| STALL: ${pac
 1. ONLY SPOKEN WORDS. No labels, headers, XML tags, markdown, code formatting, or symbols in the output.
 2. Use up to 3 statements and one question per turn, 4 sentences maximum.
 3. Say numbers naturally in spoken form. Say dollar amounts as "[number] dollars".
-4. NEVER APOLOGISE, NEVER BACKTRACK. If the prospect challenges a number, say "That's the conservative estimate from our model" and move to the current directive. Never say sorry, my mistake, good catch, I misspoke, you're right to pull me up, I missed the mark, I got ahead of myself, or any synonym of apology.
+4. NEVER APOLOGISE, NEVER BACKTRACK, NEVER DEFLECT. If the prospect challenges a number, say "That's the conservative estimate from our model" and move to the current directive. Never say sorry, my mistake, good catch, I misspoke, you're right to pull me up, I missed the mark, I got ahead of myself, or any synonym of apology. Never say "thanks for the feedback", "that's fair", "that's a valid point", "I appreciate the feedback", "I hear you", or any hedging deflection. Hold frame — acknowledge briefly then redirect to the directive.
 5. SCRIPT COMPLIANCE: Deliver the scripted instruction from the MANDATORY SCRIPT section exactly as written. You may add ONE brief natural sentence before it, but the scripted line must remain WORD-FOR-WORD unchanged. Do not recalculate, paraphrase, or break the scripted numbers into sub-calculations.
 6. QUESTION COMPLIANCE: If the prospect gives filler instead of answering a question, briefly acknowledge and re-ask. Do not pretend the question was answered.
 7. Do not mention missing data, internal systems, routing logic, controllers, calculators, or enrichment pipelines.
-8. Do not improvise ROI formulas or benchmark claims. Use ONLY the exact dollar figures from the LIVE ROI section and the DELIVER_THIS text. Never multiply, divide, or restate the math yourself.`;
+8. Do not improvise ROI formulas or benchmark claims. Use ONLY the exact dollar figures from the LIVE ROI section and the DELIVER_THIS text. Never multiply, divide, or restate the math yourself.
+9. NO PHANTOM ROI: If the LIVE ROI section is empty or absent, do NOT reference any dollar uplift, weekly/monthly value, or "conservative estimate". You have NO calculated numbers to cite — talk about the methodology and what the agents CAN do, not fabricated dollar amounts.`;
 
   return `${scriptBlock}
-${confirmedSection}${roiSection}${contextSection}${memorySection}
+${confirmedSection}${roiSection}${criticalFactsSection}${contextSection}${memorySection}
 STYLE: tone=${packet.style.tone}; terms=${packet.style.industryTerms.join(', ')}; max ${packet.style.maxSentences} sentences
 
 ${outputRules}`;
@@ -2478,6 +2584,7 @@ async function callDOLlmReplyDone(
   deliveryId: string,
   spokenText: string,
   env: Env,
+  compliance?: { compliance_status: 'pass' | 'drift'; compliance_score: number; missed_phrases: string[] },
 ): Promise<void> {
   const request = new Request(`https://do-internal/event?callId=${encodeURIComponent(lid)}`, {
     method: 'POST',
@@ -2488,6 +2595,7 @@ async function callDOLlmReplyDone(
       moveId,
       deliveryId: deliveryId || undefined,
       ts: new Date().toISOString(),
+      ...(compliance ?? {}),
     }),
   });
   await retryFetch(request, env.CALL_BRAIN, 'DO_REPLY');
@@ -2720,6 +2828,15 @@ export default {
       const _suppRating = parseFloat(intel.star_rating ?? intel.places?.rating) || null;
       const _suppReviews = parseInt(intel.review_count ?? intel.places?.review_count) || 0;
       const _suppConsultant = intel.consultant ?? null;
+      // Deep intel supplement — forward if KV has deep data with status=done
+      const _suppDeep = (intel.deep?.status === 'done') ? intel.deep : null;
+      // Fast intel core fields — forward if KV has fast-intel data
+      const _suppFast = intel.core_identity ? {
+        core_identity: intel.core_identity,
+        flags: intel.flags ?? null,
+        tech_stack: intel.tech_stack ?? null,
+        bella_opener: intel.bella_opener ?? null,
+      } : null;
       const doIdentity = {
         firstName: intel.first_name ?? intel.firstName ?? ci.first_name ?? '',
         businessName: intel.business_name ?? ci.business_name ?? '',
@@ -2728,9 +2845,11 @@ export default {
           rating: _suppRating,
           reviewCount: _suppReviews,
           consultant: _suppConsultant,
+          deep: _suppDeep,
+          fast: _suppFast,
         },
       };
-      log('DO_IDENTITY', `fn="${doIdentity.firstName}" biz="${doIdentity.businessName}" ind="${doIdentity.industry}" supp_rating=${_suppRating ?? 'none'} supp_consultant=${!!_suppConsultant}`);
+      log('DO_IDENTITY', `fn="${doIdentity.firstName}" biz="${doIdentity.businessName}" ind="${doIdentity.industry}" supp_rating=${_suppRating ?? 'none'} supp_consultant=${!!_suppConsultant} supp_deep=${!!_suppDeep} supp_fast=${!!_suppFast}`);
 
       const doResult = await callDOTurn(lid, utt, String(turnNum), env, doIdentity);
       if (!doResult) {
@@ -2793,38 +2912,94 @@ export default {
           );
         }
 
-        log('STREAM', `DO path stage=${doResult.stage} history=${conversation.length} turns → streaming`);
         // Closure-scope the IDs — NEVER use mutable module-scope variables
         const doMoveId = doResult.packet.chosenMove.id;
         const doDeliveryId = (doResult.extractedState as any)?.pendingDelivery?.deliveryId ?? '';
         log('DO_DELIVERY_ID', `lid=${lid} moveId=${doMoveId} deliveryId=${doDeliveryId || 'none'}`);
 
+        // ── DETERMINISTIC DELIVERY: bypass Gemini for mandatory text ──
+        // When the DO flags a move as mandatory (ROI numbers, calculated figures),
+        // return the pre-built text directly. No Gemini = no hallucination.
+        const packet = doResult.packet;
+        const isMandatoryDelivery = !!(
+          packet.mandatory ||
+          packet.chosenMove.kind === 'roi' ||
+          packet.stage === 'roi_delivery'
+        );
+
+        if (isMandatoryDelivery && packet.chosenMove.text.length > 0) {
+          log("DETERMINISTIC_DELIVERY", `stage=${packet.stage} move=${doMoveId} kind=${packet.chosenMove.kind} text_len=${packet.chosenMove.text.length}`);
+
+          // Apply TTS acronym formatting (same as buildDOTurnPrompt)
+          const doSpokenName2 = intel.consultant?.businessIdentity?.spokenName;
+          const doRawBiz2 = doSpokenName2 || intel.business_name || (intel.core_identity as any)?.business_name || '';
+          let deterministicText = packet.chosenMove.text;
+          if (doRawBiz2) {
+            const ttsBiz = ttsAcronym(doRawBiz2);
+            if (ttsBiz !== doRawBiz2) {
+              deterministicText = deterministicText.replaceAll(doRawBiz2, ttsBiz);
+            }
+          }
+
+          return streamDeterministicResponse(
+            deterministicText,
+            async (spokenText) => {
+              // Compliance is guaranteed pass — text is delivered verbatim
+              const compliancePayload = {
+                compliance_status: 'pass' as const,
+                compliance_score: 1.0,
+                missed_phrases: [],
+              };
+              await callDOLlmReplyDone(lid!, doMoveId, doDeliveryId, spokenText, env, compliancePayload);
+            },
+          );
+        }
+
+        log('STREAM', `DO path stage=${doResult.stage} history=${conversation.length} turns → streaming`);
+
         return streamToDeepgram(finalMessages, env,
           // Success callback — Gemini stream completed
           async (spokenText) => {
-            await callDOLlmReplyDone(lid!, doMoveId, doDeliveryId, spokenText, env);
-
-            // M3: Compliance check — observability only, no blocking/retry/state mutation
+            // Compliance check: lightweight word-overlap before notifying DO
+            let compliancePayload: { compliance_status: 'pass' | 'drift'; compliance_score: number; missed_phrases: string[] } | undefined;
             try {
               const checks = doResult.packet?.complianceChecks;
               const phrases: string[] = checks?.mustContainPhrases ?? [];
               if (phrases.length > 0 && spokenText.length >= 20) {
-                // Fuzzy match: lowercase, collapse whitespace, strip punctuation
                 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
                 const normSpoken = norm(spokenText);
-                const matched = phrases.filter(p => normSpoken.includes(norm(p)));
-                const coverage = matched.length / phrases.length;
+                const spokenWords = normSpoken.split(/\s+/);
 
-                if (coverage >= 0.5) {
-                  log('COMPLIANCE_OK', `lid=${lid} moveId=${doMoveId} matched=${matched.length}/${phrases.length} coverage=${coverage.toFixed(2)}`);
+                let totalScore = 0;
+                const missed: string[] = [];
+
+                for (const phrase of phrases) {
+                  const phraseWords = norm(phrase).split(/\s+/);
+                  if (phraseWords.length === 0) { totalScore += 1; continue; }
+                  let matchCount = 0;
+                  for (const pw of phraseWords) {
+                    if (spokenWords.includes(pw)) matchCount++;
+                  }
+                  const phraseScore = matchCount / phraseWords.length;
+                  totalScore += phraseScore;
+                  if (phraseScore < 0.5) missed.push(phrase);
+                }
+
+                const score = totalScore / phrases.length;
+                const status: 'pass' | 'drift' = score >= 0.6 ? 'pass' : 'drift';
+                compliancePayload = { compliance_status: status, compliance_score: score, missed_phrases: missed };
+
+                if (status === 'pass') {
+                  log('COMPLIANCE_PASS', `lid=${lid} moveId=${doMoveId} score=${score.toFixed(2)} matched=${phrases.length - missed.length}/${phrases.length}`);
                 } else {
-                  const missed = phrases.filter(p => !normSpoken.includes(norm(p)));
-                  log('COMPLIANCE_MISS', `lid=${lid} moveId=${doMoveId} matched=${matched.length}/${phrases.length} coverage=${coverage.toFixed(2)} missed=${JSON.stringify(missed.slice(0, 3))}`);
+                  log('COMPLIANCE_DRIFT', `lid=${lid} moveId=${doMoveId} score=${score.toFixed(2)} missed=${JSON.stringify(missed.slice(0, 3))}`);
                 }
               }
             } catch (_complianceErr) {
-              // Compliance is observability-only — never fail the delivery
+              // Compliance must never fail the delivery
             }
+
+            await callDOLlmReplyDone(lid!, doMoveId, doDeliveryId, spokenText, env, compliancePayload);
           },
           // Failure callback — Gemini errored
           async (errorCode) => {

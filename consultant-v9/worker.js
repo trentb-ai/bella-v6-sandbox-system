@@ -607,7 +607,8 @@ Missing data does NOT mean the opportunity doesn't exist. It means Bella needs t
     "rep_commentary": "Qualitative assessment of their Google reputation if data available — warm, specific, cite numbers. If no Google data: null (do NOT invent or say zero)",
     "recent_review_snippet": "Best customer quote from their reviews (verbatim), or null if no reviews in payload",
     "rep_quality_assessment": "Brief assessment of review quality if data exists — themes, sentiment. null if no review data in payload.",
-    "top_2_website_ctas": "Their top 2 CTAs from the website, natural language"
+    "top_2_website_ctas": "Their top 2 CTAs from the website, natural language",
+    "scrapedDataSummary": "Single spoken observation max 25 words. SPECIFIC data point from Google reviews, ads, or hiring signals found in the payload. NOT a website compliment. Actual data only. null if no scraped data available."
   },
   "copyAnalysis": {
     "messagingStrength": "What the copy does well — cite specific phrases or sections",

@@ -79,7 +79,7 @@ const STAGE_SCHEMAS: Record<string, Record<string, FieldSpec>> = {
     responseSpeedBand: {
       type: 'STRING', nullable: true,
       enum: ['under_30_seconds', 'under_5_minutes', '5_to_30_minutes', '30_minutes_to_2_hours', '2_to_24_hours', 'next_day_plus'],
-      description: 'How fast they follow up leads. Map: "instantly/straight away"→under_30_seconds, "few minutes/pretty quick"→under_5_minutes, "within half hour/15-20 min"→5_to_30_minutes, "hour or two/within the hour"→30_minutes_to_2_hours, "same day/few hours/end of day"→2_to_24_hours, "next day/tomorrow/day or two"→next_day_plus. Return null if not stated.',
+      description: 'How fast they follow up leads. Use these RULES (not just examples): under_30_seconds = response time under 30 seconds (instantly, right away, straight away, within seconds). under_5_minutes = 30 seconds to 5 minutes (few minutes, pretty quick, a minute or two). 5_to_30_minutes = 5-30 minutes (within half hour, 10-20 min, quarter hour, 15 min). 30_minutes_to_2_hours = 30 min to 2 hours (within the hour, an hour, couple of hours, ANY number of hours <= 2). 2_to_24_hours = 2-24 hours (ANY number of hours from 3-24, same day, half a day, end of day, few hours, business hours). next_day_plus = over 24 hours (next day, tomorrow, ANY number of days or weeks, 48 hours, couple of days, a week). If the prospect gives ANY numeric time estimate, classify it by these ranges. Return null ONLY if response time was genuinely not discussed.',
     },
     inboundLeads_unit: {
       type: 'STRING', nullable: true,
