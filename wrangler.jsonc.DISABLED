@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "9",
+  "compatibility_date": "2026-03-01",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "netlify-funnel-sandbox-v9"
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}
