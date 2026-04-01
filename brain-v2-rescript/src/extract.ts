@@ -1026,6 +1026,8 @@ const V2_SCALAR_FIELDS: ReadonlySet<string> = new Set([
   'phoneVolume', 'missedCalls', 'missedCallRate',
   'oldLeads', 'newCustomersPerWeek', 'currentStars', 'hasReviewSystem',
   'leadSourceDominant', 'websiteRelevant', 'phoneRelevant', 'adsConfirmed',
+  'confirmedICP', 'overriddenICP', 'confirmedCTA', 'overriddenCTA',
+  'userOverrideIcp', 'userOverrideCta',
 ]);
 
 export function applyExtraction(

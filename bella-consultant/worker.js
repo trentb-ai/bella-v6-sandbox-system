@@ -265,14 +265,34 @@ function buildPromptICP(p) {
 Your ONLY job is to deeply understand who this business sells to, what problems they solve, and how they position themselves in the market.
 
 CRITICAL RULES:
+⚠️ VOICE PERSPECTIVE — HARD RULE — CHECK EVERY FIELD BEFORE RETURNING:
+You are writing words that Bella speaks DIRECTLY TO the business owner on a live phone call. The owner is listening. Every field must sound like Bella is talking TO them, not describing them to someone else.
+- "you" and "your" = the business and its owner. Always.
+- "they" and "their" = the prospect's CUSTOMERS only. Never the business.
+WRONG: "They offer accounting services" → RIGHT: "You offer accounting services"
+WRONG: "Their main CTA is a booking form" → RIGHT: "Your main CTA is a booking form"
+CORRECT: "The problems they bring to you" (they = customers, correct)
+If you write "they" or "their" referring to the business, you have broken the call. The owner will hear Bella describe them in third person and lose trust immediately.
+
 - Use the business's own language from their website copy
 - Australian English throughout
-- All outputs are spoken DIRECTLY TO the prospect on a live voice call — use "you/your" for the business, "they/their" only for the prospect's customers
 - Keep all spoken lines under 20 words per sentence
 - icpProblems and icpSolutions MUST be specific to THIS site's copy — NOT generic industry filler
 - BAD: "Feeling overwhelmed by tax complexities" — generic
 - GOOD: "Business owners who need proactive tax planning not just year-end compliance" — specific to their copy
 - marketPositionNarrative and icpNarrative MUST NOT be null or empty
+
+ANALYSIS FRAMEWORK — HOW TO READ THE SITE:
+Focus heavily on websiteContent — that is the raw scraped page text. Mine it carefully. This is your primary source of truth.
+
+To identify the ICP, look for: the exact language they use to describe their customers, problems they reference explicitly, outcomes they promise, any case studies or testimonials, location specificity, phrases like "we work with", "our clients", "designed for", "perfect for".
+
+For icpProblems and icpSolutions — these MUST come from what the site actually says. Not from generic industry assumptions. If the site says "we help business owners stop leaving money on the table" — use THAT language. Do not sanitise it into corporate speak. Quote or closely paraphrase their actual words.
+
+For marketPositionNarrative — find how they differentiate from competitors. Look for words like "unlike", "instead of", "beyond", "not just", "more than". This is how they think about their market position. Use their language.
+
+MISSING DATA RULES:
+If websiteContent is thin or signals are weak — state low confidence but still provide your best analysis. Never return null for icpNarrative or marketPositionNarrative. Work with what you have.
 
 PROSPECT DATA:
 ${JSON.stringify(p, null, 2)}
@@ -300,7 +320,9 @@ Return ONLY this JSON. Nothing else. No markdown. No preamble.
   "trainingBridge": {
     "line": "REQUIRED — MUST NOT be null. 1-2 sentences explicitly tying together: who they serve + the problems they bring + how they solve them + the exact CTAs on their site — framed as what the AI agents are being trained on. Bella says this verbatim. Must be spoken-friendly, under 20 words per sentence. Example: 'Everything I have just described — who you serve, the problems they bring, how you solve them, and the specific calls to action — is what your demo agent team has already been trained on in the background.'"
   }
-}`;
+}
+
+FINAL CHECK — Before returning, scan every string value in your response for "they" or "their" referring to the business or owner. Replace with "you" or "your". This is non-negotiable.`;
 }
 
 function buildPromptConversion(p) {
@@ -310,9 +332,17 @@ Your ONLY job is to identify every single conversion event on this website and u
 This data is CRITICAL. Bella uses it to say: "I can see your main call to action is X, and you're also driving Y and Z — those are exactly the conversion events your agents are trained on." Every CTA must be found. Every agent mapping must be precise.
 
 CRITICAL RULES:
+⚠️ VOICE PERSPECTIVE — HARD RULE — CHECK EVERY FIELD BEFORE RETURNING:
+You are writing words that Bella speaks DIRECTLY TO the business owner on a live phone call. The owner is listening. Every field must sound like Bella is talking TO them, not describing them to someone else.
+- "you" and "your" = the business and its owner. Always.
+- "they" and "their" = the prospect's CUSTOMERS only. Never the business.
+WRONG: "They offer accounting services" → RIGHT: "You offer accounting services"
+WRONG: "Their main CTA is a booking form" → RIGHT: "Your main CTA is a booking form"
+CORRECT: "The problems they bring to you" (they = customers, correct)
+If you write "they" or "their" referring to the business, you have broken the call. The owner will hear Bella describe them in third person and lose trust immediately.
+
 - Find EVERY conversion event — not just the primary CTA. Every button, form, phone number, download, booking link
 - MADDIE RULE: If ANY phone number exists on the site (even in the footer or contact page), it MUST appear in ctaBreakdown as type "call" with agent "Maddie". For service businesses (trades, medical, legal, accounting, real estate, agencies), phone is almost always a primary channel
-- Use "you/your" for the business, "they/their" only for the prospect's customers
 - conversionNarrative, agentTrainingLine, and ctaAgentMapping MUST NOT be null
 - Australian English throughout
 - All spoken lines under 20 words per sentence
@@ -324,8 +354,41 @@ AGENT ROLES:
 - Sarah: Database reactivation — wakes up dormant leads
 - James: Reputation/reviews — automated review collection
 
-WHEN ADS ARE RUNNING: clicks land on the site → Chris engages them live → Alex follows up those Chris doesn't close. They are a pair.
-PHONE NUMBER ON SITE: Maddie is relevant. Service businesses (trades, medical, legal, accounting) rely on phone. Do NOT omit.
+ANALYSIS FRAMEWORK — HOW TO READ CONVERSION EVENTS:
+Every conversion event needs commercial translation — not just what the button says, but what it means for this specific business in their industry.
+
+Translation examples:
+- Accounting firm "book a free initial consultation" = their primary new client acquisition channel. Every consultation booked is a potential long-term client.
+- Dental "book an appointment" = bread and butter recurring revenue.
+- Tradie "request a quote" = the start of every new job.
+- Law firm "schedule a consultation" = how they win new matters.
+- SaaS "start free trial" or "book a demo" = their entire pipeline.
+- Download (guide, whitepaper, checklist) = pipeline builder, lead magnet that needs follow-up → Alex.
+- Phone number or click-to-call anywhere on the site = high-intent prospects who want to talk NOW → Maddie. ALWAYS include in ctaBreakdown.
+- Contact form or "get in touch" = warm leads that go cold fast → Alex.
+
+KEY INSIGHT — WHEN ADS ARE RUNNING:
+When a business is paying for traffic (ad pixels detected, social campaigns, paid search), those clicks land on their website and landing pages. Chris engages them live on arrival. Alex follows up the ones Chris doesn't close. They are always a pair. If any ad signals exist, Chris and Alex should be your top 2 priority agents.
+
+URGENCY HIERARCHY — rank agents by this order, never deviate:
+1. Active revenue leakage RIGHT NOW: ads running with no AI on-site, website traffic with no engagement, live inbound going cold, calls going to voicemail.
+2. High-confidence friction: weak conversion path, slow follow-up, poor call handling. Evidence of lost revenue.
+3. Latent opportunity: old lead reactivation (Sarah), reputation (James). Valuable but NEVER rank these above active leaks.
+
+FORCED TRADE-OFF RULES:
+- Active spend beats latent opportunity. Always.
+- Active inbound leakage beats future nurture value. Always.
+- Strong evidence beats broad inference. Always.
+- If ads running → Chris number 1, Alex number 2. Period.
+- If no ads but phone-heavy business → Chris number 1, Maddie number 2.
+- If no ads, form-based CTA → Chris number 1, Alex number 2.
+- Sarah and James always come AFTER the 3 core agents.
+
+MISSING DATA RULES:
+- No ad pixels detected → do NOT say "not running ads". Say "No ad pixels found on-site — Bella should ask about their paid campaigns. Alex opportunity."
+- No phone visible → do NOT say "no phone channel". Say "Phone not prominent — Bella should ask about inbound call volume. Maddie opportunity."
+- Phone number visible ANYWHERE on the site (even footer) → Maddie is relevant, always include in ctaBreakdown as type "call".
+- The ONLY time you exclude an agent is when you have strong POSITIVE EVIDENCE they are already covered (e.g. confirmed 24/7 AI chat already deployed).
 
 PROSPECT DATA:
 ${JSON.stringify(p, null, 2)}
@@ -389,7 +452,9 @@ Return ONLY this JSON. Nothing else. No markdown. No preamble.
       "whyNotFirst": "One sentence: why this is valuable but less urgent"
     }
   ]
-}`;
+}
+
+FINAL CHECK — Before returning, scan every string value in your response for "they" or "their" referring to the business or owner. Replace with "you" or "your". This is non-negotiable.`;
 }
 
 function buildPromptCopy(p) {
@@ -397,13 +462,35 @@ function buildPromptCopy(p) {
 Your job is to extract the business identity, analyse the website copy quality, and fill the script fields Bella needs to sound like she spent 3 hours researching this business.
 
 CRITICAL RULES:
+⚠️ VOICE PERSPECTIVE — HARD RULE — CHECK EVERY FIELD BEFORE RETURNING:
+You are writing words that Bella speaks DIRECTLY TO the business owner on a live phone call. The owner is listening. Every field must sound like Bella is talking TO them, not describing them to someone else.
+- "you" and "your" = the business and its owner. Always.
+- "they" and "their" = the prospect's CUSTOMERS only. Never the business.
+WRONG: "They offer accounting services" → RIGHT: "You offer accounting services"
+WRONG: "Their main CTA is a booking form" → RIGHT: "Your main CTA is a booking form"
+CORRECT: "The problems they bring to you" (they = customers, correct)
+If you write "they" or "their" referring to the business, you have broken the call. The owner will hear Bella describe them in third person and lose trust immediately.
+
 - Cross-reference ALL name signals (og:site_name, JSON-LD, pageTitle, domain, body copy) to confirm the real business name. PAGE CONTENT is the authority — domains are ambiguous
 - Use the business's own language from their copy — their words, their phrases
-- All outputs spoken DIRECTLY TO the prospect — use "you/your" for the business, "they/their" only for the prospect's customers
 - All spoken lines under 20 words per sentence
 - Australian English throughout
 - NEVER output placeholder text like "Business Name Pending" — if unsure, clean up the domain name
 - website_positive_comment must be a STRATEGIC INSIGHT not a compliment — something that makes the owner think "they actually get us"
+
+ANALYSIS FRAMEWORK — HOW TO READ THE COPY:
+
+COPY QUALITY (for copyAnalysis):
+Read what their website copy actually says. Is it clear, compelling, benefit-led? Does it speak directly to pain or outcome, or does it just list services? Quote specific phrases that are strong. Identify where copy sells well versus where it falls flat — frame every weakness as an opportunity ("their copy doesn't highlight X outcome — Bella can ask about that").
+
+SURFACED BENEFITS (for valuePropAnalysis):
+Look for the actual outcomes and transformations they promise — not services, results. Look for phrases like "so you can", "without", "results", "guaranteed", "faster", "more", "less". Extract their stated value propositions as outcomes not service names.
+
+BUSINESS IDENTITY (for businessIdentity):
+Domain names are ambiguous. "andersen.com" could be Andersen Consulting or Andersen Windows. Never guess based on brand familiarity or domain alone. The page content is always the authority. Read the services described, the about section, headings, and footer. Cross-reference og:site_name, JSON-LD org name, footer copyright, and the actual body copy. When in doubt, the body copy wins.
+
+WEBSITE POSITIVE COMMENT (for scriptFills.website_positive_comment):
+This must be a STRATEGIC INSIGHT, not a compliment. Not "your tagline really captures what you do" — that is garbage. An insight that makes the owner think "they actually get our business". Reference a specific positioning decision, market strategy choice, or something from the copy that reveals how they think about winning business.
 
 PROSPECT DATA:
 ${JSON.stringify(p, null, 2)}
@@ -450,7 +537,9 @@ Return ONLY this JSON. Nothing else. No markdown. No preamble.
     { "what": "Something genuinely specific and impressive from the COPY", "evidence": "Verbatim quote or specific data point", "bellaLine": "Natural sentence Bella can say" },
     { "what": "A second different impressive thing — different category from first", "evidence": "Specific evidence", "bellaLine": "Natural sentence" }
   ]
-}`;
+}
+
+FINAL CHECK — Before returning, scan every string value in your response for "they" or "their" referring to the business or owner. Replace with "you" or "your". This is non-negotiable.`;
 }
 
 function buildPromptResearch(p) {
@@ -458,21 +547,49 @@ function buildPromptResearch(p) {
 Your job is to find every commercial opportunity hidden in the scraped data — hiring signals, Google presence, conversation hooks, and the biggest impression-making findings.
 
 CRITICAL RULES:
+⚠️ VOICE PERSPECTIVE — HARD RULE — CHECK EVERY FIELD BEFORE RETURNING:
+You are writing words that Bella speaks DIRECTLY TO the business owner on a live phone call. The owner is listening. Every field must sound like Bella is talking TO them, not describing them to someone else.
+- "you" and "your" = the business and its owner. Always.
+- "they" and "their" = the prospect's CUSTOMERS only. Never the business.
+WRONG: "They offer accounting services" → RIGHT: "You offer accounting services"
+WRONG: "Their main CTA is a booking form" → RIGHT: "Your main CTA is a booking form"
+CORRECT: "The problems they bring to you" (they = customers, correct)
+If you write "they" or "their" referring to the business, you have broken the call. The owner will hear Bella describe them in third person and lose trust immediately.
+
 - HIRING IS YOUR MOST POWERFUL WEDGE: Every open role is money they are about to spend that our agents can replace or augment. If hiring data exists, lead with it
 - Frame ALL gaps as OPPORTUNITIES not criticisms — "No chat widget = every visitor leaves without a conversation. Strong Chris opportunity"
-- Use "you/your" for the business, "they/their" only for the prospect's customers
 - Australian English throughout
 - All spoken lines under 20 words per sentence
 - If no hiring data in payload, return matchedRoles as empty array and topHiringWedge as null
 - If no Google data in payload, say "Google data not yet available — Bella should ask about their online reputation"
 
-HIRING → AGENT MAPPING:
-- Receptionist/Admin/Front Desk → Maddie ("You are hiring a receptionist — Maddie covers you TODAY for a fraction of the cost")
-- SDR/BDR/Sales Development → Alex ("You are hiring an SDR — Alex follows up every lead in under 60 seconds, 24/7")
-- Customer Service/Support → Chris + Maddie
-- Marketing/Digital Marketing → Chris + Alex ("Hiring marketing tells me you are investing in traffic — Chris and Alex make sure it converts")
-- Sales/Closer/Account Executive → Alex + Sarah
-- Office Manager/Operations → Maddie
+ANALYSIS FRAMEWORK — HIRING AND OPPORTUNITIES:
+
+HIRING (highest priority if data exists):
+Every open role is money they are about to spend that our agents replace. This is your most powerful commercial wedge when hiring data is present.
+
+Role to agent mapping with exact spoken wedge framing:
+- Receptionist, Admin, Front Desk → Maddie.
+  Wedge: "You are hiring a receptionist — Maddie covers you today for a fraction of the cost. No super, no sick leave, no ramp time."
+- SDR, BDR, Sales Development Rep → Alex.
+  Wedge: "You are hiring an SDR — Alex follows up every lead in under sixty seconds, twenty-four seven."
+- Customer Service, Support → Chris and Maddie.
+  Wedge: "Hiring support staff? Chris and Maddie handle every enquiry instantly with zero hold time."
+- Marketing, Digital Marketing → Chris and Alex.
+  Wedge: "Hiring marketing people tells me you are investing in traffic — Chris and Alex make sure every click converts."
+- Sales, Closer, Account Executive → Alex and Sarah.
+  Wedge: "Hiring salespeople means follow-up matters — Alex and Sarah do it at scale."
+- Office Manager, Operations → Maddie.
+  Wedge: "Hiring an office manager? Maddie handles calls and admin twenty-four seven."
+
+Always frame the ROI against the hiring cost. Say salaries as words not numbers — "sixty thousand" not "$60,000". Lead with the role cost, then show how the agent delivers the same outcome starting today.
+
+MISSING DATA RULES:
+- google.rating is null → do NOT say "no reviews" or "zero reviews". Say "Google data not yet loaded — Bella should ask about their online reputation. James opportunity to explore."
+- facebookAds or googleAds null or false → do NOT say "not running ads". Say "No ad pixels found on-site — Bella should ask about their lead sources and any paid campaigns. Potential Alex opportunity."
+- No phone number visible → do NOT say "no phone channel". Say "Phone not prominent on site — Bella should ask about inbound call volume. Potential Maddie opportunity."
+- No CRM detected → do not mention this at all. We are selling AI agents, not auditing their tech stack.
+- The ONLY time you mark an agent as not relevant is when you have STRONG POSITIVE EVIDENCE they are already covered — for example, confirmed twenty-four-seven AI chat already deployed means Chris is less urgent. Never assume an agent is irrelevant from absence of data alone.
 
 PROSPECT DATA:
 ${JSON.stringify(p, null, 2)}
@@ -525,7 +642,9 @@ Return ONLY this JSON. Nothing else. No markdown. No preamble.
     "verdictLine": "One punchy sentence summarising landing page quality — lead with what is working",
     "verdictLine2": "The biggest opportunity for improvement — framed as what our agents can fix"
   }
-}`;
+}
+
+FINAL CHECK — Before returning, scan every string value in your response for "they" or "their" referring to the business or owner. Replace with "you" or "your". This is non-negotiable.`;
 }
 
 // ── FAST Consultant — 3-5s, 6 fields, conversation starters only ─────────────

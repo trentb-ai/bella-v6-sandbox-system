@@ -444,6 +444,8 @@ function buildWowDirective(
       const icpNarrative: string = (icpAnalysis.icpNarrative ?? '').trim();
       // AUDIT-1 Fix 3: bellaCheckLine — consultant fallback before generic (Priority 4)
       const bellaCheckLine: string = (icpAnalysis.bellaCheckLine ?? '').trim();
+      // V2 FIX 2: marketPositionNarrative — existing consultant field fallback (Priority 1b)
+      const marketPositionNarrative: string = (icpAnalysis.marketPositionNarrative ?? '').trim();
 
       let insightText: string;
       let wow3Branch: string;
@@ -455,6 +457,13 @@ function buildWowDirective(
         // Ensure it ends with a confirmation question if it doesn't already
         if (!/\?/.test(insightText.slice(-20))) {
           insightText += ' Does that sound right?';
+        }
+      // Priority 1b: MARKET_POSITION — consultant marketPositionNarrative fallback
+      } else if (marketPositionNarrative && marketPositionNarrative.length > 30) {
+        wow3Branch = 'MARKET_POSITION';
+        insightText = marketPositionNarrative;
+        if (!/\?/.test(insightText.slice(-20))) {
+          insightText += ' Is that broadly how you think about the people you want more of?';
         }
       // Priority 2: ICP_FULL — mechanical stitch from icpGuess + problems + solutions
       } else if (icpGuess && cleanProblems.length >= 2 && cleanSolutions.length >= 2) {
@@ -498,7 +507,12 @@ function buildWowDirective(
 
     case 'wow_4_conversion_action': {
       const cea = c.conversionEventAnalysis ?? {};
-      const primaryCTA = cea.primaryCTA ?? fills.primaryCTA ?? '';
+      const allCTAs: any[] = cea.allConversionEvents ?? [];
+      const primaryCTA = cea.primaryCTA
+        ?? fills.primaryCTA
+        ?? allCTAs[0]?.label
+        ?? (typeof allCTAs[0] === 'string' ? allCTAs[0] : '')
+        ?? '';
       const secondaryCTAs: any[] = cea.secondaryCTAs ?? cea.allConversionEvents ?? [];
       const secondarySummary = secondaryCTAs
         .slice(0, 2)
@@ -589,11 +603,12 @@ function buildWowDirective(
       let observationLine: string;
       let wow6Source: string;
 
-      if (deepInsight0?.bellaLine && !state.spoken.moveIds.includes('deep_insight_0')) {
+      if (deepInsight0?.bellaLine && !(state.spokenDeepInsightIds ?? []).includes('deep_insight_0')) {
         // Priority 0: deepInsights[0] from deep_scriptFills
         wow6Source = 'DEEP_INSIGHT';
         observationLine = `One more thing we picked up while we were talking — ${deepInsight0.bellaLine}. That's a strong clue about where your agents could make the fastest impact.`;
-        state.spoken.moveIds.push('deep_insight_0');
+        if (!state.spokenDeepInsightIds) state.spokenDeepInsightIds = [];
+        state.spokenDeepInsightIds.push('deep_insight_0');
       } else if (scrapedSummary) {
         // Priority 1: scrapedDataSummary (will be null until B2 wires consultant)
         wow6Source = 'SCRAPED_SUMMARY';
@@ -802,10 +817,18 @@ function buildRecommendationDirective(state: ConversationState): StageDirective 
 
   // ── OPTIONAL DEEP INSIGHT HOOK ──
   const deepScriptFills = (state.intel.deep as any)?.deep_scriptFills ?? null;
-  const recDeepInsight = deepScriptFills?.deepInsights?.[0] ?? null;
-  if (recDeepInsight?.bellaLine && !state.spoken.moveIds.includes('deep_insight_0')) {
+  const spokenIds = state.spokenDeepInsightIds ?? [];
+  const allDeepInsights = deepScriptFills?.deepInsights ?? [];
+  const recDeepInsight = allDeepInsights.find((ins: any) => {
+    const idx = allDeepInsights.indexOf(ins);
+    return ins?.bellaLine && !spokenIds.includes(`deep_insight_${idx}`);
+  }) ?? null;
+  if (recDeepInsight?.bellaLine) {
+    const insightIdx = allDeepInsights.indexOf(recDeepInsight);
+    const insightKey = `deep_insight_${insightIdx}`;
     lines.push(`One more thing we picked up while we were talking — ${recDeepInsight.bellaLine}. That makes the priority even clearer.`);
-    state.spoken.moveIds.push('deep_insight_0');
+    if (!state.spokenDeepInsightIds) state.spokenDeepInsightIds = [];
+    state.spokenDeepInsightIds.push(insightKey);
   }
 
   // ── AGENT LINES — locked benefit copy, no wrappers ──
