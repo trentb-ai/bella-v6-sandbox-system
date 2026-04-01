@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building Your AI Demo...</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body,
+        html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at 50% 50%, #ffffff 0%, #f0f2f5 100%);
+        }
+
+        .loading-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .glow-orb {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(0, 71, 255, 0.06) 0%, rgba(255, 255, 255, 0) 70%);
+            border-radius: 50%;
+            animation: breathe 4s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes breathe {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 0.5;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+        }
+
+        .status-card {
+            position: relative;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            padding: 48px 64px;
+            border-radius: 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+            text-align: center;
+            z-index: 10;
+            width: 320px;
+        }
+
+        .icon-area {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .spinner-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 2px solid rgba(0, 71, 255, 0.1);
+            border-top: 2px solid #0047FF;
+            border-radius: 50%;
+            animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+        }
+
+        .spinner-inner {
+            position: absolute;
+            width: 65%;
+            height: 65%;
+            border: 2px solid rgba(244, 81, 0, 0.1);
+            border-bottom: 2px solid #F45100;
+            border-radius: 50%;
+            animation: spin-rev 2s linear infinite;
+        }
+
+        .icon {
+            font-size: 28px;
+            z-index: 2;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes spin-rev {
+            to {
+                transform: rotate(-360deg);
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(0.9);
+                opacity: 0.8;
+            }
+        }
+
+        h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 8px;
+        }
+
+        .sub {
+            font-size: 14px;
+            color: #6B7280;
+            margin-bottom: 24px;
+            min-height: 18px;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 5px;
+            background: #E5E7EB;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0047FF, #00B2FF);
+            width: 0%;
+            border-radius: 10px;
+            transition: width 0.3s ease-out;
+        }
+
+        .fade {
+            opacity: 1;
+            transition: opacity 0.2s ease;
+        }
+
+        .fade-out {
+            opacity: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="loading-wrapper">
+        <div class="glow-orb"></div>
+        <div class="status-card">
+            <div class="icon-area">
+                <div class="spinner-ring"></div>
+                <div class="spinner-inner"></div>
+                <div class="icon fade" id="icon">⚡️</div>
+            </div>
+            <h2 class="fade" id="main">Initializing...</h2>
+            <p class="sub fade" id="sub">Connecting to AI engine</p>
+            <div class="progress-track">
+                <div class="progress-fill" id="bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const WORKER_URL     = 'https://personalisedaidemofinal-sandbox.trentbelasco.workers.dev';
+        const FAST_INTEL_URL = 'https://fast-intel-v8.trentbelasco.workers.dev';
+        const params = new URLSearchParams(window.location.search);
+        const websiteUrl = params.get('web');
+        const firstName = params.get('name') || '';
+        const leadId = params.get('lid') || '';
+        const email = params.get('email') || '';
+        const contactId = params.get('cid') || '';
+
+        const bar = document.getElementById('bar');
+        const main = document.getElementById('main');
+        const sub = document.getElementById('sub');
+        const icon = document.getElementById('icon');
+
+        const steps = [
+            { pct: 10, main: "Connecting...", sub: "Establishing secure link", icon: "⚡️" },
+            { pct: 25, main: "Scanning Website", sub: "Analyzing structure & content", icon: "🔍" },
+            { pct: 45, main: "Extracting Data", sub: "Gathering brand assets", icon: "📥" },
+            { pct: 65, main: "Building Agents", sub: "Configuring AI personalities", icon: "🤖" },
+            { pct: 85, main: "Almost Ready", sub: "Preparing your dashboard", icon: "✨" },
+            { pct: 100, main: "Complete!", sub: "Redirecting...", icon: "✅" }
+        ];
+
+        let scraperDone = false;
+        let scrapedData = null;
+        let animationDone = false;
+        let currentStep = -1;
+
+        // ═══════════════════════════════════════════════════════════════════
+        // PIPELINE NAMING CONVENTION:
+        //   fast-intel   = Firecrawl full-page scrape + Consultant Gemini (~8-12s)
+        //                  → Bella has real hero/ICP/opener data at T=0
+        //   apify-intel  = 5 Apify actors concurrent via CF Workflow (~30-45s)
+        //                  → Ads, Google Maps, Hiring — bridge picks up mid-call
+        //   full-scrape  = 110-point pipeline in personalisedaidemofinal (~60-120s)
+        //                  → Deep enrichment, arrives late, enriches Bella further
+        //
+        // This loading page POLLS fast-intel /status until done (or 10s timeout).
+        // Apify-intel and full-scrape both run in background — not waited on here.
+        // ═══════════════════════════════════════════════════════════════════
+        console.log('Loading: polling fast-intel status for', websiteUrl);
+
+        async function startScraping() {
+            if (!websiteUrl) {
+                console.error('No website URL provided');
+                scraperDone = true;
+                scrapedData = {};
+                return;
+            }
+
+            // Poll fast-intel /status — capture.html already fired /fast-intel
+            // Max 10 polls × 1s = 10s. If not done, proceed anyway (Bella will
+            // have stub data, fast-intel will write to KV shortly after connect).
+            const MAX_POLLS  = 10;
+            const POLL_MS    = 1000;
+
+            for (let i = 0; i < MAX_POLLS; i++) {
+                await new Promise(r => setTimeout(r, POLL_MS));
+                try {
+                    const resp = await fetch(`${FAST_INTEL_URL}/status?lid=${leadId}`);
+                    const data = await resp.json();
+                    console.log(`Loading: fast-intel poll ${i+1}/${MAX_POLLS}`, data);
+                    if (data.fast_intel_done) {
+                        scrapedData = data;
+                        console.log('Loading: fast-intel done ✓', data.business_name);
+                        scraperDone = true;
+                        checkRedirect();
+                        return;
+                    }
+                } catch (err) {
+                    console.warn(`Loading: poll error ${i+1}:`, err.message);
+                }
+            }
+
+            // Timeout — proceed anyway, Bella will handle stub gracefully
+            console.warn('Loading: fast-intel timeout after 10s — proceeding with stub');
+            scrapedData = {};
+            scraperDone = true;
+            checkRedirect();
+        }
+
+        // Scrape typically completes in 5-7s. 8s gives a safe buffer.
+        const MIN_DURATION = 8000; // 8 seconds
+        let start = null;
+
+        function animate(ts) {
+            if (!start) start = ts;
+            const elapsed = ts - start;
+
+            // V3 Fix C: Progress based on time only — scraper NEVER gates animation
+            let progress = Math.min(elapsed / MIN_DURATION, 1);
+
+            bar.style.width = (progress * 100) + '%';
+
+            const pct = progress * 100;
+            let step = steps[0];
+            for (let i = 0; i < steps.length; i++) {
+                if (pct >= steps[i].pct) step = steps[i];
+            }
+
+            if (steps.indexOf(step) !== currentStep) {
+                currentStep = steps.indexOf(step);
+                main.classList.add('fade-out');
+                sub.classList.add('fade-out');
+                icon.classList.add('fade-out');
+                setTimeout(() => {
+                    main.textContent = step.main;
+                    sub.textContent = step.sub;
+                    icon.textContent = step.icon;
+                    main.classList.remove('fade-out');
+                    sub.classList.remove('fade-out');
+                    icon.classList.remove('fade-out');
+                }, 200);
+            }
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                animationDone = true;
+                checkRedirect();
+            }
+        }
+
+        // V3 Fix C: Only gate on animation — scraper NEVER blocks redirect
+        function checkRedirect() {
+            if (!animationDone || !scraperDone) return;
+
+            // Build redirect URL
+            // Redirect to demo_v15_hybrid.html
+            const pathname = window.location.pathname;
+            const baseUrl = window.location.origin + pathname.substring(0, pathname.lastIndexOf('/') + 1);
+            const redirectParams = new URLSearchParams();
+
+            // Pass through original params
+            redirectParams.set('fn', firstName);
+            if (contactId) redirectParams.set('cid', contactId);
+            if (leadId) redirectParams.set('lid', leadId);
+            if (websiteUrl) redirectParams.set('web', websiteUrl);
+
+            // Add scraped data if available
+            if (scrapedData && scrapedData.success !== false) {
+                // Derive business_name from domain if scraper didn't return one
+                if (!scrapedData.business_name && websiteUrl) {
+                    try {
+                        const host = new URL(websiteUrl).hostname.replace(/^www\./, '');
+                        const raw = host.split('.')[0];
+                        scrapedData.business_name = raw.charAt(0).toUpperCase() + raw.slice(1);
+                    } catch (e) { }
+                }
+                if (scrapedData.business_name) redirectParams.set('biz', scrapedData.business_name);
+                if (scrapedData.industry) redirectParams.set('ind', scrapedData.industry);
+                if (scrapedData.services) redirectParams.set('serv', scrapedData.services);
+                if (scrapedData.location) redirectParams.set('loc', scrapedData.location);
+                if (scrapedData.target_audience) redirectParams.set('aud', scrapedData.target_audience);
+                if (scrapedData.phone) redirectParams.set('phone', scrapedData.phone);
+                if (scrapedData.primary_color) redirectParams.set('pcolor', scrapedData.primary_color);
+                if (scrapedData.secondary_color) redirectParams.set('scolor', scrapedData.secondary_color);
+                if (scrapedData.logo_url) redirectParams.set('logo', scrapedData.logo_url);
+                if (scrapedData.star_rating) redirectParams.set('rating', scrapedData.star_rating);
+                if (scrapedData.business_hours) redirectParams.set('hours', scrapedData.business_hours);
+                if (scrapedData.main_usp) redirectParams.set('usp', scrapedData.main_usp);
+                if (scrapedData.context_blob) redirectParams.set('ctx', scrapedData.context_blob);
+            }
+
+            // Store full data in sessionStorage for fields too long for URL
+            sessionStorage.setItem('demo_scraped_data', JSON.stringify(scrapedData || {}));
+            sessionStorage.setItem('demo_params', JSON.stringify({ lid: leadId, web: websiteUrl, name: firstName }));
+
+            // Redirect to demo_v15_hybrid.html
+            const finalUrl = baseUrl + 'demo_v15_hybrid.html?' + redirectParams.toString();
+            console.log('Loading: Redirecting to', finalUrl);
+            window.location.href = finalUrl;
+        }
+
+        // Start both in parallel
+        startScraping();
+        requestAnimationFrame(animate);
+    </script>
+</body>
+
+</html>
