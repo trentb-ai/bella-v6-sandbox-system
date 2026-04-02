@@ -206,8 +206,20 @@ export async function geminiDeepInsights(
       }
 
       if (sourceCalls.length === 0) {
-        console.log(`[DEEP_INSIGHTS] lid=${lid} no qualifying sources — skipping Gemini`);
-        return { skipped: true, reason: 'no_qualifying_sources' };
+        console.log(`[DEEP_INSIGHTS] lid=${lid} no qualifying sources — writing empty stub`);
+        const emptyFills: DeepScriptFills = {
+          deepInsights: [],
+          heroReview: { summary: null, available: false },
+          generatedAt: new Date().toISOString(),
+        };
+        try {
+          await env.WORKFLOWS_KV.put(
+            `lead:${lid}:deep_scriptFills`,
+            JSON.stringify(emptyFills),
+            { expirationTtl: 86400 }
+          );
+        } catch (_) { /* non-fatal */ }
+        return { skipped: false, reason: 'no_qualifying_sources', insights: 0, heroReview: false };
       }
 
       // Fire all micro-calls in parallel — non-fatal individually

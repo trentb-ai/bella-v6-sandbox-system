@@ -21,7 +21,9 @@ export async function scrapeAdPages(
 
       // Collect unique landing URLs from fb_ads_sample
       const fbSample: any[] = extracted.fb_ads_sample ?? [];
-      const mainSiteHost = new URL(payload.url).hostname.replace(/^www\./, "");
+      const rawSiteUrl: string = (payload as any).websiteUrl || (payload as any).url || '';
+      let mainSiteHost = '';
+      try { mainSiteHost = new URL(rawSiteUrl).hostname.replace(/^www\./, ""); } catch { /* non-fatal */ }
       const seen = new Set<string>();
       const landingUrls: string[] = [];
 
