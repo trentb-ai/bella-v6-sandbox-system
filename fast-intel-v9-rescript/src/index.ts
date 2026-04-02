@@ -36,7 +36,7 @@ import { Env, FastIntelResult, ConsultantPayload } from "./types";
 
 export { Env };
 
-const VERSION = "1.12.0"; // Wire scrapedDataSummary from consultant into scriptFills
+const VERSION = "1.15.0"; // Bug3: patch consultant.googlePresence race condition — Places API overwrites pending
 // KV_TTL removed — data persists permanently
 
 const CORS = {
@@ -1570,6 +1570,25 @@ export default {
               (fastIntel.flags as any).review_signals = true;
             }
           }
+          // Patch consultant.googlePresence if it has "pending" placeholder
+          // (consultant ran before Places data was available — patch it now)
+          if (places.rating > 0 || places.reviewCount > 0) {
+            const consultantObj = fastIntel.consultant as any;
+            const gp: any[] = consultantObj?.googlePresence ?? [];
+            if (gp.length > 0 && gp[0]?.data === 'pending') {
+              const stars = places.rating;
+              const reviews = places.reviewCount;
+              const ratingLabel = stars >= 4.5 ? "that's excellent" : stars >= 4 ? "that's a strong trust signal" : stars >= 3 ? "there's room to grow that" : "there's a real opportunity to improve that";
+              gp[0] = {
+                ...gp[0],
+                data: `${stars} stars from ${reviews} reviews`,
+                bellaLine: `I can see you have ${stars} stars from ${reviews} reviews on Google — ${ratingLabel}.`,
+                insight: `Google Maps: ${stars}★ from ${reviews} reviews`,
+                source: 'places_api',
+              };
+              log("PLACES_PATCH_GP", `Patched googlePresence[0] with rating=${stars} reviews=${reviews}`);
+            }
+          }
         }
       }
 
@@ -1653,6 +1672,10 @@ export default {
         business_name:   data.core_identity?.business_name ?? data.business_name ?? "",
         bella_opener:    data.bella_opener ?? "",
       }), { headers: CORS });
+    }
+
+    if (url.pathname === "/health" && request.method === "GET") {
+      return new Response(JSON.stringify({ status: "ok", version: VERSION, worker: "fast-intel-v9-rescript" }), { status: 200, headers: CORS });
     }
 
     return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: CORS });
