@@ -130,6 +130,9 @@ export function initState(callId: string, leadId: string): ConversationState {
     supplementVersion: null,
     supplementUpdatedAt: null,
 
+    // ── V1 rescript — scriptFills arrival flag (D10+B12) ──
+    scriptFillsArrived: false,
+
     // ── V1 rescript — deep insight dedup ──
     spokenDeepInsightIds: [],
 
@@ -225,6 +228,7 @@ export async function loadState(storage: DurableObjectStorage): Promise<Conversa
   if (state.correctionContext === undefined) state.correctionContext = null;
   if (state.supplementVersion === undefined) state.supplementVersion = null;
   if (state.supplementUpdatedAt === undefined) state.supplementUpdatedAt = null;
+  if (typeof state.scriptFillsArrived !== 'boolean') state.scriptFillsArrived = false;
   if (!Array.isArray(state.spokenDeepInsightIds)) state.spokenDeepInsightIds = [];
 
   // Backward-compat: Close stage sub-states (v6.4.0)

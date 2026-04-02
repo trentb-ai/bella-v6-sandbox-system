@@ -589,6 +589,12 @@ export function processFlow(
       // conversation context causes Gemini off-script behavior.
       if (clearedFailedDelivery && state.currentWowStep) {
         console.log(`[WOW_FAILED_SKIP] ${state.currentWowStep} → skipping past failed delivery`);
+        // FIX2: if WOW4 delivery failed, confirmedCTA was never set. Default to
+        // primary_cta_default sentinel so downstream stages don't crash on null.
+        if (state.currentWowStep === 'wow_4_conversion_action' && state.confirmedCTA === null) {
+          state.confirmedCTA = true; // provisional — delivery failed, assume primary CTA is appropriate
+          console.log(`[WOW4_SKIP] confirmedCTA=true (provisional — wow_4 delivery failed, using primary CTA default)`);
+        }
         state.completedWowSteps.push(state.currentWowStep);
         const nextAfterFail = nextWowStep(state.currentWowStep);
         if (nextAfterFail) {

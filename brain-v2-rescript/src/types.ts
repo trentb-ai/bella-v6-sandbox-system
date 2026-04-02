@@ -350,6 +350,11 @@ export interface ConversationState {
   supplementVersion?: number | null;
   supplementUpdatedAt?: string | null;
 
+  // ── V1 rescript — scriptFills arrival flag (D10+B12) ──
+  // Set to true the moment deep_scriptFills are received in DO state (via KV hydrate, supplement, or alarm).
+  // WOW6 source selection checks this before falling back to GOOGLE_PRESENCE.
+  scriptFillsArrived?: boolean;
+
   // ── V1 rescript — deep insight dedup ──
   spokenDeepInsightIds?: string[];
 

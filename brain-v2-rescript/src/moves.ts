@@ -609,6 +609,17 @@ function buildWowDirective(
         observationLine = `One more thing we picked up while we were talking — ${deepInsight0.bellaLine}. That's a strong clue about where your agents could make the fastest impact.`;
         if (!state.spokenDeepInsightIds) state.spokenDeepInsightIds = [];
         state.spokenDeepInsightIds.push('deep_insight_0');
+      } else if (state.scriptFillsArrived && !(state.spokenDeepInsightIds ?? []).includes('deep_insight_wow6')) {
+        // B12+Q14: scriptFillsArrived is true but deepInsight0.bellaLine is unavailable (fills landed
+        // but bellaLine field is missing or insight already spoken). Force DEEP_INSIGHT branch so we
+        // never fall through to GOOGLE_PRESENCE when deep data is confirmed to exist.
+        wow6Source = 'DEEP_INSIGHT';
+        const insightText = deepInsight0?.text ?? deepInsight0?.observation ?? deepScriptFills?.heroReview?.summary ?? null;
+        observationLine = insightText
+          ? `One more thing we picked up while we were talking — ${insightText}. That's a strong clue about where your agents could make the fastest impact.`
+          : `One more thing we picked up while we were talking — your digital footprint showed some clear signals around where demand is being lost. That's another place your agents could make the fastest impact.`;
+        if (!state.spokenDeepInsightIds) state.spokenDeepInsightIds = [];
+        state.spokenDeepInsightIds.push('deep_insight_wow6');
       } else if (scrapedSummary) {
         // Priority 1: scrapedDataSummary (will be null until B2 wires consultant)
         wow6Source = 'SCRAPED_SUMMARY';
@@ -809,7 +820,17 @@ function buildRecommendationDirective(state: ConversationState): StageDirective 
   } else if (state.alexEligible && state.maddieEligible && !state.chrisEligible) {
     variantOpener = `Based on what you've told me, most of ${business}'s opportunity is being won or lost through ${sourceSpoken}, so Alex and Maddie are the strongest fit.`;
   } else {
-    variantOpener = `Based on what you've shared, Alex is the clearest starting point.`;
+    // alex_only: use sourceSpoken so the opener references the WOW8 lead source
+    const sourceClause = isAdsDominant
+      ? `with paid ads doing the heavy lifting`
+      : isWebDominant
+      ? `with most of your new business coming through your website`
+      : isPhoneDominant
+      ? `with phone calls being your main channel`
+      : source && source !== 'your main channels'
+      ? `with most of your new business coming through ${source}`
+      : `based on what you've shared about your main channels`;
+    variantOpener = `Based on what you've shared — ${sourceClause} — Alex is the clearest starting point.`;
   }
 
   const lines: string[] = [];

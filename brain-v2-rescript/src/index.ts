@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.4.0-close-paths-wired';
+const VERSION = 'v6.5.1-rec-opener-source';
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
@@ -745,7 +745,16 @@ export class CallBrainDO {
 
         // Deep intel: top-level `deep` or nested `intel.deep`
         const deepBlob = src.deep ?? src.intel?.deep;
-        if (deepBlob) brain.intel.deep = deepBlob;
+        if (deepBlob) {
+          brain.intel.deep = deepBlob;
+          // D10+B12: stamp scriptFillsArrived if deep_scriptFills already in KV at init time
+          if ((deepBlob as any)?.deep_scriptFills) {
+            brain.scriptFillsArrived = true;
+            brain.supplementVersion = Date.now();
+            brain.supplementUpdatedAt = new Date().toISOString();
+            console.log(`[INIT_FILLS] deep_scriptFills present at init deepInsights=${(deepBlob as any).deep_scriptFills?.deepInsights?.length ?? 0} — scriptFillsArrived=true supplementVersion stamped`);
+          }
+        }
 
         brain.intel.mergedVersion = 1;
 
@@ -928,7 +937,11 @@ export class CallBrainDO {
               if (fills) {
                 if (!brain.intel.deep) brain.intel.deep = { status: 'done' };
                 (brain.intel.deep as any).deep_scriptFills = fills;
-                console.log(`[SUPPLEMENT_SEED] deep_scriptFills seeded deepInsights=${fills.deepInsights?.length ?? 0} heroReview=${!!fills.heroReview?.available} source=kv_lazy_load`);
+                // D10+B12: stamp scriptFillsArrived + supplementVersion when fills arrive via supplement
+                brain.scriptFillsArrived = true;
+                brain.supplementVersion = Date.now();
+                brain.supplementUpdatedAt = new Date().toISOString();
+                console.log(`[SUPPLEMENT_SEED] deep_scriptFills seeded deepInsights=${fills.deepInsights?.length ?? 0} heroReview=${!!fills.heroReview?.available} source=kv_lazy_load scriptFillsArrived=true supplementVersion=${brain.supplementVersion}`);
               }
             } catch (_) {}
           }
@@ -942,6 +955,22 @@ export class CallBrainDO {
             version: Date.now(),
           });
           console.log(`[SUPPLEMENT_SEED] fast_intel seeded biz=${((s.fast as any).core_identity?.business_name ?? 'none').slice(0, 40)} source=bridge`);
+        }
+
+        // D10+B12: Unconditional scriptFills probe — fires on any supplement, even if s.deep is absent.
+        // Covers the case where bridge sends supplement without deep field but scriptFills landed in KV.
+        if (!brain.scriptFillsArrived && !(brain.intel.deep as any)?.deep_scriptFills && brain.leadId && brain.leadId !== 'unknown') {
+          try {
+            const fills = await this.env.LEADS_KV.get(`lead:${brain.leadId}:deep_scriptFills`, 'json') as any;
+            if (fills) {
+              if (!brain.intel.deep) brain.intel.deep = { status: 'done' };
+              (brain.intel.deep as any).deep_scriptFills = fills;
+              brain.scriptFillsArrived = true;
+              brain.supplementVersion = Date.now();
+              brain.supplementUpdatedAt = new Date().toISOString();
+              console.log(`[SUPPLEMENT_SEED] deep_scriptFills seeded via unconditional probe deepInsights=${fills.deepInsights?.length ?? 0} source=kv_unconditional scriptFillsArrived=true`);
+            }
+          } catch (_) {}
         }
       }
     }
@@ -1469,6 +1498,14 @@ export class CallBrainDO {
       brain.spoken.moveIds.push(event.moveId);
     }
 
+    // D8: WOW4 delivery gate — provisional confirmedCTA=true when PRIMARY_CTA branch delivered.
+    // flow.ts will override to false if the user then negates or corrects.
+    // This ensures confirmedCTA is never left null after WOW4 is confirmed spoken.
+    if (event.moveId === 'v2_wow_wow_4_conversion_action' && brain.confirmedCTA === null) {
+      brain.confirmedCTA = true;
+      console.log(`[WOW4_DELIVERY] confirmedCTA=true (provisional — delivery confirmed moveId=${event.moveId})`);
+    }
+
     // Log Bella transcript (non-empty, dedup by turnId-like moveId)
     const spokenText = (event.spokenText ?? '').trim();
     if (spokenText.length > 0) {
@@ -1913,7 +1950,11 @@ export class CallBrainDO {
           if (fillsRaw) {
             if (!brain.intel.deep) brain.intel.deep = {};
             (brain.intel.deep as any).deep_scriptFills = fillsRaw;
-            console.log(`[ALARM_KV_FILL] deep_scriptFills injected from KV poll lid=${lid} deepInsights=${fillsRaw.deepInsights?.length ?? 0}`);
+            // D10+B12: stamp scriptFillsArrived + supplementVersion when fills arrive via alarm poll
+            brain.scriptFillsArrived = true;
+            brain.supplementVersion = Date.now();
+            brain.supplementUpdatedAt = new Date().toISOString();
+            console.log(`[ALARM_KV_FILL] deep_scriptFills injected from KV poll lid=${lid} deepInsights=${fillsRaw.deepInsights?.length ?? 0} scriptFillsArrived=true`);
           }
         } catch (err: any) {
           console.error(`[ALARM_KV_FILL_ERR] deep_scriptFills poll failed lid=${lid}: ${err.message}`);

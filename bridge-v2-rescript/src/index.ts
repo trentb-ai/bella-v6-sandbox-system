@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.33.0-scriptfills-bridge"; // D9/Q14: read deep_scriptFills KV and forward via supplement path
+const VERSION = "9.34.0-fix1-ctx-waituntil"; // FIX1: protect doReplyCallback via ctx.waitUntil — survives Deepgram disconnect
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2217,6 +2217,7 @@ async function streamToDeepgram(
   env: Env,
   doReplyCallback?: (spokenText: string) => Promise<void> | void,
   doFailureCallback?: (errorCode: string) => Promise<void> | void,
+  ctx?: ExecutionContext,
 ): Promise<Response> {
   const t0 = Date.now();
   const gemRes = await fetch(GEMINI_URL, {
@@ -2257,7 +2258,7 @@ async function streamToDeepgram(
   const writer = writable.getWriter();
   const enc = new TextEncoder();
   const dec = new TextDecoder();
-  (async () => {
+  const streamPromise = (async () => {
     const reader = gemRes.body!.getReader();
     let firstContentAt = 0;
     let chunkCount = 0;
@@ -2355,6 +2356,12 @@ async function streamToDeepgram(
     finally { writer.close().catch(() => { }); }
   })();
 
+  // FIX1: protect callback delivery against client disconnect.
+  // ctx.waitUntil ensures the CF runtime keeps this worker alive until
+  // streamPromise resolves — even if the client (Deepgram/voice-agent)
+  // closes the HTTP connection before the IIFE finishes.
+  if (ctx) ctx.waitUntil(streamPromise);
+
   return new Response(readable, {
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
@@ -2371,12 +2378,13 @@ async function streamToDeepgram(
 function streamDeterministicResponse(
   text: string,
   doReplyCallback?: (spokenText: string) => Promise<void> | void,
+  ctx?: ExecutionContext,
 ): Response {
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
   const enc = new TextEncoder();
 
-  (async () => {
+  const detPromise = (async () => {
     try {
       const id = `det-${Date.now()}`;
       // Content chunk
@@ -2417,6 +2425,9 @@ function streamDeterministicResponse(
       writer.close().catch(() => {});
     }
   })();
+
+  // FIX1: protect deterministic callback against client disconnect
+  if (ctx) ctx.waitUntil(detPromise);
 
   return new Response(readable, {
     headers: {
@@ -2972,6 +2983,7 @@ export default {
               };
               await callDOLlmReplyDone(lid!, doMoveId, doDeliveryId, spokenText, env, compliancePayload);
             },
+            ctx,
           );
         }
 
@@ -3025,6 +3037,7 @@ export default {
           async (errorCode) => {
             await callDODeliveryFailed(lid!, doMoveId, doDeliveryId, errorCode, env);
           },
+          ctx,
         );
       }
     }
@@ -3246,8 +3259,8 @@ export default {
     if (shadowMode) {
       return streamToDeepgram(finalMessages, env, async (spokenText) => {
         await callDOLlmReplyDone(lid!, 'old_path_unknown', '', spokenText, env);
-      });
+      }, undefined, ctx);
     }
-    return streamToDeepgram(finalMessages, env);
+    return streamToDeepgram(finalMessages, env, undefined, undefined, ctx);
   },
 };
