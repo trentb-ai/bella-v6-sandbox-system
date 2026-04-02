@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.2.0-icp-cta-confirm-scriptfills';
+const VERSION = 'v6.3.0-bug2-ads-deepflags-bug4-scriptfills-lazyload';
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
@@ -680,6 +680,7 @@ export class CallBrainDO {
                 ads: {
                   fb_ads_count: deepFlagsRaw.fb_ads_count ?? 0,
                   fb_ads_sample: deepFlagsRaw.fb_ads_sample ?? [],
+                  is_running_fb_ads: deepFlagsRaw.is_running_fb_ads ?? false,
                   google_search_count: deepFlagsRaw.google_search_count ?? 0,
                   google_search_results: deepFlagsRaw.google_search_results ?? [],
                   google_ads_count: deepFlagsRaw.google_ads_transparency_count ?? 0,
@@ -759,7 +760,11 @@ export class CallBrainDO {
         const flags = src.flags ?? {};
         if (src.websiteExists || ts.has_chat !== undefined || ts.has_booking !== undefined) brain.websiteRelevant = true;
         if (src.phoneVisible) brain.phoneRelevant = true;
-        if (flags.is_running_ads || ts.is_running_ads) brain.adsConfirmed = true;
+        if (flags.is_running_ads || ts.is_running_ads
+            || deepFlagsRaw?.is_running_fb_ads
+            || deepFlagsRaw?.is_running_google_ads
+            || (deepFlagsRaw?.fb_ads_count ?? 0) > 0
+            || (deepFlagsRaw?.google_ads_transparency_count ?? 0) > 0) brain.adsConfirmed = true;
 
         // Seed Places into deep.googleMaps for wow_2 reputation step
         const gm = src.deep?.googleMaps ?? src.places;
@@ -914,6 +919,18 @@ export class CallBrainDO {
               version: Date.now(),
             });
             console.log(`[SUPPLEMENT_SEED] deep_intel seeded googleMaps=${!!(s.deep as any).googleMaps} hiring=${!!(s.deep as any).hiring} source=bridge`);
+          }
+          // Lazy-load deep_scriptFills from KV if not yet in state
+          // (supplement fires when deep-scrape completes mid-call — scriptFills may have arrived by now)
+          if (!(brain.intel.deep as any)?.deep_scriptFills && brain.leadId && brain.leadId !== 'unknown') {
+            try {
+              const fills = await this.env.LEADS_KV.get(`lead:${brain.leadId}:deep_scriptFills`, 'json') as any;
+              if (fills) {
+                if (!brain.intel.deep) brain.intel.deep = { status: 'done' };
+                (brain.intel.deep as any).deep_scriptFills = fills;
+                console.log(`[SUPPLEMENT_SEED] deep_scriptFills seeded deepInsights=${fills.deepInsights?.length ?? 0} heroReview=${!!fills.heroReview?.available} source=kv_lazy_load`);
+              }
+            } catch (_) {}
           }
         }
 
