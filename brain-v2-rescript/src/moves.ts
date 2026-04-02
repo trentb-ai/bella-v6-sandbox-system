@@ -1640,47 +1640,122 @@ export function buildStageDirective(input: StageDirectiveInput): StageDirective 
     case 'close': {
       const name = fn(state);
       const business = biz(state);
-      const topAgent = state.topAgents?.[0] ?? 'chris';
-      const agentDisplayName = topAgent.charAt(0).toUpperCase() + topAgent.slice(1);
+      const subStage = state.closeSubStage ?? 'offer';
 
-      const agentOpenings: Record<string, string> = {
-        chris: `Bella you know I'm always ready! Hi ${name}, great to meet you — I'm Chris, ${business}'s AI website concierge. I've already been through your site so ask me anything, or just pretend you're a prospect walking in — I'll show you exactly how I'd handle it.`,
-        alex: `Always ready Bella! Hi ${name} — I'm Alex. My job is to make sure ${business} is always first to respond to every inbound lead. Want to test me? Send a test enquiry through your website right now and watch what happens.`,
-        maddie: `Hi ${name}! I'm Maddie — I handle every call that comes into ${business} so nothing ever gets missed. Give me a ring on your business number and I'll show you exactly how I answer.`,
-      };
+      // ── Pricing objection override (any non-terminal sub-stage) ──
+      if (state.closePricingObjectionPending) {
+        console.log(`[CLOSE_PRICING] delivering pricing objection response`);
+        return {
+          objective: 'Handle pricing objection then return to close offer.',
+          allowedMoves: [],
+          requiredData: [],
+          speak: `We work on performance-based pricing after the trial — you only pay a percentage of the conversions we generate, so there's literally zero financial risk. But let's get you set up first.`,
+          ask: false,
+          waitForUser: true,
+          canSkip: false,
+        };
+      }
 
-      const agentOpening = agentOpenings[topAgent] ?? agentOpenings['chris'];
+      // ── Sub-stage: offer (default) ──
+      if (subStage === 'offer') {
+        console.log(`[CLOSE_OFFER] delivering two-path close question`);
+        return {
+          objective: 'Two-path close — set up free trial or demonstrate live agent.',
+          allowedMoves: [],
+          requiredData: [],
+          speak: `So ${name}, what would you like to do — shall I activate your free trial now, or would you like me to bring one of the agents on the call so you can hear exactly how they'd handle your prospects?`,
+          ask: true,
+          waitForUser: true,
+          canSkip: false,
+          extract: ['closeChoice', 'agentRequested'],
+          notes: [
+            `AGENT KNOWLEDGE — all 5 agents, use whenever prospect asks about any of them:
+Alex (speed-to-lead): Responds to every inbound lead within 30 seconds, 24/7. Responding within 30 seconds converts up to 4x more than waiting 5 minutes. Alex ensures ${business} is always first.
+Chris (website concierge): Engages website visitors the moment they land, runs live sales conversations, qualifies needs, handles objections, drives toward their CTA. Fully trained sales agent, not a chatbot.
+Maddie (AI receptionist): Answers every inbound call, qualifies the opportunity, books straight into calendar. Eliminates missed calls and after-hours losses entirely.
+Sarah (database reactivation): Works through dormant leads and past customers who never converted. Turns existing data into new revenue.
+James (reputation manager): Automates Google review collection and management.`,
+            `QUESTIONS/OBJECTIONS: Handle conversationally. Do not advance or skip.`,
+          ],
+        };
+      }
 
+      // ── Sub-stage: email_capture ──
+      if (subStage === 'email_capture') {
+        console.log(`[CLOSE_EMAIL] delivering email ask`);
+        return {
+          objective: 'Capture email address for trial setup.',
+          allowedMoves: [],
+          requiredData: ['trialEmail'],
+          speak: `Perfect. What's the best email for me to send the trial details to?`,
+          ask: true,
+          waitForUser: true,
+          canSkip: false,
+          extract: ['trialEmail'],
+        };
+      }
+
+      // ── Sub-stage: confirmed ──
+      if (subStage === 'confirmed') {
+        const email = state.trialEmail ?? 'your email';
+        console.log(`[CLOSE_CONFIRMED] delivering trial confirmation email=${email}`);
+        return {
+          objective: 'Confirm trial setup and deliver closing message.',
+          allowedMoves: [],
+          requiredData: [],
+          speak: `Beautiful — I've got ${email}. We'll send the details through there, and the setup will be aligned to what we picked up today — who you want more of, how people are finding you, and the actions you want them taking. You'll see that come through shortly.`,
+          ask: false,
+          waitForUser: false,
+          canSkip: false,
+          notes: [
+            `If prospect asks what happens next: "Next we configure the trial around the most valuable parts of the funnel we've identified, so you're not getting a generic setup — you're getting one shaped around how ${business} actually converts."`,
+            `Close is terminal — do not ask further questions.`,
+          ],
+        };
+      }
+
+      // ── Sub-stage: agent_handoff ──
+      if (subStage === 'agent_handoff') {
+        const resolvedAgent = (state.agentRequested ?? state.topAgents?.[0] ?? 'chris') as string;
+        const agentDisplayName = resolvedAgent.charAt(0).toUpperCase() + resolvedAgent.slice(1);
+
+        // LOCKED LINES — do not alter wording
+        const agentOpenings: Record<string, string> = {
+          chris: `Bella you know I'm always ready! Hi ${name}, great to meet you — I'm Chris, ${business} AI website concierge. I have already been through your site so ask me anything, or just pretend you are a prospect walking in — I'll show you exactly how I'd handle it.`,
+          alex: `Always ready Bella! Hi ${name} — I'm Alex. My job is to make sure ${business} is always first to respond to every inbound lead. Want to test me? Send a test enquiry through your website right now and watch what happens.`,
+          maddie: `Hi ${name}! I'm Maddie — I handle every call that comes into ${business} so nothing ever gets missed. Give me a ring on your business number and I'll show you exactly how I answer.`,
+        };
+
+        const agentOpening = agentOpenings[resolvedAgent] ?? agentOpenings['chris'];
+        const leadIn = `Great — I'll bring ${agentDisplayName} on now. Hi ${agentDisplayName}, I've got ${name} from ${business} on the line — ready to blow them away?`;
+
+        console.log(`[CLOSE_AGENT_HANDOFF] delivering lead-in + ${resolvedAgent} opener`);
+        return {
+          objective: 'Deliver agent handoff — Bella lead-in followed by agent opener verbatim.',
+          allowedMoves: [],
+          requiredData: [],
+          speak: `${leadIn} ${agentOpening}`,
+          ask: false,
+          waitForUser: false,
+          canSkip: false,
+          notes: [
+            `CRITICAL: Deliver the agent opener text VERBATIM. Do NOT paraphrase. Do NOT improvise. Deliver exactly as written.`,
+            `Close is terminal — do not advance.`,
+          ],
+        };
+      }
+
+      // Fallback — should never be reached
+      console.warn(`[CLOSE_FALLBACK] unknown closeSubStage=${state.closeSubStage}`);
       return {
-        objective: 'Two-path close — set up free trial or demonstrate live agent. Terminal stage.',
+        objective: 'Close stage fallback.',
         allowedMoves: [],
         requiredData: [],
         speak: `So ${name}, what would you like to do — shall I activate your free trial now, or would you like me to bring one of the agents on the call so you can hear exactly how they'd handle your prospects?`,
         ask: true,
         waitForUser: true,
         canSkip: false,
-        extract: ['closeChoice', 'trialEmail', 'agentRequested'],
-        notes: [
-          `AGENT KNOWLEDGE — all 5 agents, use whenever prospect asks about any of them at any point in the call:
-Alex (speed-to-lead): Responds to every inbound lead within 30 seconds, 24/7. Research shows responding within 30 seconds converts up to 4x more than waiting 5 minutes. Most leads decide in under 5 minutes. Alex ensures ${business} is always first.
-Chris (website concierge): Engages website visitors the moment they land, runs live sales conversations, qualifies needs, handles objections, drives toward their CTA. Basic chat widgets add ~24% more conversions — Chris is a fully trained sales agent, not a chatbot.
-Maddie (AI receptionist): Answers every inbound call, qualifies the opportunity, books straight into calendar. Eliminates missed calls and after-hours losses entirely.
-Sarah (database reactivation): Works through dormant leads and past customers who never converted. Turns existing data into new revenue. Best for established businesses with a database.
-James (reputation manager): Automates Google review collection and management. Reviews compound over time — most businesses leave this to chance. James systematises it.`,
-          `FREE TRIAL PATH — If prospect says yes to trial:
-Bella says: "Perfect. What's the best email for me to send the trial details to?"
-After email received: "Beautiful — I've got {email}. We'll send the details through there, and the setup will be aligned to what we picked up today — who you want more of, how people are finding you, and the actions you want them taking."
-If asked what happens next: "Next we configure the trial around the most valuable parts of the funnel we've identified, so you're not getting a generic setup — you're getting one shaped around how ${business} actually converts."
-Final: "You'll see that come through shortly."`,
-          `AGENT DEMO PATH — If prospect wants to hear an agent:
-Step 1 — Bella says: "Great — I'll bring ${agentDisplayName} on now. Hi ${agentDisplayName}, I've got ${name} from ${business} on the line — ready to blow them away?"
-Step 2 — Then deliver agent opening verbatim in Bella's voice:
-CHRIS: "Bella you know I'm always ready! Hi ${name}, great to meet you — I'm Chris, ${business} AI website concierge. I've already been through your site so ask me anything, or just pretend you're a prospect walking in — I'll show you exactly how I'd handle it."
-ALEX: "Always ready Bella! Hi ${name} — I'm Alex. My job is to make sure ${business} is always first to respond to every inbound lead. Want to test me? Send a test enquiry through your website right now and watch what happens."
-MADDIE: "Hi ${name}! I'm Maddie — I handle every call that comes into ${business} so nothing ever gets missed. Give me a ring on your business number and I'll show you exactly how I answer."
-Agent selection: if prospect names specific agent use that one, else use topAgents[0] which is ${agentDisplayName}.`,
-          `QUESTIONS/OBJECTIONS: Handle conversationally. Close is terminal — do not advance.`,
-        ],
+        extract: ['closeChoice', 'agentRequested'],
       };
     }
 

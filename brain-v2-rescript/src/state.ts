@@ -137,6 +137,14 @@ export function initState(callId: string, leadId: string): ConversationState {
     prospectAskedAboutSarah: false,
     prospectAskedAboutJames: false,
 
+    // ── Close stage sub-states ──
+    closeSubStage: null,
+    closeChoice: null,
+    closeComplete: null,
+    trialEmail: null,
+    agentRequested: null,
+    closePricingObjectionPending: null,
+
     // ── Intel ──
     intel: {
       fast: null,
@@ -218,6 +226,14 @@ export async function loadState(storage: DurableObjectStorage): Promise<Conversa
   if (state.supplementVersion === undefined) state.supplementVersion = null;
   if (state.supplementUpdatedAt === undefined) state.supplementUpdatedAt = null;
   if (!Array.isArray(state.spokenDeepInsightIds)) state.spokenDeepInsightIds = [];
+
+  // Backward-compat: Close stage sub-states (v6.4.0)
+  if (state.closeSubStage === undefined) state.closeSubStage = null;
+  if (state.closeChoice === undefined) state.closeChoice = null;
+  if (state.closeComplete === undefined) state.closeComplete = null;
+  if (state.trialEmail === undefined) state.trialEmail = null;
+  if (state.agentRequested === undefined) state.agentRequested = null;
+  if (state.closePricingObjectionPending === undefined) state.closePricingObjectionPending = null;
 
   // Backward-compat: Chunk 3 PendingDelivery field migration
   if (state.pendingDelivery) {

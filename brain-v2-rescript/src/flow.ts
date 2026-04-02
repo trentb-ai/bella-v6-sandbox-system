@@ -800,7 +800,75 @@ export function processFlow(
 
     // ── CLOSE ─────────────────────────────────────────────────────────────
     case 'close': {
-      // Terminal — do not advance
+      if (cleanTranscript.length === 0) break;
+
+      const subStage = state.closeSubStage ?? 'offer';
+
+      // Clear pricing objection flag from the previous turn so this turn
+      // resumes from the current sub-stage normally.
+      if (state.closePricingObjectionPending) {
+        state.closePricingObjectionPending = false;
+        console.log(`[CLOSE_PRICING_CLEAR] cleared pricing objection flag, resuming subStage=${subStage}`);
+      }
+
+      // Terminal sub-stages — nothing further to advance
+      if (subStage === 'confirmed' || subStage === 'agent_handoff') break;
+
+      // Pricing objection detection — fires on any non-terminal sub-stage
+      const hasPricingObjection = /\b(cost[s]?|pricing|price[sd]?|how much|fee[s]?|what do you charge|what.?s (the cost|it cost))\b/i.test(cleanTranscript);
+      if (hasPricingObjection) {
+        state.closePricingObjectionPending = true;
+        console.log(`[CLOSE_PRICING] pricing objection detected in subStage=${subStage} — delivering objection response`);
+        break;
+      }
+
+      if (subStage === 'offer') {
+        // Detect demo choice first (more specific signal), then trial
+        const isDemoChoice = state.closeChoice === 'demo' ||
+          /\b(demo|agent|hear|listen|bring|show me|rather|instead)\b/i.test(cleanTranscript);
+        const isTrialChoice = !isDemoChoice && (
+          state.closeChoice === 'trial' ||
+          /\b(trial|activate|sign.{0,5}up|let.?s.{0,5}(do|go).{0,10}(it|that)|set.{0,5}(it|that).{0,5}up|yes|sure|go.{0,5}ahead|sounds?\s*good)\b/i.test(cleanTranscript)
+        );
+
+        if (isDemoChoice) {
+          // Resolve which agent — explicit name match, then default to topAgents[0]
+          if (!state.agentRequested) {
+            if (/\b(chris|website|concierge)\b/i.test(cleanTranscript)) state.agentRequested = 'chris';
+            else if (/\b(alex|speed.to.lead|inbound|lead)\b/i.test(cleanTranscript)) state.agentRequested = 'alex';
+            else if (/\b(maddie|phone|call|receptionist)\b/i.test(cleanTranscript)) state.agentRequested = 'maddie';
+            else state.agentRequested = state.topAgents?.[0] ?? 'chris';
+          }
+          state.closeChoice = 'demo';
+          state.closeSubStage = 'agent_handoff';
+          state.closeComplete = true;
+          advanced = true;
+          auditStageAdvanced(state, 'close', 'close', `offer → agent_handoff agent=${state.agentRequested}`, undefined, 'turn');
+          console.log(`[CLOSE_PATH_B] offer → agent_handoff agent=${state.agentRequested}`);
+        } else if (isTrialChoice) {
+          state.closeChoice = 'trial';
+          state.closeSubStage = 'email_capture';
+          advanced = true;
+          auditStageAdvanced(state, 'close', 'close', 'offer → email_capture', undefined, 'turn');
+          console.log(`[CLOSE_PATH_A] offer → email_capture`);
+        }
+      } else if (subStage === 'email_capture') {
+        // Look for email in extracted state or directly in transcript
+        const emailMatch = cleanTranscript.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+        if (emailMatch && !state.trialEmail) {
+          state.trialEmail = emailMatch[0];
+          console.log(`[CLOSE_EMAIL_EXTRACT] email captured from transcript: ${state.trialEmail}`);
+        }
+        if (state.trialEmail) {
+          state.closeChoice = 'trial';
+          state.closeSubStage = 'confirmed';
+          state.closeComplete = true;
+          advanced = true;
+          auditStageAdvanced(state, 'close', 'close', `email_capture → confirmed email=${state.trialEmail}`, undefined, 'turn');
+          console.log(`[CLOSE_PATH_A] email_capture → confirmed email=${state.trialEmail}`);
+        }
+      }
+
       break;
     }
   }

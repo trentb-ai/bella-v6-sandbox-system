@@ -302,6 +302,14 @@ export interface ConversationState {
   prospectAskedAboutSarah?: boolean;
   prospectAskedAboutJames?: boolean;
 
+  // ── Close stage sub-states ──
+  closeSubStage?: 'offer' | 'email_capture' | 'confirmed' | 'agent_handoff' | null;
+  closeChoice?: 'trial' | 'demo' | null;
+  closeComplete?: boolean | null;
+  trialEmail?: string | null;
+  agentRequested?: string | null;
+  closePricingObjectionPending?: boolean | null;
+
   // ── Sarah (database reactivation) inputs ──
   oldLeads?: number | null;
 

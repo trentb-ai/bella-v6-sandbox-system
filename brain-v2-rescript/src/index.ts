@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.3.0-bug2-ads-deepflags-bug4-scriptfills-lazyload';
+const VERSION = 'v6.4.0-close-paths-wired';
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
