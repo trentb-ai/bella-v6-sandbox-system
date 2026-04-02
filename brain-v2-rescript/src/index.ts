@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.5.1-rec-opener-source';
+const VERSION = 'v6.6.0-fix2-7-brain-fixes'; // FIX2: confirmedCTA fallback on WOW4 skip; FIX3: spokenDeepInsightIds via moves.ts; FIX4: supplementVersion at ingestion; FIX7: call_degraded close cleanup
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
@@ -1856,7 +1856,17 @@ export class CallBrainDO {
           return;
         }
 
-        const { reissue } = resolveDeliveryTimeout(freshBrain, 'alarm');
+        const { reissue, degraded } = resolveDeliveryTimeout(freshBrain, 'alarm');
+
+        // FIX7: call_degraded + close stage — pending delivery is permanently stuck
+        // because the bridge has gone offline. Clear the pending delivery so the DO
+        // can reach a terminal state rather than looping alarms indefinitely.
+        if (degraded && freshBrain.currentStage === 'close' && freshBrain.pendingDelivery) {
+          freshBrain.pendingDelivery.status = 'failed';
+          freshBrain.pendingDelivery.resolution = 'call_degraded_close_cleanup';
+          freshBrain.pendingDelivery.completedAt = Date.now();
+          console.log(`[CALL_DEGRADED_CLOSE] pending delivery cleared — bridge offline, call ended. deliveryId=${freshBrain.pendingDelivery.deliveryId}`);
+        }
 
         // H1: persist BEFORE scheduling next alarm (persist-before-work)
         await persistState(this.state.storage, freshBrain as any);
