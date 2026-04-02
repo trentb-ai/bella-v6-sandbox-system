@@ -131,6 +131,8 @@
     </div>
 
     <script src="bella-voice-client.js" defer></script>
+    <!-- Chris Voice Client — Mode 2 standalone website concierge -->
+    <script src="chris-voice-client.js" defer id="chris-voice-client-script"></script>
 
     <style>
         :root {
@@ -2816,6 +2818,24 @@
         * @param {string} agentName - The agent to open (chris, alex, maddie, sarah, james)
         */
         function openAgentDemo(agentName) {
+            // Chris Mode 2 — standalone voice agent (website concierge)
+            if (agentName.toLowerCase() === 'chris' && typeof window.bellaWidgetToggle === 'function') {
+                // Chris uses his own voice client (chris-voice-client.js loaded above)
+                // The chris-voice-client.js sets window.bellaWidgetToggle when loaded
+                // Check if ChrisV1 widget is initialised
+                const chrisWidget = document.getElementById('bella-widget');
+                if (chrisWidget) {
+                    chrisWidget.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    // Small delay to ensure scroll completes before activating
+                    setTimeout(function() {
+                        if (typeof window.bellaWidgetToggle === 'function') {
+                            window.bellaWidgetToggle();
+                        }
+                    }, 300);
+                    return;
+                }
+            }
+
             const agentContainers = {
                 'chris': 'chris-chat-container',
                 'alex': 'phone-simulator-alex',
@@ -2835,7 +2855,7 @@
                     container.classList.add('agent-highlight');
                     setTimeout(() => container.classList.remove('agent-highlight'), 2000);
 
-                    // If it's Chris, open the chat overlay
+                    // If it's Chris (text fallback), open the chat overlay
                     if (agentName.toLowerCase() === 'chris') {
                         const chatOverlay = document.querySelector('.chat-overlay');
                         if (chatOverlay) chatOverlay.classList.add('active');
