@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.34.0-fix1-ctx-waituntil"; // FIX1: protect doReplyCallback via ctx.waitUntil — survives Deepgram disconnect
+const VERSION = "9.35.0-fix2-do-path-catch"; // FIX2: wrap DO path else block in try/catch — prevents silent delivery timeout on any throw
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2887,6 +2887,7 @@ export default {
         // DO failed — fall through to old path
         log('DO_FALLBACK', `DO call failed for lid=${lid} — falling back to old path`);
       } else {
+        try {
         // Build rich directive from DO packet (~1.5K)
         // Pass raw biz name so TTS acronym formatting can be applied to speak text
         const doSpokenName = intel.consultant?.businessIdentity?.spokenName;
@@ -3039,6 +3040,19 @@ export default {
           },
           ctx,
         );
+        } catch (e) {
+          // DO path threw before streaming — ensure DO is unblocked so pendingDelivery
+          // doesn't time out → call_degraded → Bella goes silent (BUG 1 fix)
+          log('DO_PATH_ERR', `lid=${lid} err=${String(e).slice(0, 200)} — falling back to old path`);
+          // doMoveId / doDeliveryId may not be in scope if throw was early — use safe fallbacks
+          const _fbMoveId = (() => { try { return (doResult as any)?.packet?.chosenMove?.id ?? 'unknown'; } catch { return 'unknown'; } })();
+          const _fbDeliveryId = (() => { try { return (doResult as any)?.extractedState?.pendingDelivery?.deliveryId ?? ''; } catch { return ''; } })();
+          ctx.waitUntil(
+            callDODeliveryFailed(lid!, _fbMoveId, _fbDeliveryId, `bridge_error:${String(e).slice(0, 200)}`, env)
+              .catch((notifyErr: unknown) => log('DO_PATH_ERR_NOTIFY_FAIL', `${String(notifyErr).slice(0, 100)}`))
+          );
+          // Fall through to old path (doResult is non-null but we caught — old path below handles it)
+        }
       }
     }
 
