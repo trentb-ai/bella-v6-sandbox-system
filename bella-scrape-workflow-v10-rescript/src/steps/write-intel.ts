@@ -1,5 +1,5 @@
 // Step 18: Write intel to KV — lead:{lid}:intel TTL 3600
-// VERSION: v1.2.0-deep-status-stamp-intel-key
+// VERSION: v1.3.0-fix-deep-status-unconditional
 import type { Env, WorkflowResults, WorkflowState, StepFn, WorkflowPayload } from '../lib/types';
 
 export async function writeIntel(
@@ -63,37 +63,33 @@ export async function writeIntel(
   }
 
   // Step 18c: Stamp lead:{lid}:intel deep.status = "done"
-  // Bridge reads lead:{lid}:intel (NOT lead:{lid}:fast-intel), so we must also stamp here.
-  // Uses read-merge-write to avoid overwriting the full intel envelope.
+  // Bridge checks: (intel as any).intel?.deep?.status ?? intel.deep?.status
+  // The :intel KV value schema is {summary, deep_data} — no intel.deep or intel.intel.deep by default.
+  // UNCONDITIONAL stamp: create deep.status path if missing.
   try {
     await step.do("step_kv_stamp_deep_status_18c", async () => {
       const lid = results.step_entry_0.lid;
       const intelKey = `lead:${lid}:intel`;
       const intelRaw = await env.WORKFLOWS_KV.get(intelKey, 'text');
-      if (intelRaw) {
-        const intel = JSON.parse(intelRaw);
-        // Stamp intel.deep.status = "done" (nested under intel object)
-        if (intel.intel && intel.intel.deep) {
-          intel.intel.deep.status = 'done';
-          intel.intel.deep.ts_done = new Date().toISOString();
-        } else if (intel.intel) {
-          intel.intel.deep = { status: 'done', ts_done: new Date().toISOString() };
-        }
-        // Also stamp root-level deep.status if deep exists at root
-        if (intel.deep) {
-          intel.deep.status = 'done';
-          intel.deep.ts_done = new Date().toISOString();
-        }
-        await env.WORKFLOWS_KV.put(intelKey, JSON.stringify(intel));
-        console.log(`[DEEP_STATUS_STAMP_INTEL] lid=${lid} intel key deep.status stamped done`);
-      } else {
-        console.log(`[DEEP_STATUS_STAMP_INTEL] lid=${lid} intel key not found — skip stamp`);
+      if (!intelRaw) {
+        console.log(`[DEEP_STATUS_STAMP_INTEL] lid=${lid} intel key not found — CANNOT stamp`);
+        throw new Error(`lead:${lid}:intel not found — cannot stamp deep.status`);
       }
-      return { stamped: !!intelRaw };
+      const intel = JSON.parse(intelRaw);
+      const ts = new Date().toISOString();
+      // UNCONDITIONAL: create/merge deep at root level (bridge fallback path)
+      intel.deep = { ...(intel.deep || {}), status: 'done', ts_done: ts };
+      // UNCONDITIONAL: create/merge intel.deep at nested level (bridge primary path)
+      if (!intel.intel) intel.intel = {};
+      intel.intel.deep = { ...(intel.intel.deep || {}), status: 'done', ts_done: ts };
+      await env.WORKFLOWS_KV.put(intelKey, JSON.stringify(intel), { expirationTtl: 3600 });
+      console.log(`[DEEP_STATUS_STAMP_INTEL] lid=${lid} intel key deep.status stamped done (both paths)`);
+      return { stamped: true };
     });
   } catch (error) {
-    // Non-fatal: log and continue
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.log(`[DEEP_STATUS_STAMP_INTEL] lid=${results.step_entry_0.lid} stamp failed (non-fatal): ${errorMessage}`);
+    console.log(`[DEEP_STATUS_STAMP_INTEL_ERR] lid=${results.step_entry_0.lid} stamp failed: ${errorMessage}`);
+    // P0 failure logged but non-fatal — workflow should not abort over stamp failure
+    // Deep data is still in KV via deep_flags/deep_scriptFills keys
   }
 }
