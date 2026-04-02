@@ -18,12 +18,12 @@ export const DELIVERY_TIMEOUT_MS = 15_000;
  */
 const DELIVERY_TIMEOUT_BY_TYPE: Record<string, number> = {
   wow_statement:       5_000,   // wow non-waitForUser (wow_2, wow_5, wow_6): short, no user reply expected
-  wow_question:        8_000,   // wow waitForUser (wow_1, wow_3, wow_4, wow_7, wow_8): awaiting user
+  wow_question:       20_000,   // wow waitForUser (wow_1, wow_3, wow_4, wow_7, wow_8): awaiting user — Gemini TTFB can exceed 8s
   channel_question:    8_000,   // ch_alex/chris/maddie question collection
   channel_synthesis:   8_000,   // ROI delivery per agent — must be heard in full
   roi_delivery:        8_000,   // combined ROI — critical delivery
   greeting:            6_000,   // greeting — short opener
-  default:             8_000,   // everything else
+  default:            15_000,   // everything else — bumped from 8s to handle slow Gemini turns
 };
 
 /**

@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.6.0-fix2-7-brain-fixes'; // FIX2: confirmedCTA fallback on WOW4 skip; FIX3: spokenDeepInsightIds via moves.ts; FIX4: supplementVersion at ingestion; FIX7: call_degraded close cleanup
+const VERSION = 'v6.7.0'; // wow_question timeout 20s + default 15s; WOW7/WOW8 mandatory (bypass Gemini)
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
@@ -378,10 +378,13 @@ function directiveToPacket(
       mustContainPhrases: extractKeyPhrases(directive.speak),
     },
     // E2A: mandatory flag — bridge must deliver text exactly, no LLM paraphrase
+    // WOW7 and WOW8 have fixed/deterministic speak text — set mandatory to bypass Gemini entirely
     mandatory: !!(
       state.currentStage === 'roi_delivery' ||
       directive.calculatorKey ||
-      (coreResults.length > 0 && directive.speak.includes('$'))
+      (coreResults.length > 0 && directive.speak.includes('$')) ||
+      state.currentWowStep === 'wow_7_explore_or_recommend' ||
+      (state.currentWowStep === 'wow_8_source_check' && directive.speak !== '')
     ),
   };
 }
