@@ -1,6 +1,6 @@
 // bella-scrape-workflow-v9 — Modular rewrite of deployed.js
 // Class name: BellaV9Orchestrator (MUST stay identical)
-// VERSION: v1.1.0-deep-status-stamp
+// VERSION: v1.2.0-deep-status-stamp-intel-key
 // All business logic extracted VERBATIM into step modules
 import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from "cloudflare:workers";
 import type { Env, WorkflowResults, WorkflowState, WorkflowPayload } from './lib/types';

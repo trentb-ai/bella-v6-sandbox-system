@@ -1,5 +1,5 @@
 // Step 18: Write intel to KV — lead:{lid}:intel TTL 3600
-// VERSION: v1.1.0-deep-status-stamp
+// VERSION: v1.2.0-deep-status-stamp-intel-key
 import type { Env, WorkflowResults, WorkflowState, StepFn, WorkflowPayload } from '../lib/types';
 
 export async function writeIntel(
@@ -60,5 +60,40 @@ export async function writeIntel(
     // Non-fatal: log and continue — deep data still exists in KV, stamp failure shouldn't abort workflow
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.log(`[DEEP_STATUS_STAMP] lid=${results.step_entry_0.lid} stamp failed (non-fatal): ${errorMessage}`);
+  }
+
+  // Step 18c: Stamp lead:{lid}:intel deep.status = "done"
+  // Bridge reads lead:{lid}:intel (NOT lead:{lid}:fast-intel), so we must also stamp here.
+  // Uses read-merge-write to avoid overwriting the full intel envelope.
+  try {
+    await step.do("step_kv_stamp_deep_status_18c", async () => {
+      const lid = results.step_entry_0.lid;
+      const intelKey = `lead:${lid}:intel`;
+      const intelRaw = await env.WORKFLOWS_KV.get(intelKey, 'text');
+      if (intelRaw) {
+        const intel = JSON.parse(intelRaw);
+        // Stamp intel.deep.status = "done" (nested under intel object)
+        if (intel.intel && intel.intel.deep) {
+          intel.intel.deep.status = 'done';
+          intel.intel.deep.ts_done = new Date().toISOString();
+        } else if (intel.intel) {
+          intel.intel.deep = { status: 'done', ts_done: new Date().toISOString() };
+        }
+        // Also stamp root-level deep.status if deep exists at root
+        if (intel.deep) {
+          intel.deep.status = 'done';
+          intel.deep.ts_done = new Date().toISOString();
+        }
+        await env.WORKFLOWS_KV.put(intelKey, JSON.stringify(intel));
+        console.log(`[DEEP_STATUS_STAMP_INTEL] lid=${lid} intel key deep.status stamped done`);
+      } else {
+        console.log(`[DEEP_STATUS_STAMP_INTEL] lid=${lid} intel key not found — skip stamp`);
+      }
+      return { stamped: !!intelRaw };
+    });
+  } catch (error) {
+    // Non-fatal: log and continue
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.log(`[DEEP_STATUS_STAMP_INTEL] lid=${results.step_entry_0.lid} stamp failed (non-fatal): ${errorMessage}`);
   }
 }
