@@ -666,16 +666,62 @@ export function processFlow(
             state.rejectedWowSteps.push(state.currentWowStep);
 
             if (state.currentWowStep === 'wow_3_icp_problem_solution') {
-              // wow_3 rejected → skip wow_4 entirely, jump to wow_5
+              // wow_3 rejected → confirmedICP=false, skip wow_4 entirely, jump to wow_5
+              state.confirmedICP = false;
               state.completedWowSteps.push('wow_3_icp_problem_solution');
               state.completedWowSteps.push('wow_4_conversion_action');
               state.currentWowStep = 'wow_5_alignment_bridge';
               advanced = true;
               auditStageAdvanced(state, 'wow', 'wow', 'wow3_rejected → skip wow_4 → wow_5', undefined, 'turn');
-              console.log(`[WOW_REJECTION_SKIP] wow_3 rejected → skipping wow_4 → wow_5_alignment_bridge`);
+              console.log(`[WOW_REJECTION_SKIP] wow_3 rejected → confirmedICP=false → skipping wow_4 → wow_5_alignment_bridge`);
               break;
             }
+
+            if (state.currentWowStep === 'wow_4_conversion_action') {
+              // wow_4 negative: prospect gave a correction/alternative
+              // Long response (>30 chars) = overridden CTA, short = confirmed false
+              if (cleanTranscript.length > 30) {
+                state.overriddenCTA = true;
+                state.confirmedCTA = false;
+                console.log(`[WOW4_CTA] overriddenCTA=true (long correction ${cleanTranscript.length} chars)`);
+              } else {
+                state.confirmedCTA = false;
+                console.log(`[WOW4_CTA] confirmedCTA=false (short negation)`);
+              }
+            }
             // wow_4 negative → record but continue normal advancement below
+          } else {
+            // ── D7/D8: Pattern-match affirmations as fallback for SCRIBE misses ──
+            // For short responses (≤30 chars) that SCRIBE may have missed, use regex to confirm.
+            const AFFIRM_PATTERN = /^(yes|yeah|yep|sure|right|correct|sounds right|that.s right|ok|okay)\b/i;
+            const NEGATE_PATTERN = /\b(no|not quite|not really|wrong|incorrect)\b/i;
+            const isAffirm = AFFIRM_PATTERN.test(cleanTranscript);
+            const isNegate = !isAffirm && NEGATE_PATTERN.test(cleanTranscript);
+
+            if (state.currentWowStep === 'wow_3_icp_problem_solution') {
+              if (isAffirm || sentiment === 'positive') {
+                state.confirmedICP = true;
+                console.log(`[WOW3_ICP] confirmedICP=true (sentiment=${sentiment} affirm=${isAffirm})`);
+              } else if (isNegate) {
+                state.confirmedICP = false;
+                console.log(`[WOW3_ICP] confirmedICP=false (negate pattern)`);
+              }
+            }
+
+            if (state.currentWowStep === 'wow_4_conversion_action') {
+              if (cleanTranscript.length > 30) {
+                // Long response without negative sentiment = user provided alternative/correction
+                state.overriddenCTA = true;
+                state.confirmedCTA = false;
+                console.log(`[WOW4_CTA] overriddenCTA=true (long non-negative response ${cleanTranscript.length} chars)`);
+              } else if (isAffirm || sentiment === 'positive') {
+                state.confirmedCTA = true;
+                console.log(`[WOW4_CTA] confirmedCTA=true (sentiment=${sentiment} affirm=${isAffirm})`);
+              } else if (isNegate) {
+                state.confirmedCTA = false;
+                console.log(`[WOW4_CTA] confirmedCTA=false (negate pattern)`);
+              }
+            }
           }
         }
 

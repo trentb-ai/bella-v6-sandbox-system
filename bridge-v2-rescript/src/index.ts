@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.32.0-deterministic"; // Sprint E2A: deterministic ROI delivery + soft SSE cancellation handling
+const VERSION = "9.33.0-scriptfills-bridge"; // D9/Q14: read deep_scriptFills KV and forward via supplement path
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -223,12 +223,13 @@ async function retrieveFromVector(
 // NOTE: Also reads old `lead:{lid}:intel` for backwards compat with sandbox workers
 // NOTE: Reads both :deepIntel (old Apify pipeline) AND :deep_flags (workflow pipeline)
 async function loadMergedIntel(lid: string, env: Env): Promise<Record<string, any>> {
-  const [stubRaw, fastRaw, deepRaw, deepFlagsRaw, oldIntelRaw] = await Promise.all([
-    env.LEADS_KV.get(`lead:${lid}:stub`),        // big-scraper fallback (v8)
-    env.LEADS_KV.get(`lead:${lid}:fast-intel`),  // fast-intel enriched data (v8)
-    env.LEADS_KV.get(`lead:${lid}:deepIntel`),   // deep-scrape Apify data (old pipeline)
-    env.LEADS_KV.get(`lead:${lid}:deep_flags`),  // workflow Apify data (bella-scrape-workflow)
-    env.LEADS_KV.get(`lead:${lid}:intel`),       // OLD: backwards compat with sandbox workers
+  const [stubRaw, fastRaw, deepRaw, deepFlagsRaw, oldIntelRaw, deepScriptFillsRaw] = await Promise.all([
+    env.LEADS_KV.get(`lead:${lid}:stub`),             // big-scraper fallback (v8)
+    env.LEADS_KV.get(`lead:${lid}:fast-intel`),       // fast-intel enriched data (v8)
+    env.LEADS_KV.get(`lead:${lid}:deepIntel`),        // deep-scrape Apify data (old pipeline)
+    env.LEADS_KV.get(`lead:${lid}:deep_flags`),       // workflow Apify data (bella-scrape-workflow)
+    env.LEADS_KV.get(`lead:${lid}:intel`),            // OLD: backwards compat with sandbox workers
+    env.LEADS_KV.get(`lead:${lid}:deep_scriptFills`), // AI-generated persona/insight fills (bella-scrape-workflow)
   ]);
 
   let stub: Record<string, any> = {};
@@ -236,12 +237,14 @@ async function loadMergedIntel(lid: string, env: Env): Promise<Record<string, an
   let deep: Record<string, any> = {};
   let deepFlags: Record<string, any> = {};
   let oldIntel: Record<string, any> = {};
+  let deepScriptFills: Record<string, any> | null = null;
 
   try { if (stubRaw) stub = JSON.parse(stubRaw); } catch {}
   try { if (fastRaw) fast = JSON.parse(fastRaw); } catch {}
   try { if (deepRaw) deep = JSON.parse(deepRaw); } catch {}
   try { if (deepFlagsRaw) deepFlags = JSON.parse(deepFlagsRaw); } catch {}
   try { if (oldIntelRaw) oldIntel = JSON.parse(oldIntelRaw); } catch {}
+  try { if (deepScriptFillsRaw) deepScriptFills = JSON.parse(deepScriptFillsRaw); } catch {}
 
   // Strip fast-intel placeholder deep field — it must not overwrite real deep data
   if (fast.deep && Object.keys(fast.deep).length === 1 && fast.deep.status === "processing") {
@@ -297,12 +300,21 @@ async function loadMergedIntel(lid: string, env: Env): Promise<Record<string, an
     intel.deep = { status: "done", ...deep };
   }
 
+  // Inject deep_scriptFills into intel.deep so the DO supplement path can forward it.
+  // This is a separate KV key from deep_flags (written by bella-scrape-workflow AI enrichment).
+  if (deepScriptFills) {
+    if (!intel.deep) intel.deep = { status: "done" };
+    intel.deep.deep_scriptFills = deepScriptFills;
+    log("SCRIPTFILLS_INJECT", `lid=${lid} deepInsights=${deepScriptFills.deepInsights?.length ?? 0} heroReview=${!!(deepScriptFills.heroReview?.available)}`);
+  }
+
   const sources = [
     stubRaw ? 'stub' : null,
     oldIntelRaw ? 'old-intel' : null,
     fastRaw ? 'fast-intel' : null,
     deepRaw ? 'deep-intel' : null,
     deepFlagsRaw ? 'deep-flags' : null,
+    deepScriptFillsRaw ? 'deep-scriptFills' : null,
   ].filter(Boolean);
 
   const fiSource = intel.fast_intel?.source ?? "none";

@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.1.0-intel-gap-fill';
+const VERSION = 'v6.2.0-icp-cta-confirm-scriptfills';
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
@@ -637,16 +637,17 @@ export class CallBrainDO {
       let kvIntel: Record<string, any> | null = null;
       if (!starterIntel && leadId && leadId !== 'unknown') {
         try {
-          const [stubRaw, fastIntelRaw, deepIntelRaw, deepFlagsRaw, intelRaw, callBriefRaw] = await Promise.all([
+          const [stubRaw, fastIntelRaw, deepIntelRaw, deepFlagsRaw, intelRaw, callBriefRaw, deepScriptFillsRaw] = await Promise.all([
             this.env.LEADS_KV.get(`lead:${leadId}:stub`, 'json'),
             this.env.LEADS_KV.get(`lead:${leadId}:fast-intel`, 'json'),
             this.env.LEADS_KV.get(`lead:${leadId}:deepIntel`, 'json'),
             this.env.LEADS_KV.get(`lead:${leadId}:deep_flags`, 'json'),
             this.env.LEADS_KV.get(`lead:${leadId}:intel`, 'json'),
             this.env.LEADS_KV.get(`lead:${leadId}:call_brief`, 'json'),
-          ]) as [Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null];
+            this.env.LEADS_KV.get(`lead:${leadId}:deep_scriptFills`, 'json'),
+          ]) as [Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null];
 
-          const hasSomething = stubRaw || fastIntelRaw || deepIntelRaw || deepFlagsRaw || intelRaw || callBriefRaw;
+          const hasSomething = stubRaw || fastIntelRaw || deepIntelRaw || deepFlagsRaw || intelRaw || callBriefRaw || deepScriptFillsRaw;
           if (hasSomething) {
             // Strip fast-intel placeholder deep field (matches bridge behavior)
             if (fastIntelRaw?.deep && Object.keys(fastIntelRaw.deep).length === 1 && fastIntelRaw.deep.status === 'processing') {
@@ -701,6 +702,14 @@ export class CallBrainDO {
               merged.deep = { status: 'done', ...deepIntelRaw };
             }
 
+            // Inject deep_scriptFills into merged.deep so moves.ts can access it
+            // as state.intel.deep.deep_scriptFills (separate KV key from deep_flags)
+            if (deepScriptFillsRaw) {
+              if (!merged.deep) merged.deep = { status: 'done' };
+              merged.deep.deep_scriptFills = deepScriptFillsRaw;
+              console.log(`[KV_HYDRATE_FILLS] lid=${leadId} deepInsights=${deepScriptFillsRaw.deepInsights?.length ?? 0} heroReview=${!!deepScriptFillsRaw.heroReview?.available}`);
+            }
+
             // call_brief takes highest precedence when it has a valid status field
             if (callBriefRaw && callBriefRaw.status) {
               merged = deepMerge(merged, callBriefRaw);
@@ -712,6 +721,7 @@ export class CallBrainDO {
               stubRaw ? 'stub' : null, fastIntelRaw ? 'fast-intel' : null,
               deepIntelRaw ? 'deepIntel' : null, deepFlagsRaw ? 'deep_flags' : null,
               intelRaw ? 'intel' : null, callBriefRaw ? 'call_brief' : null,
+              deepScriptFillsRaw ? 'deep_scriptFills' : null,
             ].filter(Boolean);
             console.log(`[KV_HYDRATE] lid=${leadId} sources=[${sources.join(',')}] consultant=${!!kvIntel.consultant} biz=${(kvIntel.business_name ?? 'none').slice(0, 30)}`);
           } else {
@@ -1753,6 +1763,13 @@ export class CallBrainDO {
         judgeFiredCount,
         judgeErrorCount,
       },
+      // V2-specific state fields (for D7-D10 eval assertions)
+      confirmedICP: brain.confirmedICP ?? null,
+      overriddenICP: brain.overriddenICP ?? null,
+      confirmedCTA: brain.confirmedCTA ?? null,
+      overriddenCTA: brain.overriddenCTA ?? null,
+      spokenDeepInsightIds: brain.spokenDeepInsightIds ?? [],
+      supplementVersion: brain.supplementVersion ?? null,
     });
   }
 
@@ -1868,6 +1885,21 @@ export class CallBrainDO {
           }
         } catch (err: any) {
           console.error(`[ALARM_KV_FILL_ERR] deep_intel poll failed lid=${lid}: ${err.message}`);
+        }
+      }
+
+      // deep_scriptFills missing after 30s — re-read from separate KV key
+      const hasScriptFills = !!(brain.intel.deep as any)?.deep_scriptFills;
+      if (!hasScriptFills && callAgeMs > 30_000 && lid) {
+        try {
+          const fillsRaw = await this.env.LEADS_KV.get(`lead:${lid}:deep_scriptFills`, 'json') as Record<string, any> | null;
+          if (fillsRaw) {
+            if (!brain.intel.deep) brain.intel.deep = {};
+            (brain.intel.deep as any).deep_scriptFills = fillsRaw;
+            console.log(`[ALARM_KV_FILL] deep_scriptFills injected from KV poll lid=${lid} deepInsights=${fillsRaw.deepInsights?.length ?? 0}`);
+          }
+        } catch (err: any) {
+          console.error(`[ALARM_KV_FILL_ERR] deep_scriptFills poll failed lid=${lid}: ${err.message}`);
         }
       }
 
