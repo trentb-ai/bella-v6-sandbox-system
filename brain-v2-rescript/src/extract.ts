@@ -1028,6 +1028,8 @@ const V2_SCALAR_FIELDS: ReadonlySet<string> = new Set([
   'leadSourceDominant', 'websiteRelevant', 'phoneRelevant', 'adsConfirmed',
   'confirmedICP', 'overriddenICP', 'confirmedCTA', 'overriddenCTA',
   'userOverrideIcp', 'userOverrideCta',
+  // Close stage fields — written by processFlow directly; also allow scribe/Gemini extraction
+  'closeChoice', 'agentRequested', 'trialEmail',
 ]);
 
 export function applyExtraction(

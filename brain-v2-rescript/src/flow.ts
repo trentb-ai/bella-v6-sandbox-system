@@ -804,8 +804,9 @@ export function processFlow(
 
       const subStage = state.closeSubStage ?? 'offer';
 
-      // Clear pricing objection flag from the previous turn so this turn
-      // resumes from the current sub-stage normally.
+      // Two-turn pricing objection pattern:
+      // Turn N: hasPricingObjection → set flag, moves.ts delivers pricing response
+      // Turn N+1: clear flag here (BEFORE sub-stage logic), normal sub-stage resumes
       if (state.closePricingObjectionPending) {
         state.closePricingObjectionPending = false;
         console.log(`[CLOSE_PRICING_CLEAR] cleared pricing objection flag, resuming subStage=${subStage}`);

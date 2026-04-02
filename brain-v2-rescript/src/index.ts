@@ -122,7 +122,7 @@ function extractTargetsForStage(stage: StageId, wowStep?: WowStepId | null): str
     case 'ch_james':              return ['newCustomersPerWeek', 'currentStars', 'hasReviewSystem'];
     case 'roi_delivery':          return [];
     case 'optional_side_agents':  return [];
-    case 'close':                 return ['closeDecision'];
+    case 'close':                 return ['closeChoice', 'agentRequested', 'trialEmail'];
   }
 }
 
