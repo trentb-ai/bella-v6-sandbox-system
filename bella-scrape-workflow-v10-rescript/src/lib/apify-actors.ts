@@ -61,8 +61,15 @@ export function hasInstagramLink(ctx: ActorContext): boolean {
 
 export function buildPayload(key: string, ctx: ActorContext): any {
   switch (key) {
-    case "google_maps":
+    case "google_maps": {
+      const placeId = (ctx.intel as any)?.places?.place_id ?? '';
+      if (placeId) {
+        console.log("[APIFY_MAPS] Using place_id for precise lookup: " + placeId);
+        return { placeIds: [placeId], maxCrawledPlacesPerSearch: 1, language: "en", maxReviews: 5 };
+      }
+      console.log("[APIFY_MAPS] No place_id — using text search: " + ctx.mapsSearch);
       return { searchStringsArray: [ctx.mapsSearch], maxCrawledPlacesPerSearch: 1, language: "en", maxReviews: 5 };
+    }
     case "facebook_ads":
       return { startUrls: [{ url: "https://www.facebook.com/ads/library/?search_term=" + encodeURIComponent(ctx.bizName) }], maxAds: 5 };
     case "google_ads_transparency":
