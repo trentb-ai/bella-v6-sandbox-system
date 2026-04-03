@@ -481,7 +481,7 @@ If you write "they" or "their" referring to the business, you have broken the ca
 ANALYSIS FRAMEWORK — HOW TO READ THE COPY:
 
 COPY QUALITY (for copyAnalysis):
-Read what their website copy actually says. Is it clear, compelling, benefit-led? Does it speak directly to pain or outcome, or does it just list services? Quote specific phrases that are strong. Identify where copy sells well versus where it falls flat — frame every weakness as an opportunity ("their copy doesn't highlight X outcome — Bella can ask about that").
+Read what their website copy actually says. Identify the key messaging, value propositions, and brand voice. Quote specific phrases that are strong and reveal how the business thinks about their market and competitive position.
 
 SURFACED BENEFITS (for valuePropAnalysis):
 Look for the actual outcomes and transformations they promise — not services, results. Look for phrases like "so you can", "without", "results", "guaranteed", "faster", "more", "less". Extract their stated value propositions as outcomes not service names.
@@ -522,7 +522,6 @@ Return ONLY this JSON. Nothing else. No markdown. No preamble.
   },
   "copyAnalysis": {
     "messagingStrength": "What the copy does well — cite specific phrases or sections",
-    "messagingWeakness": "Where the copy could be stronger — frame as opportunity not criticism",
     "strongestLine": "The single most compelling line on the entire site — verbatim quote",
     "toneAndVoice": "Brand voice description — e.g. professional, warm, authoritative, clinical, casual",
     "bellaLine": "Single sentence Bella can say that compliments the copy specifically — must reference something precise from the copy, not a generic observation"
@@ -637,10 +636,9 @@ Return ONLY this JSON. Nothing else. No markdown. No preamble.
   "landingPageVerdict": {
     "heroEffectiveness": "Is their H1/hero compelling? Quote it, assess honestly",
     "ctaClarity": "Are the CTAs clear? Single clear next step or confusion?",
-    "conversionBarriers": ["Specific friction points — frame each as solvable by our agents"],
-    "trustSignals": "What builds credibility? What is missing?",
-    "verdictLine": "One punchy sentence summarising landing page quality — lead with what is working",
-    "verdictLine2": "The biggest opportunity for improvement — framed as what our agents can fix"
+    "conversionOpportunities": ["Specific friction points and conversion events — frame each as an agent opportunity (e.g. 'Live chat widget opportunity — Chris can engage there')"],
+    "trustSignals": "What builds credibility? What trust signals reinforce their market position?",
+    "verdictLine": "One punchy sentence summarising landing page quality — lead with what is working"
   }
 }
 
