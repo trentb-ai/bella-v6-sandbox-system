@@ -521,7 +521,7 @@ export function processFlow(
       intel,
       state,
     });
-    const moveId = `v2_${state.currentStage}${state.currentWowStep ? '_' + state.currentWowStep : ''}`;
+    const moveId = state.pendingDelivery!.moveId;
     return { directive, moveId, advanced: false };
   }
 

@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.7.0'; // wow_question timeout 20s + default 15s; WOW7/WOW8 mandatory (bypass Gemini)
+const VERSION = 'v6.7.1'; // BUG1-P1: hold path moveId now reuses pendingDelivery.moveId — prevents STALE_EVENT on compat bridge
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 

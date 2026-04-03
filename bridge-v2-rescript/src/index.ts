@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.35.0-fix2-do-path-catch"; // FIX2: wrap DO path else block in try/catch — prevents silent delivery timeout on any throw
+const VERSION = "9.36.0"; // BUG1-P1: WARN log when doDeliveryId is empty — observability for DO compat path usage
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2948,6 +2948,7 @@ export default {
         const doMoveId = doResult.packet.chosenMove.id;
         const doDeliveryId = (doResult.extractedState as any)?.pendingDelivery?.deliveryId ?? '';
         log('DO_DELIVERY_ID', `lid=${lid} moveId=${doMoveId} deliveryId=${doDeliveryId || 'none'}`);
+        if (!doDeliveryId) log('WARN', `lid=${lid} doDeliveryId is empty — DO compat path will be used`);
 
         // ── DETERMINISTIC DELIVERY: bypass Gemini for mandatory text ──
         // When the DO flags a move as mandatory (ROI numbers, calculated figures),
