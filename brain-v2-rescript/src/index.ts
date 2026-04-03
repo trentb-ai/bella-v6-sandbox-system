@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.8.0'; // TASK3-MOVES-BATCH: WOW4/WOW5/WOW2/WOW8 use consultant spoken-ready fields
+const VERSION = 'v6.9.0'; // BUG-SUPPLEMENT: alarm guard removal + silent catch exposure
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
@@ -946,7 +946,7 @@ export class CallBrainDO {
                 brain.supplementUpdatedAt = new Date().toISOString();
                 console.log(`[SUPPLEMENT_SEED] deep_scriptFills seeded deepInsights=${fills.deepInsights?.length ?? 0} heroReview=${!!fills.heroReview?.available} source=kv_lazy_load scriptFillsArrived=true supplementVersion=${brain.supplementVersion}`);
               }
-            } catch (_) {}
+            } catch (err: any) { console.error('[SUPPLEMENT_PROBE_ERR] deep_scriptFills kv read failed:', err?.message ?? String(err)); }
           }
         }
 
@@ -973,7 +973,7 @@ export class CallBrainDO {
               brain.supplementUpdatedAt = new Date().toISOString();
               console.log(`[SUPPLEMENT_SEED] deep_scriptFills seeded via unconditional probe deepInsights=${fills.deepInsights?.length ?? 0} source=kv_unconditional scriptFillsArrived=true`);
             }
-          } catch (_) {}
+          } catch (err: any) { console.error('[SUPPLEMENT_PROBE_ERR] deep_scriptFills kv read failed:', err?.message ?? String(err)); }
         }
       }
     }
@@ -1955,9 +1955,9 @@ export class CallBrainDO {
         }
       }
 
-      // deep_scriptFills missing after 30s — re-read from separate KV key
+      // deep_scriptFills missing — re-read from separate KV key (no 30s guard — alarm fires any time)
       const hasScriptFills = !!(brain.intel.deep as any)?.deep_scriptFills;
-      if (!hasScriptFills && callAgeMs > 30_000 && lid) {
+      if (!hasScriptFills && lid) {
         try {
           const fillsRaw = await this.env.LEADS_KV.get(`lead:${lid}:deep_scriptFills`, 'json') as Record<string, any> | null;
           if (fillsRaw) {
