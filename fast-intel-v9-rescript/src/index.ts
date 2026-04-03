@@ -36,7 +36,7 @@ import { Env, FastIntelResult, ConsultantPayload } from "./types";
 
 export { Env };
 
-const VERSION = "1.15.0"; // Bug3: patch consultant.googlePresence race condition — Places API overwrites pending
+const VERSION = "1.16.0"; // TASK3-BUGA: fix fireApifyEarly payload field names — url/name match WorkflowPayload type
 // KV_TTL removed — data persists permanently
 
 const CORS = {
@@ -353,7 +353,7 @@ function fireApifyEarly(lid: string, websiteUrl: string, businessName: string, e
       new Request("https://deep-scrape/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lid, websiteUrl, businessName }),
+        body: JSON.stringify({ lid, url: websiteUrl, name: businessName }),
       })
     )
     .then(r => r.json())
