@@ -144,7 +144,7 @@ export async function geminiDeepInsights(
       const extracted = results.step_transform_13 || {};
 
       // Pull business context from fast-intel KV for better prompting
-      let businessName = payload.name || payload.firstName || 'this business';
+      let businessName = payload.firstName || payload.name || 'the business';
       let icpGuess = '';
       try {
         const fiRaw = await env.WORKFLOWS_KV.get(`lead:${lid}:fast-intel`, { type: 'json' }) as any;

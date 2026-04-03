@@ -53,10 +53,11 @@ function fn(state: ConversationState): string {
  * Deepgram TTS reads all-caps 2-4 letter names as words.
  * Letter-spacing forces letter-by-letter pronunciation.
  */
+/** TTS-safe acronym handling: return acronyms as-is.
+ *  Modern TTS (Deepgram) naturally pronounces all-caps strings like "KPMG" correctly.
+ *  DO NOT add periods or spaces — that forces letter-by-letter spelling with pauses. */
 function ttsAcronym(name: string): string {
-  if (!name || name.length < 2 || name.length > 4) return name;
-  if (!/^[A-Z]+$/.test(name)) return name;
-  return name.split('').join('. ') + '.';
+  return name;
 }
 
 /**
@@ -654,8 +655,8 @@ function buildWowDirective(
       const deepScriptFills = (state.intel.deep as any)?.deep_scriptFills ?? null;
       const deepInsight0 = deepScriptFills?.deepInsights?.[0] ?? null;
 
-      let observationLine: string;
-      let wow6Source: string;
+      let observationLine: string | undefined;
+      let wow6Source: string = 'UNKNOWN';
 
       if (deepInsight0?.bellaLine && !(state.spokenDeepInsightIds ?? []).includes('deep_insight_0')) {
         // Priority 0: deepInsights[0] from deep_scriptFills
@@ -664,54 +665,70 @@ function buildWowDirective(
         if (!state.spokenDeepInsightIds) state.spokenDeepInsightIds = [];
         state.spokenDeepInsightIds.push('deep_insight_0');
       } else if (state.scriptFillsArrived && !(state.spokenDeepInsightIds ?? []).includes('deep_insight_wow6')) {
-        // B12+Q14: scriptFillsArrived is true but deepInsight0.bellaLine is unavailable (fills landed
-        // but bellaLine field is missing or insight already spoken). Force DEEP_INSIGHT branch so we
-        // never fall through to GOOGLE_PRESENCE when deep data is confirmed to exist.
-        wow6Source = 'DEEP_INSIGHT';
-        const insightText = deepInsight0?.text ?? deepInsight0?.observation ?? deepScriptFills?.heroReview?.summary ?? null;
-        observationLine = insightText
-          ? `One more thing we picked up while we were talking — ${insightText}. That's a strong clue about where your agents could make the fastest impact.`
-          : `One more thing we picked up while we were talking — your digital footprint showed some clear signals around where demand is being lost. That's another place your agents could make the fastest impact.`;
-        if (!state.spokenDeepInsightIds) state.spokenDeepInsightIds = [];
-        state.spokenDeepInsightIds.push('deep_insight_wow6');
-      } else if (scrapedSummary) {
-        // Priority 1: scrapedDataSummary (will be null until B2 wires consultant)
+        // scriptFillsArrived but deepInsight0.bellaLine unavailable — try alternate insight text,
+        // then fall through to next priority stack entry instead of using vague generic claims.
+        const insightText = deepInsight0?.text ?? deepInsight0?.observation ?? null;
+        if (insightText) {
+          wow6Source = 'DEEP_INSIGHT';
+          observationLine = `One more thing we picked up while we were talking — ${insightText}. That's a strong clue about where your agents could make the fastest impact.`;
+          if (!state.spokenDeepInsightIds) state.spokenDeepInsightIds = [];
+          state.spokenDeepInsightIds.push('deep_insight_wow6');
+        } else if (scrapedSummary) {
+          // Fall through to scrapedSummary instead of using generic text
+          wow6Source = 'SCRAPED_SUMMARY';
+          const innerObservation = scrapedSummary;
+          const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
+          observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
+          if (!state.spokenDeepInsightIds) state.spokenDeepInsightIds = [];
+          state.spokenDeepInsightIds.push('deep_insight_wow6');
+        } else {
+          // No usable deep insight AND no scrapedSummary — mark as spoken and let
+          // priority stack continue to googlePresence/mostImpressive/etc below
+          if (!state.spokenDeepInsightIds) state.spokenDeepInsightIds = [];
+          state.spokenDeepInsightIds.push('deep_insight_wow6');
+          // Don't set observationLine — fall through to next priority
+        }
+      }
+      // Priority stack continues — each checks !observationLine so deep insight
+      // fallthrough works correctly when no usable insight text exists
+      if (!observationLine && scrapedSummary) {
         wow6Source = 'SCRAPED_SUMMARY';
         const innerObservation = scrapedSummary;
         const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
         observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
-      } else if (googlePresence[0]?.bellaLine) {
-        // Priority 2: googlePresence[0].bellaLine
+      }
+      if (!observationLine && googlePresence[0]?.bellaLine) {
         wow6Source = 'GOOGLE_PRESENCE';
         const innerObservation = googlePresence[0].bellaLine;
         const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
         observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
-      } else if (mostImpressiveLine) {
-        // Priority 3: mostImpressive[0].bellaLine (existing)
+      }
+      if (!observationLine && mostImpressiveLine) {
         wow6Source = 'MOST_IMPRESSIVE';
         const innerObservation = mostImpressiveLine;
         const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
         observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
-      } else if (hooks[0]) {
-        // Priority 4: conversationHooks[0] — use ALL THREE sub-fields: topic, data, how
+      }
+      if (!observationLine && hooks[0]) {
         wow6Source = 'HOOK';
         const hook = hooks[0];
         const innerObservation = hook.how ? `${hook.how} — ${hook.data || hook.topic}` : `${hook.topic}: ${hook.data}`;
         const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
         observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
-      } else if (topHiringWedge) {
-        // Priority 5: topHiringWedge (existing — already contains agent name)
+      }
+      if (!observationLine && topHiringWedge) {
         wow6Source = 'HIRING';
         const innerObservation = topHiringWedge;
         const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
         observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
-      } else if (hiringMatches.length > 0) {
-        // Priority 6: hiringMatches[0] (existing)
+      }
+      if (!observationLine && hiringMatches.length > 0) {
         wow6Source = 'MATCH';
         const topMatch = hiringMatches[0];
         const innerObservation = `you're hiring for ${topMatch.role || topMatch.title || 'a key role'} — that's a role Maddie or Alex could handle automatically`;
         observationLine = `One more thing I noticed — ${innerObservation}. That's where I'd start.`;
-      } else {
+      }
+      if (!observationLine) {
         // Priority 7: Deep intel direct fallback (Sprint 2 — Issue 3/4)
         const deepFallback = getDeepIntelFallbackWow(state, name, business);
         if (deepFallback) {
@@ -719,11 +736,16 @@ function buildWowDirective(
           const innerObservation = deepFallback.line;
           const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
           observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
-        } else {
-          // Priority 8: GENERIC (last resort)
-          wow6Source = 'GENERIC';
-          observationLine = `One more thing I noticed — there are clear opportunities where your agents can help capture and convert more of your inbound demand. That's where I'd start.`;
         }
+      }
+      if (!observationLine) {
+          // Priority 8: GENERIC — reference specific CTAs from consultant data so Bella
+          // can defend this if asked "where?" Never use vague claims about "demand being lost".
+          wow6Source = 'GENERIC';
+          const ctaRef = fills.top_2_website_ctas ?? fills.primaryCTA ?? null;
+          observationLine = ctaRef
+            ? `One more thing I noticed — your site has ${ctaRef}, and those are exactly the conversion events your agents will be trained on. That's where I'd start.`
+            : `One more thing I noticed — the way your site is set up, there are specific conversion points your agents can be trained on to capture more of your inbound interest. That's where I'd start.`;
       }
 
       console.log(`[WOW6_RESOLVE] ts=${new Date().toISOString()} source=${wow6Source} deepInsight=${!!deepInsight0?.bellaLine} scrapedSummary=${!!scrapedSummary} googlePresence=${!!googlePresence[0]?.bellaLine} mostImpressive="${mostImpressiveLine.slice(0, 60)}" hooks=${hooks.length} topHiringWedge=${!!topHiringWedge} hiringMatches=${hiringMatches.length} speak_preview="${observationLine.slice(0, 80)}"`);

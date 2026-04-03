@@ -815,7 +815,7 @@ export class CallBrainDO {
         // Identity — try every known path in the KV envelope
         const ci = src.core_identity ?? {};
         brain.firstName = src.first_name ?? src.firstName ?? ci.first_name ?? brain.firstName;
-        brain.business = src.business_name ?? ci.business_name ?? brain.business;
+        brain.business = src.business_name ?? src.businessName ?? (src.consultant?.businessIdentity?.correctedName) ?? ci.business_name ?? brain.business;
         brain.industry = ci.industry ?? src.industry ?? brain.industry;
 
         // Eligibility signals from tech_stack and flags

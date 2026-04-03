@@ -4,6 +4,7 @@ export interface WorkflowPayload {
   lid: string;
   url: string;
   name: string;
+  businessName?: string;
   firstName: string;
   email?: string;
 }

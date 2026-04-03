@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.38.0"; // FIX-CTA-RANKING: consultant prioritizes forms (high-intent) over generic buttons (exploration)
+const VERSION = "9.39.0"; // FIX: ttsAcronym removed — stops KPMG spelling out as K.P.M.G.
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -796,12 +796,10 @@ function normaliseBizName(raw: string): string {
   return name.length >= 2 ? name : raw.trim();
 }
 
-// ttsAcronym: "AMP" → "A. M. P.", "KPMG" → "K. P. M. G." — Deepgram TTS reads
-// all-caps 2-4 letter names as words. Letter-spacing forces letter-by-letter pronunciation.
+// ttsAcronym: pass-through — modern TTS (Deepgram) handles all-caps acronyms naturally.
+// DO NOT add periods/spaces — that forces awful letter-by-letter spelling with pauses.
 function ttsAcronym(name: string): string {
-  if (!name || name.length < 2 || name.length > 4) return name;
-  if (!/^[A-Z]+$/.test(name)) return name;
-  return name.split("").join(". ") + ".";
+  return name;
 }
 
 // ─── CUSTOMER TERM (industry-aware) ──────────────────────────────────────────
