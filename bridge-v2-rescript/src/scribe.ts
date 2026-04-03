@@ -207,7 +207,7 @@ LATEST PROSPECT UTTERANCE:
       { role: 'user', content: userContent },
     ],
     response_format: { type: 'json_object' },
-    max_tokens: 4096,
+    max_tokens: 512,
     temperature: 0.2,
     reasoning_effort: 'none',
   };

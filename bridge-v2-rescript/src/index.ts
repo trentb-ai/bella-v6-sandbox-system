@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.36.0"; // BUG1-P1: WARN log when doDeliveryId is empty — observability for DO compat path usage
+const VERSION = "9.37.0"; // BUG-BRIDGE-CANCEL: abort timeout + dedup skip + scribe tokens + retryFetch timeout
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2222,7 +2222,7 @@ async function streamToDeepgram(
   const t0 = Date.now();
   const gemRes = await fetch(GEMINI_URL, {
     method: "POST",
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(15000),
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${env.GEMINI_API_KEY}`,
@@ -2587,7 +2587,7 @@ async function retryFetch(
 ): Promise<Response | null> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const res = await fetcher.fetch(request.clone());
+      const res = await fetcher.fetch(new Request(request.url, { method: request.method, headers: request.headers, body: request.body, signal: AbortSignal.timeout(8000) }));
       if (res.ok) {
         log(tag, `attempt=${attempt} status=${res.status}`);
         return res;
@@ -2887,6 +2887,18 @@ export default {
         // DO failed — fall through to old path
         log('DO_FALLBACK', `DO call failed for lid=${lid} — falling back to old path`);
       } else {
+        // P0-D: dedup skip — if DO returns cached turn, skip re-stream and clear pending delivery
+        if ((doResult as any).dedup === true) {
+          log('DEDUP_SKIP', `lid=${lid} moveId=${doResult.packet?.chosenMove?.id ?? 'unknown'} — skipping re-stream`);
+          const dedupMoveId = doResult.packet?.chosenMove?.id ?? '';
+          const dedupDeliveryId = (doResult.extractedState as any)?.pendingDelivery?.deliveryId ?? '';
+          ctx.waitUntil(
+            callDOLlmReplyDone(lid!, dedupMoveId, dedupDeliveryId, '', env, { compliance_status: 'pass', compliance_score: 1.0, missed_phrases: [] })
+              .catch((e: any) => log('DEDUP_NOTIFY_ERR', `${e?.message ?? e}`))
+          );
+          return new Response('data: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } });
+        }
+
         try {
         // Build rich directive from DO packet (~1.5K)
         // Pass raw biz name so TTS acronym formatting can be applied to speak text
