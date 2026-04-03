@@ -264,11 +264,6 @@ export function buildContextNotes(stage: string, state: ConversationState): stri
   const sl = intel.copyAnalysis?.strongestLine;
   if (sl && typeof sl === 'string') { raw.push(sl); keys.push('strongestLine'); }
 
-  // Questions to prioritise
-  const qtp = intel.routing?.questions_to_prioritise;
-  if (qtp && typeof qtp === 'string') { raw.push(qtp); keys.push('questionsPrioritise'); }
-  else if (Array.isArray(qtp) && qtp.length > 0) { raw.push(qtp[0]); keys.push('questionsPrioritise'); }
-
   const result = cleanFacts(raw).slice(0, 6);
   console.log(`[CONTEXT_NOTES] stage=${stage} count=${result.length} keys=${keys.slice(0, result.length).join(',')}`);
   return result;
@@ -365,11 +360,12 @@ function buildWowDirective(
       }
 
       console.log(`[WOW1_RESOLVE] ts=${new Date().toISOString()} source=${wow1Source} name=${name} biz=${business.slice(0, 30)} industry=${lang.industryLabel}`);
+      const observation = (observationLine || '').replace(/\.\s*$/, '');
       return {
         objective: 'Demo frame + research intro, get permission to continue.',
         allowedMoves: ['advance:wow_2_reputation_trial'],
         requiredData: ['firstName', 'business', 'industry'],
-        speak: `So ${name}, your pre-trained agents are ready to go. You can play a prospective ${business} customer and they'll engage like they've worked for ${business} for years — answering questions, qualifying the opportunity, and moving people toward your key conversion point on autopilot. Now, I think you'll be impressed — ${observationLine}. Before we begin, can I confirm a couple of findings so your agents are dialled in around the highest-value opportunities?`,
+        speak: `So ${name}, your pre-trained agents are ready to go. You can play a prospective ${business} customer and they'll engage like they've worked for ${business} for years — answering questions, qualifying the opportunity, and moving people toward your key conversion point on autopilot. Now, I think you'll be impressed — ${observation}. Before we begin, can I confirm a couple of findings so your agents are dialled in around the highest-value opportunities?`,
         ask: true,
         waitForUser: true,
         canSkip: false,

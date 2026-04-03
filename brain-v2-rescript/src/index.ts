@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.9.0'; // BUG-SUPPLEMENT: alarm guard removal + silent catch exposure
+const VERSION = 'v6.10.0'; // BUG-IMPROVISE + DOUBLEPERIOD: remove routing from contextNotes + strip trailing period
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
