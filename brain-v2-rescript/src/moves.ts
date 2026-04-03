@@ -383,6 +383,23 @@ function buildWowDirective(
       const googleReviews = d.googleMaps?.review_count ?? 0;
 
       if (!googleRating || googleRating < 3) {
+        // When no credible reputation data, use consultant's no-data discovery question
+        const googlePresence = c.googlePresence ?? [];
+        const noDataBellaLine = (googlePresence[0]?.bellaLine ?? '').trim();
+        if (noDataBellaLine) {
+          console.log(`[WOW2_RESOLVE] ts=${new Date().toISOString()} branch=NO_DATA_DISCOVERY rating=${googleRating} biz=${business.slice(0, 30)}`);
+          return {
+            objective: 'Gather reputation intel via consultant discovery question.',
+            allowedMoves: ['advance:wow_3_icp_problem_solution'],
+            requiredData: [],
+            speak: noDataBellaLine,
+            ask: true,
+            waitForUser: true,
+            canSkip: false,
+            extract: ['reputationSentiment', 'reviewsImportant'],
+            advanceOn: ['wow_3_icp_problem_solution'],
+          };
+        }
         console.log(`[WOW2_RESOLVE] ts=${new Date().toISOString()} branch=SKIP rating=${googleRating} reviews=${googleReviews} biz=${business.slice(0, 30)}`);
         return {
           objective: 'Skip — no credible reputation data.',
@@ -520,10 +537,27 @@ function buildWowDirective(
         .filter(Boolean)
         .join(' and ');
 
+      // Priority 1: conversionNarrative — consultant pre-built spoken funnel review
+      const conversionNarrative: string = (cea.conversionNarrative ?? '').trim();
+      // Priority 2: agentTrainingLine — consultant CTA + agent summary line
+      const agentTrainingLine: string = (cea.agentTrainingLine ?? '').trim();
+
       let wow4Branch: string;
       let conversionLine: string;
 
-      if (primaryCTA) {
+      if (conversionNarrative && conversionNarrative.length > 30) {
+        wow4Branch = 'CONVERSION_NARRATIVE';
+        conversionLine = conversionNarrative;
+        if (!/\?/.test(conversionLine.slice(-40))) {
+          conversionLine += ' Does that capture the main ways people engage with you?';
+        }
+      } else if (agentTrainingLine && agentTrainingLine.length > 30) {
+        wow4Branch = 'AGENT_TRAINING_LINE';
+        conversionLine = agentTrainingLine;
+        if (!/\?/.test(conversionLine.slice(-40))) {
+          conversionLine += ' Does that sound right?';
+        }
+      } else if (primaryCTA) {
         wow4Branch = 'PRIMARY_CTA';
         const secondaryClause = secondarySummary
           ? ` I also picked up secondary paths like ${secondarySummary}.`
@@ -536,7 +570,7 @@ function buildWowDirective(
       // Append softener after focus question
       conversionLine += ' You can just say yes if that fits, or correct me if I\'ve missed something.';
 
-      console.log(`[WOW4_RESOLVE] ts=${new Date().toISOString()} branch=${wow4Branch} cta="${(primaryCTA || 'none').slice(0, 40)}" secondaryCTAs=${secondaryCTAs.length}`);
+      console.log(`[WOW4_RESOLVE] ts=${new Date().toISOString()} branch=${wow4Branch} cta="${(primaryCTA || 'none').slice(0, 40)}" secondaryCTAs=${secondaryCTAs.length} conversionNarrative=${!!conversionNarrative} agentTrainingLine=${!!agentTrainingLine}`);
 
       return {
         objective: 'Align conversion events with agent capabilities.',
@@ -559,13 +593,19 @@ function buildWowDirective(
       const wow4Rejected = rejected.includes('wow_4_conversion_action');
       let wow5Speak: string;
 
+      // Priority 1: trainingBridge.line — consultant pre-built alignment bridge
+      const trainingBridgeLine: string = (c.trainingBridge?.line ?? '').trim();
+
       if (wow3Rejected || wow4Rejected) {
         // Prospect pushed back — acknowledge correction, bridge to recommendation
         wow5Speak = `Perfect. And thanks for tightening that up with me — those details matter, because the stronger the real-world inputs, the better the agents perform.`;
         console.log(`[WOW5_RESOLVE] ts=${new Date().toISOString()} adaptive=true wow3Rejected=${wow3Rejected} wow4Rejected=${wow4Rejected}`);
+      } else if (trainingBridgeLine && trainingBridgeLine.length > 20) {
+        wow5Speak = trainingBridgeLine;
+        console.log(`[WOW5_RESOLVE] ts=${new Date().toISOString()} adaptive=false branch=TRAINING_BRIDGE`);
       } else {
         wow5Speak = `Perfect. So now I've got a clear picture of who you want more of, what they come to you for, and the actions you want them taking. That's exactly the layer your agent team performs against.`;
-        console.log(`[WOW5_RESOLVE] ts=${new Date().toISOString()} adaptive=false`);
+        console.log(`[WOW5_RESOLVE] ts=${new Date().toISOString()} adaptive=false branch=HARDCODED`);
       }
       if (!state.trialMentioned) {
         wow5Speak += ` If this is feeling like a fit as we go, we can activate the free trial at any point.`;
@@ -717,16 +757,25 @@ function buildWowDirective(
         };
       }
 
+      // Priority 1: routing.questions_to_prioritise[0] — consultant tailored question
+      const routingQ: string = (c.routing?.questions_to_prioritise?.[0] ?? '').trim();
+
       let sourceQuestion: string;
-      if (adsOn) {
+      let wow8Branch: string;
+      if (routingQ && routingQ.length > 20) {
+        wow8Branch = 'ROUTING_Q';
+        sourceQuestion = routingQ;
+      } else if (adsOn) {
+        wow8Branch = 'ADS_ON';
         sourceQuestion = `Apart from referrals, are paid ads doing most of the heavy lifting for new business, or is another channel pulling real weight as well?`;
       } else {
+        wow8Branch = 'NO_ADS';
         sourceQuestion = `Apart from referrals, where is most new business coming from right now — your website, paid ads, phone calls, organic, or something else?`;
       }
       // Append softener
       sourceQuestion += ` Whatever's doing the heavy lifting today is what I want to line the agents up against first.`;
 
-      console.log(`[WOW8_RESOLVE] ts=${new Date().toISOString()} branch=${adsOn ? 'ADS_ON' : 'NO_ADS'}`);
+      console.log(`[WOW8_RESOLVE] ts=${new Date().toISOString()} branch=${wow8Branch} routingQ=${!!routingQ}`);
 
       return {
         objective: 'Identify dominant lead acquisition path.',

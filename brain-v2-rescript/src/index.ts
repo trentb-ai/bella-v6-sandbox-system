@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.7.1'; // BUG1-P1: hold path moveId now reuses pendingDelivery.moveId — prevents STALE_EVENT on compat bridge
+const VERSION = 'v6.8.0'; // TASK3-MOVES-BATCH: WOW4/WOW5/WOW2/WOW8 use consultant spoken-ready fields
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
