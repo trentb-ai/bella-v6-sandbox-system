@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.37.0"; // BUG-BRIDGE-CANCEL: abort timeout + dedup skip + scribe tokens + retryFetch timeout
+const VERSION = "9.38.0"; // FIX-CTA-RANKING: consultant prioritizes forms (high-intent) over generic buttons (exploration)
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2887,15 +2887,10 @@ export default {
         // DO failed — fall through to old path
         log('DO_FALLBACK', `DO call failed for lid=${lid} — falling back to old path`);
       } else {
-        // P0-D: dedup skip — if DO returns cached turn, skip re-stream and clear pending delivery
+        // P0-D: dedup skip — if DO returns cached turn, no-op replay (DO advances via its own alarm)
+        // Do NOT send llm_reply_done — cached deliveryId may be stale, causing DO to reject and get stuck
         if ((doResult as any).dedup === true) {
-          log('DEDUP_SKIP', `lid=${lid} moveId=${doResult.packet?.chosenMove?.id ?? 'unknown'} — skipping re-stream`);
-          const dedupMoveId = doResult.packet?.chosenMove?.id ?? '';
-          const dedupDeliveryId = (doResult.extractedState as any)?.pendingDelivery?.deliveryId ?? '';
-          ctx.waitUntil(
-            callDOLlmReplyDone(lid!, dedupMoveId, dedupDeliveryId, '', env, { compliance_status: 'pass', compliance_score: 1.0, missed_phrases: [] })
-              .catch((e: any) => log('DEDUP_NOTIFY_ERR', `${e?.message ?? e}`))
-          );
+          log('DEDUP_SKIP', `lid=${lid} moveId=${doResult.packet?.chosenMove?.id ?? 'unknown'} — no-op replay, DO advances via alarm`);
           return new Response('data: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } });
         }
 

@@ -1,5 +1,5 @@
 // Step 18: Write intel to KV — lead:{lid}:intel TTL 3600
-// VERSION: v1.3.0-fix-deep-status-unconditional
+// VERSION: v1.5.0-no-merge-own-key-only
 import type { Env, WorkflowResults, WorkflowState, StepFn, WorkflowPayload } from '../lib/types';
 
 export async function writeIntel(
@@ -14,7 +14,10 @@ export async function writeIntel(
     console.log("type:WF_NODE_START:nodeId:node-kv-write-intel:nodeName:kv-put:nodeType:kv-put:timestamp:" + Date.now() + ":instanceId:" + instanceId);
     results.step_kv_put_18 = await step.do("step_kv_put_18", async () => {
       const inputData = state["node-build-intel-json"]?.output || payload;
-      const key = `lead:${results.step_entry_0.lid}:intel`;
+      const lid = results.step_entry_0.lid;
+      const key = `lead:${lid}:intel`;
+      // Write ONLY deep data — no merge. Brain reads fast-intel separately (highest priority).
+      // Each writer owns its own KV key. No clobbering possible.
       const value = `${results.step_transform_17!.json}`;
       await env.WORKFLOWS_KV.put(key, value, {
         expirationTtl: 3600
@@ -24,6 +27,7 @@ export async function writeIntel(
         input: inputData,
         output: result
       };
+      console.log(`[MERGE_INTEL] lid=${lid} merged ${Object.keys(buildOutput).length} build keys + ${Object.keys(fastIntel).length} fast-intel keys = ${Object.keys(merged).length} final keys, consultant=${!!merged.consultant}`);
       return result;
     });
     state["node-kv-write-intel"] = state["node-kv-write-intel"] || { output: results.step_kv_put_18 };

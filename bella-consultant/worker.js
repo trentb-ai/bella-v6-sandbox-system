@@ -2,6 +2,8 @@
 // Bella's Intel Analyst — receives scraped data, returns script-ready analysis
 // Separate atomic worker, called via service binding from scraper Phase B
 
+const VERSION = '6.11.0';
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -299,6 +301,8 @@ ${JSON.stringify(p, null, 2)}
 
 Read websiteContent carefully. Focus on: who they target, problems they reference, outcomes they promise, how they differentiate from competitors.
 
+⚠️ CRITICAL: Generate ORIGINAL content from ACTUAL website data. Do NOT echo, copy, or reference any example text. If you cannot generate content from the actual site, return an empty string "" — NEVER return example text or template placeholders.
+
 Return ONLY this JSON. Nothing else. No markdown. No preamble.
 
 {
@@ -314,11 +318,11 @@ Return ONLY this JSON. Nothing else. No markdown. No preamble.
     "icpSolutions": ["REQUIRED — at least 2. SPECIFIC solution from THEIR copy — how THIS business addresses the problem in THEIR words.", "REQUIRED — Solution 2 in THEIR words"],
     "problemSolutionMapping": "Brief statement connecting problems to solutions in their language",
     "bellaCheckLine": "The exact question Bella asks to CONFIRM this with the prospect — e.g. 'We noticed your site speaks very directly to trade business owners — is that mainly who you're working with?'",
-    "marketPositionNarrative": "REQUIRED — MUST NOT be null. 1-2 sentence spoken summary of how this business positions itself — their differentiator, what makes them different from competitors. Use THEIR language. Bella says this verbatim. Example: 'You have positioned Pitcher Partners as the advisory firm that goes beyond compliance — speaking to business owners who have outgrown their bookkeeper and need strategic-level support to scale.'",
-    "icpNarrative": "REQUIRED — MUST NOT be null. 2-3 sentence spoken summary weaving together: who they target + their 2 key client problems + how they solve them. End with a confirmation question. Bella says this verbatim at a critical moment in the call. Use the prospect's industry language. Example: 'It looks like you mainly work with growing businesses that have outgrown their bookkeeper and need proper advisory support, and business owners spending too much time on compliance when they should be focused on growth. You solve that through partner-led advisory and proactive tax planning. Does that sound about right?'"
+    "marketPositionNarrative": "REQUIRED — MUST NOT be null. 1-2 sentence spoken summary of how this business positions itself — their differentiator, what makes them different from competitors. Use THEIR language. Bella says this verbatim. Generate ORIGINAL content based on actual website signals — do NOT copy example text.",
+    "icpNarrative": "REQUIRED — MUST NOT be null. 2-3 sentence spoken summary weaving together: who they target + their 2 key client problems + how they solve them. End with a confirmation question. Bella says this verbatim. Use prospect's industry language. Generate ORIGINAL content — do NOT copy example text."
   },
   "trainingBridge": {
-    "line": "REQUIRED — MUST NOT be null. 1-2 sentences explicitly tying together: who they serve + the problems they bring + how they solve them + the exact CTAs on their site — framed as what the AI agents are being trained on. Bella says this verbatim. Must be spoken-friendly, under 20 words per sentence. Example: 'Everything I have just described — who you serve, the problems they bring, how you solve them, and the specific calls to action — is what your demo agent team has already been trained on in the background.'"
+    "line": "REQUIRED — MUST NOT be null. 1-2 sentences explicitly tying together: who they serve + the problems they bring + how they solve them + the exact CTAs on their site — framed as what the AI agents are being trained on. Bella says this verbatim. Must be spoken-friendly, under 20 words per sentence. Generate ORIGINAL content — do NOT copy example text."
   }
 }
 
@@ -395,11 +399,19 @@ ${JSON.stringify(p, null, 2)}
 
 Read websiteContent carefully. Find every CTA, button, form, phone number, download, booking link.
 
+⚠️ CTA NAMING RULE — NON-NEGOTIABLE:
+Use the EXACT text from every button, link, and CTA as it appears on the site. NEVER rename, paraphrase, or summarise. If the button says "Get in touch", write "Get in touch" — NOT "Contact Us". If the link says "Discover more", write "Discover more". Bella will say these words on a live call and the prospect will notice if they don't match their own site.
+
+⚠️ CTA RANKING RULE — RANK BY COMMERCIAL INTENT, NOT PROMINENCE:
+primaryCTA must be the highest COMMERCIAL INTENT action, not the most visually prominent button. Ranking: form submissions (Contact, Enquiry, Get in touch) > phone/call > booking > quote request > download > explore/learn more/other. A contact form buried in the footer outranks a "Discover more" hero button. Exploration CTAs (Learn more, Discover, Read more) are NEVER the primaryCTA when any form, phone, or booking CTA exists.
+
+⚠️ CRITICAL: Generate ORIGINAL content from ACTUAL website data. Do NOT echo, copy, or reference any example text. If you cannot generate content from the actual site, return an empty string "" — NEVER return example text or template placeholders.
+
 Return ONLY this JSON. Nothing else. No markdown. No preamble.
 
 {
   "conversionEventAnalysis": {
-    "primaryCTA": "The main conversion action the site drives — exact CTA text if visible",
+    "primaryCTA": "The HIGHEST COMMERCIAL INTENT conversion action — use VERBATIM button/link text from the site, never paraphrase. Rank by commercial intent: form/call/booking > quote > download > explore/other. A 'Contact Us' form ALWAYS outranks a 'Discover more' button.",
     "ctaType": "book_call|fill_form|call|buy_online|get_quote|download|other — use 'call' for any phone number or call-oriented CTA",
     "ctaClarity": "Is it obvious what to do next? Single CTA or multiple competing?",
     "frictionPoints": ["Specific things that could reduce conversions — frame each as an opportunity for our agents"],
@@ -408,7 +420,7 @@ Return ONLY this JSON. Nothing else. No markdown. No preamble.
     "allConversionEvents": ["List EVERY conversion action on the site — use their exact CTA wording. Include ALL of them."],
     "ctaBreakdown": [
       {
-        "cta": "Exact CTA text from the site",
+        "cta": "VERBATIM button/link text exactly as it appears on the site — never rename or paraphrase. If button says 'Get in touch' write 'Get in touch', NOT 'Contact Us'.",
         "type": "form|call|booking|download|chat|buy|other",
         "commercialMeaning": "What this CTA means commercially in their industry — e.g. 'Their primary new client acquisition channel' or 'High-intent prospects wanting to talk NOW' or 'Pipeline builder — these leads need fast follow-up'",
         "industryTerm": "How to describe this in their language — e.g. 'new patient bookings', 'quote requests', 'initial consultations'",
@@ -424,9 +436,9 @@ Return ONLY this JSON. Nothing else. No markdown. No preamble.
         "location": "hero|nav|footer|body|popup|unknown"
       }
     ],
-    "conversionNarrative": "REQUIRED — MUST NOT be null. 2-3 sentence spoken summary of the full conversion funnel in the prospect's industry language. Bella says this verbatim. Example for accounting: 'Your site is driving people to book a free initial consultation — that is your primary new client acquisition channel. You have also got a tax planning guide download which builds your pipeline, and a phone number for prospects who want to talk now. Those are exactly the kind of conversion events your AI agents have been trained to focus on.' Example for trades: 'Your site is set up to drive quote requests — that is the start of every new job. You have also got a phone number for urgent callouts. Your agents have been trained to convert more of both, on autopilot.'",
-    "agentTrainingLine": "REQUIRED — MUST NOT be null. Single sentence connecting ALL CTAs to agent training. Format: 'I can see your main call to action is [PRIMARY CTA], and you are also driving [SECONDARY, TERTIARY] — those are exactly the kind of conversion events your AI agents have been trained to focus on driving more of, on autopilot.' MUST mention ALL events found.",
-    "ctaAgentMapping": "REQUIRED — MUST NOT be null. Single sentence mapping CTAs to specific agents. e.g. 'I would say Chris to maximise those booking conversions on your site, Alex to follow up the form submissions, and Maddie to handle the inbound calls.' Only include agents that map to actual CTAs found."
+    "conversionNarrative": "REQUIRED — MUST NOT be null. 2-3 sentence spoken summary of the full conversion funnel in the prospect's industry language. Bella says this verbatim. Reference specific CTAs found on THEIR site, not generic examples. Generate ORIGINAL content — do NOT copy example text.",
+    "agentTrainingLine": "REQUIRED — MUST NOT be null. Single sentence connecting ALL CTAs found to agent training. Reference the actual CTAs from THEIR site. Generate ORIGINAL content — do NOT copy example text.",
+    "ctaAgentMapping": "REQUIRED — MUST NOT be null. Single sentence mapping THEIR actual CTAs to specific agents based on conversion events found. Only include agents that map to actual CTAs found. Generate ORIGINAL content — do NOT copy example text."
   },
   "routing": {
     "priority_agents": ["Rank by URGENCY and ACTIVE REVENUE LEAK. Core agents (Chris, Alex, Maddie) should almost always be top 3. Ordered array of agent names."],
@@ -517,7 +529,7 @@ Return ONLY this JSON. Nothing else. No markdown. No preamble.
     "recent_review_snippet": "Best customer quote from their reviews verbatim — or null if no reviews in payload",
     "rep_quality_assessment": "Brief assessment of review quality if data exists — themes, sentiment. null if no review data in payload.",
     "top_2_website_ctas": "Their top 2 CTAs from the website in natural language",
-    "scrapedDataSummary": "Single spoken observation max 25 words. SPECIFIC data point from Google reviews, ads, or hiring signals in the payload. NOT a website compliment. Actual data only. null if no scraped data available.",
+    "scrapedDataSummary": "Single spoken observation max 25 words. SPECIFIC data point from Google reviews, ads, or hiring signals in the payload. NOT a website compliment. Actual data only. MUST END with which agent (Alex/Chris/Maddie) would address this and HOW. E.g., 'you're running Google Ads — Chris can engage every visitor landing from those campaigns'. null if no scraped data available.",
     "bella_opener": "A natural spoken opening line Bella can say that references something specific from the research — e.g. 'Hi [name], so we have had a proper look at [business] before this call and I have to say there are some really interesting things happening there.'"
   },
   "copyAnalysis": {
@@ -606,28 +618,28 @@ Return ONLY this JSON. Nothing else. No markdown. No preamble.
         "urgency": "high|medium"
       }
     ],
-    "topHiringWedge": "The single most powerful hiring replacement line for Bella — e.g. 'You are hiring a receptionist for sixty K — Maddie does the same job starting today for pennies.' null if no hiring data."
+    "topHiringWedge": "The single most powerful hiring replacement line for Bella — e.g. 'You are hiring a receptionist for sixty K — Maddie does the same job starting today for pennies.' MUST include: (1) the job title they're hiring for, (2) which agent (Maddie/Alex) replaces that role, (3) how. null if no hiring data."
   },
   "googlePresence": [
     {
       "insight": "Their rating/review standing if data available. If no Google data: 'Google data not yet available — Bella should ask about their online reputation'",
       "data": "Exact numbers if available, otherwise 'pending'",
-      "bellaLine": "How Bella references this naturally on the call"
+      "bellaLine": "How Bella references this naturally on the call. Include agent tieback: how Chris can use reviews to build trust with website visitors, or how reputation uplift helps. E.g., 'Your 4.8 rating is a strong foundation — Chris can reference those reviews in real-time conversations to build trust.'"
     },
     {
       "insight": "What their reviews reveal — theme, sentiment. If no reviews: 'Review data pending — discovery opportunity'",
       "bestQuote": "Direct quote from best review, or null",
-      "bellaLine": "How Bella references review sentiment or asks about it"
+      "bellaLine": "How Bella references review sentiment or asks about it. Include agent tieback if reviews are strong. E.g., 'Your reviews consistently mention {theme} — Chris can amplify that in conversations with new visitors.'"
     }
   ],
   "conversationHooks": [
-    { "topic": "A specific copy or ICP insight Bella can raise naturally", "data": "Evidence from the site", "how": "How to bring it up in conversation" },
-    { "topic": "A benefit or value prop observation", "data": "Evidence", "how": "Conversation approach" },
-    { "topic": "The conversion event observation", "data": "Evidence", "how": "Natural approach" }
+    { "topic": "A specific copy or ICP insight Bella can raise naturally", "data": "Evidence from the site", "how": "How to bring it up in conversation. MUST include which agent (Alex/Chris/Maddie) addresses this and HOW. E.g., 'they say they focus on fast turnarounds — Alex can respond to every lead in under 30 seconds.'" },
+    { "topic": "A benefit or value prop observation", "data": "Evidence", "how": "Conversation approach. MUST include agent tieback showing which agent delivers this benefit." },
+    { "topic": "The conversion event observation", "data": "Evidence", "how": "Natural approach. MUST include which agent (Chris for on-site, Alex for follow-up, Maddie for calls) would drive more conversions." }
   ],
   "mostImpressive": [
-    { "finding": "The single most notable thing from ALL the data", "source": "Where you found it", "bellaLine": "How Bella references it naturally" },
-    { "finding": "Second most impressive — different category", "source": "Data source", "bellaLine": "Natural reference" }
+    { "finding": "The single most notable thing from ALL the data", "source": "Where you found it", "bellaLine": "How Bella references it naturally. MUST include which agent (Alex/Chris/Maddie) would leverage this insight and HOW. E.g., 'your landing page is high-traffic — Chris can engage every visitor landing there.'" },
+    { "finding": "Second most impressive — different category", "source": "Data source", "bellaLine": "Natural reference. MUST include agent tieback showing which agent addresses this opportunity." }
   ],
   "redFlags": [
     "Frame as OPPORTUNITY tied to a specific agent — e.g. 'No chat widget on site — every visitor currently leaves without a conversation. Strong Chris opportunity.'",

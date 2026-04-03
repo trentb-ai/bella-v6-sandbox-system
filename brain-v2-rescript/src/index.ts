@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.10.0'; // BUG-IMPROVISE + DOUBLEPERIOD: remove routing from contextNotes + strip trailing period
+const VERSION = 'v6.12.0'; // MERGE FIX: consultant data now persists through workflow to intel envelope
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
@@ -744,7 +744,8 @@ export class CallBrainDO {
         brain.intel.fast = src;
 
         // Consultant intel: top-level `consultant` key in the envelope
-        if (src.consultant) brain.intel.consultant = src.consultant;
+        // Guard: only hydrate if it's an actual object, not a boolean false placeholder
+        if (src.consultant && typeof src.consultant === 'object') brain.intel.consultant = src.consultant;
 
         // Deep intel: top-level `deep` or nested `intel.deep`
         const deepBlob = src.deep ?? src.intel?.deep;

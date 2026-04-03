@@ -157,6 +157,18 @@ function cleanFacts(inputs: unknown[]): string[] {
   return inputs.map(cleanFact).filter((x): x is string => Boolean(x));
 }
 
+/** Safety net: reject consultant fields that contain template/example text. */
+function cleanConsultantField(val: string | undefined | null): string {
+  if (!val) return '';
+  const s = (val || '').trim();
+  if (!s) return '';
+  // Reject if it contains template instruction markers
+  if (/REQUIRED|MUST NOT be null|Example:/i.test(s)) return '';
+  // Reject if it starts with common template prefixes
+  if (/^(Generate|Write|Create|Provide|REQUIRED)/i.test(s)) return '';
+  return s;
+}
+
 // ─── Critical Facts Builder (stable business truths — whole call) ────────────
 
 /**
@@ -345,14 +357,18 @@ function buildWowDirective(
       let observationLine: string;
       let wow1Source: string;
 
-      if (fills.website_positive_comment) {
-        observationLine = fills.website_positive_comment;
+      const cleanWebsiteComment = cleanConsultantField(fills.website_positive_comment);
+      const cleanStrongestLine = cleanConsultantField(copy.strongestLine);
+      const cleanBellaOpener = cleanConsultantField(fills.bella_opener);
+
+      if (cleanWebsiteComment) {
+        observationLine = cleanWebsiteComment;
         wow1Source = 'WEBSITE_POSITIVE_COMMENT';
-      } else if (copy.strongestLine) {
-        observationLine = copy.strongestLine;
+      } else if (cleanStrongestLine) {
+        observationLine = cleanStrongestLine;
         wow1Source = 'STRONGEST_LINE';
-      } else if (fills.bella_opener) {
-        observationLine = fills.bella_opener;
+      } else if (cleanBellaOpener) {
+        observationLine = cleanBellaOpener;
         wow1Source = 'BELLA_OPENER';
       } else {
         observationLine = `We've researched ${business}, and we use that to pre-train your agents around your ${lang.pluralOutcome}, your industry, and how you win business.`;
@@ -365,7 +381,7 @@ function buildWowDirective(
         objective: 'Demo frame + research intro, get permission to continue.',
         allowedMoves: ['advance:wow_2_reputation_trial'],
         requiredData: ['firstName', 'business', 'industry'],
-        speak: `So ${name}, your pre-trained agents are ready to go. You can play a prospective ${business} customer and they'll engage like they've worked for ${business} for years — answering questions, qualifying the opportunity, and moving people toward your key conversion point on autopilot. Now, I think you'll be impressed — ${observation}. Before we begin, can I confirm a couple of findings so your agents are dialled in around the highest-value opportunities?`,
+        speak: `The idea is simple. So ${name}, your agents will engage with you in real time. They'll answer questions, qualify the opportunity, and move a typical new client toward your key conversion point on autopilot. I think you'll be impressed — ${observation}. Before we begin, can I confirm a couple of findings so your agents are dialled in around the highest-value opportunities?`,
         ask: true,
         waitForUser: true,
         canSkip: false,
@@ -413,9 +429,10 @@ function buildWowDirective(
       console.log(`[WOW2_RESOLVE] ts=${new Date().toISOString()} branch=FIRE rating=${googleRating} reviews=${googleReviews} biz=${business.slice(0, 30)}`);
       state.trialMentioned = true;
 
-      let wow2Speak = `And just before we get into it, I noticed ${business} is sitting on ${googleRating} stars from ${googleReviews} reviews, which is a strong trust signal. That makes this even more interesting, because when the agent experience behind the scenes matches the quality people already expect from the front end, results tend to move quickly. If you like what you hear today, we can activate the free trial at any point during the demo.`;
+      let wow2Speak = `And just before we get into it, I noticed ${business} is sitting on ${googleRating} stars from ${googleReviews} reviews, which is a strong trust signal. That makes this even more interesting, because when the agent experience behind the scenes matches the quality people already expect from the front end, results tend to move quickly. We do offer a limited number of free trials to businesses with strong Google ratings. They're available only while you're on this call, because we have all your data saved so its quick to set you up. So if you like what you hear today, we can activate the free trial at any point during the demo.`;
 
       const heroReviewSummary = (state.intel.deep as any)?.deep_scriptFills?.heroReview?.summary ?? null;
+      // FUTURE: Consultant should include full reviewer name if available for added credibility
       if (heroReviewSummary && typeof heroReviewSummary === 'string' && heroReviewSummary.length > 0) {
         wow2Speak += ` One review even highlighted ${heroReviewSummary}. That's exactly the kind of trust signal your agents can build on from the first interaction.`;
       }
@@ -434,7 +451,7 @@ function buildWowDirective(
 
     case 'wow_3_icp_problem_solution': {
       const icpAnalysis = c.icpAnalysis ?? {};
-      const rawIcpGuess = (fills.icp_guess ?? '').trim();
+      const rawIcpGuess = cleanConsultantField(fills.icp_guess);
       let icpGuess = rawIcpGuess;
       if (icpGuess) {
         // Consultant may return full sentence: "it looks like you mainly work with X, is that right?"
@@ -449,16 +466,16 @@ function buildWowDirective(
       }
       const icpProblems: unknown[] = icpAnalysis.icpProblems ?? [];
       const icpSolutions: unknown[] = icpAnalysis.icpSolutions ?? [];
-      const referenceOffer = fills.reference_offer ?? '';
+      const referenceOffer = cleanConsultantField(fills.reference_offer);
       const cleanProblems = cleanFacts(icpProblems);
       const cleanSolutions = cleanFacts(icpSolutions);
 
       // AUDIT-1 Fix 1: icpNarrative — consultant pre-built spoken ICP line (Priority 1)
-      const icpNarrative: string = (icpAnalysis.icpNarrative ?? '').trim();
+      const icpNarrative: string = cleanConsultantField(icpAnalysis.icpNarrative);
       // AUDIT-1 Fix 3: bellaCheckLine — consultant fallback before generic (Priority 4)
-      const bellaCheckLine: string = (icpAnalysis.bellaCheckLine ?? '').trim();
+      const bellaCheckLine: string = cleanConsultantField(icpAnalysis.bellaCheckLine);
       // V2 FIX 2: marketPositionNarrative — existing consultant field fallback (Priority 1b)
-      const marketPositionNarrative: string = (icpAnalysis.marketPositionNarrative ?? '').trim();
+      const marketPositionNarrative: string = cleanConsultantField(icpAnalysis.marketPositionNarrative);
 
       let insightText: string;
       let wow3Branch: string;
@@ -534,9 +551,9 @@ function buildWowDirective(
         .join(' and ');
 
       // Priority 1: conversionNarrative — consultant pre-built spoken funnel review
-      const conversionNarrative: string = (cea.conversionNarrative ?? '').trim();
+      const conversionNarrative: string = cleanConsultantField(cea.conversionNarrative);
       // Priority 2: agentTrainingLine — consultant CTA + agent summary line
-      const agentTrainingLine: string = (cea.agentTrainingLine ?? '').trim();
+      const agentTrainingLine: string = cleanConsultantField(cea.agentTrainingLine);
 
       let wow4Branch: string;
       let conversionLine: string;
@@ -563,8 +580,6 @@ function buildWowDirective(
         wow4Branch = 'GENERIC';
         conversionLine = `And looking at how your site converts visitors, these exact actions and resource titles are what your agents learn to steer people towards — not just a generic enquiry. Does that sound right?`;
       }
-      // Append softener after focus question
-      conversionLine += ' You can just say yes if that fits, or correct me if I\'ve missed something.';
 
       console.log(`[WOW4_RESOLVE] ts=${new Date().toISOString()} branch=${wow4Branch} cta="${(primaryCTA || 'none').slice(0, 40)}" secondaryCTAs=${secondaryCTAs.length} conversionNarrative=${!!conversionNarrative} agentTrainingLine=${!!agentTrainingLine}`);
 
@@ -590,7 +605,7 @@ function buildWowDirective(
       let wow5Speak: string;
 
       // Priority 1: trainingBridge.line — consultant pre-built alignment bridge
-      const trainingBridgeLine: string = (c.trainingBridge?.line ?? '').trim();
+      const trainingBridgeLine: string = cleanConsultantField(c.trainingBridge?.line);
 
       if (wow3Rejected || wow4Rejected) {
         // Prospect pushed back — acknowledge correction, bridge to recommendation
@@ -622,11 +637,14 @@ function buildWowDirective(
 
     case 'wow_6_scraped_observation': {
       // wow_6 8-tier priority stack (LOCKED)
-      const scrapedSummary = fills.scrapedDataSummary ?? '';
-      const googlePresence = c.googlePresence ?? [];
-      const mostImpressiveLine = (c.mostImpressive?.[0]?.bellaLine ?? '').trim();
+      const scrapedSummary = cleanConsultantField(fills.scrapedDataSummary);
+      const googlePresence = (c.googlePresence ?? []).map((gp: any) => ({
+        ...gp,
+        bellaLine: cleanConsultantField(gp.bellaLine),
+      }));
+      const mostImpressiveLine = cleanConsultantField(c.mostImpressive?.[0]?.bellaLine);
       const hooks = c.conversationHooks ?? [];
-      const topHiringWedge = (c.hiringAnalysis?.topHiringWedge ?? '').trim();
+      const topHiringWedge = cleanConsultantField(c.hiringAnalysis?.topHiringWedge);
 
       // Hiring data from deep intel
       const hiringData = d.hiring ?? {};
@@ -660,52 +678,58 @@ function buildWowDirective(
         // Priority 1: scrapedDataSummary (will be null until B2 wires consultant)
         wow6Source = 'SCRAPED_SUMMARY';
         const innerObservation = scrapedSummary;
-        observationLine = `One more thing I noticed from the scrape — ${innerObservation}. That's another place your agents could create lift very quickly.`;
+        const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
+        observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
       } else if (googlePresence[0]?.bellaLine) {
         // Priority 2: googlePresence[0].bellaLine
         wow6Source = 'GOOGLE_PRESENCE';
         const innerObservation = googlePresence[0].bellaLine;
-        observationLine = `One more thing I noticed from the scrape — ${innerObservation}. That's another place your agents could create lift very quickly.`;
+        const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
+        observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
       } else if (mostImpressiveLine) {
         // Priority 3: mostImpressive[0].bellaLine (existing)
         wow6Source = 'MOST_IMPRESSIVE';
         const innerObservation = mostImpressiveLine;
-        observationLine = `One more thing I noticed from the scrape — ${innerObservation}. That's another place your agents could create lift very quickly.`;
+        const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
+        observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
       } else if (hooks[0]) {
         // Priority 4: conversationHooks[0] — use ALL THREE sub-fields: topic, data, how
         wow6Source = 'HOOK';
         const hook = hooks[0];
         const innerObservation = hook.how ? `${hook.how} — ${hook.data || hook.topic}` : `${hook.topic}: ${hook.data}`;
-        observationLine = `One more thing I noticed from the scrape — ${innerObservation}. That's another place your agents could create lift very quickly.`;
+        const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
+        observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
       } else if (topHiringWedge) {
-        // Priority 5: topHiringWedge (existing)
+        // Priority 5: topHiringWedge (existing — already contains agent name)
         wow6Source = 'HIRING';
         const innerObservation = topHiringWedge;
-        observationLine = `One more thing I noticed from the scrape — ${innerObservation}. That's another place your agents could create lift very quickly.`;
+        const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
+        observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
       } else if (hiringMatches.length > 0) {
         // Priority 6: hiringMatches[0] (existing)
         wow6Source = 'MATCH';
         const topMatch = hiringMatches[0];
-        const innerObservation = `you're hiring for ${topMatch.role || topMatch.title || 'a key role'}`;
-        observationLine = `One more thing I noticed from the scrape — ${innerObservation}. That's another place your agents could create lift very quickly.`;
+        const innerObservation = `you're hiring for ${topMatch.role || topMatch.title || 'a key role'} — that's a role Maddie or Alex could handle automatically`;
+        observationLine = `One more thing I noticed — ${innerObservation}. That's where I'd start.`;
       } else {
         // Priority 7: Deep intel direct fallback (Sprint 2 — Issue 3/4)
         const deepFallback = getDeepIntelFallbackWow(state, name, business);
         if (deepFallback) {
           wow6Source = deepFallback.source;
           const innerObservation = deepFallback.line;
-          observationLine = `One more thing I noticed from the scrape — ${innerObservation}. That's another place your agents could create lift very quickly.`;
+          const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
+          observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
         } else {
           // Priority 8: GENERIC (last resort)
           wow6Source = 'GENERIC';
-          observationLine = `One more thing I noticed from the scrape — there looks to be a clear opportunity to improve how inbound demand gets captured and converted. That's another place your agents could create lift very quickly.`;
+          observationLine = `One more thing I noticed — there are clear opportunities where your agents can help capture and convert more of your inbound demand. That's where I'd start.`;
         }
       }
 
       console.log(`[WOW6_RESOLVE] ts=${new Date().toISOString()} source=${wow6Source} deepInsight=${!!deepInsight0?.bellaLine} scrapedSummary=${!!scrapedSummary} googlePresence=${!!googlePresence[0]?.bellaLine} mostImpressive="${mostImpressiveLine.slice(0, 60)}" hooks=${hooks.length} topHiringWedge=${!!topHiringWedge} hiringMatches=${hiringMatches.length} speak_preview="${observationLine.slice(0, 80)}"`);
 
       return {
-        objective: 'Connect scraped observation to automation upside.',
+        objective: 'Share additional insight to reinforce automation opportunity.',
         allowedMoves: ['advance:wow_7_explore_or_recommend'],
         requiredData: [],
         speak: observationLine,
@@ -830,11 +854,11 @@ function buildRecommendationDirective(state: ConversationState): StageDirective 
     adsConfirmed ? 'your ads' : 'paid ads';
 
   // ── LOCKED AGENT BENEFIT LINES — do not paraphrase ──
-  const alexBenefit = `Alex responds to every lead within 30 seconds — and the research is clear: businesses that respond within 30 seconds convert up to four times more than those who wait even five minutes. Most leads make a decision in under five minutes, and if you're not first, you're usually not getting that business. Alex makes sure ${business} is always first, every time, 24/7.`;
+  const alexBenefit = `Alex follows up with every new lead in under 30 seconds. And that speed matters — businesses that reply in the first 30 seconds can convert up to 4 times more leads than those that wait even a few minutes. Most people decide fast, so if you're not first, you usually miss out. Alex makes sure ${business} is first every time, 24/7.`;
 
-  const chrisBenefit = `Chris engages every website visitor the moment they land — running a live sales conversation, qualifying their needs, handling objections, and driving them toward ${ctaSpoken}. Basic chat widgets add around 24% more website conversions — but Chris isn't a chatbot, he's a fully trained ${shortName} sales agent. Nobody has conversion stats on this yet because nobody has actually done it — you'd be the first in your market.`;
+  const chrisBenefit = `Chris speaks to website visitors the second they land. He starts the conversation, qualifies what they need, handles common objections, and guides them toward ${ctaSpoken}. Most chat widgets can lift conversions, but Chris goes much further — he's a fully trained ${shortName} sales agent. In most markets, this is something people haven't seen before, which means ${business} stands out straight away.`;
 
-  const maddieBenefit = `Maddie answers every call that comes in — qualifying the opportunity and booking it straight into your calendar. Every call that goes unanswered is a sale that walks out the door, and Maddie makes sure ${business} never misses one.`;
+  const maddieBenefit = `Maddie answers every inbound call, qualifies the opportunity, and books the right people straight into your calendar. Every missed call is a missed sale, and Maddie makes sure ${business} doesn't let those opportunities slip through.`;
 
   // ── LEAD SOURCE FLAGS ──
   const source = state.leadSourceDominant ?? '';
@@ -1715,7 +1739,7 @@ export function buildStageDirective(input: StageDirectiveInput): StageDirective 
           objective: 'Handle pricing objection then return to close offer.',
           allowedMoves: [],
           requiredData: [],
-          speak: `We work on performance-based pricing after the trial — you only pay a percentage of the conversions we generate, so there's literally zero financial risk. But let's get you set up first.`,
+          speak: `We charge a small deposit to cover costs plus performance-based pricing, and one of the team will discuss pricing after you've seen real results for free. And we aim to get you a 10X ROI on whatever we earn. But let's get you set up first.`,
           ask: false,
           waitForUser: true,
           canSkip: false,
@@ -1753,7 +1777,7 @@ James (reputation manager): Automates Google review collection and management.`,
           objective: 'Capture email address for trial setup.',
           allowedMoves: [],
           requiredData: ['trialEmail'],
-          speak: `Perfect. What's the best email for me to send the trial details to?`,
+          speak: `I'll email you the trial details and onboarding form, it only takes a few minutes to get you set up. Shall I use the email address you gave in the form earlier or another one?`,
           ask: true,
           waitForUser: true,
           canSkip: false,
