@@ -2,7 +2,7 @@
 // Bella's Intel Analyst — receives scraped data, returns script-ready analysis
 // Separate atomic worker, called via service binding from scraper Phase B
 
-const VERSION = '6.11.0';
+const VERSION = '6.12.0-pass2';
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -36,6 +36,17 @@ export default {
         const t0 = Date.now();
         const result = await runFastConsultant(payload, env);
         console.log(`[Consultant] /fast done in ${Date.now() - t0}ms biz=${result?.correctedName ?? "?"}`);
+        return new Response(JSON.stringify(result), { headers: CORS });
+      }
+
+      // ── /pass2 endpoint — deep data enrichment after scrape completes ──
+      if (url.pathname === "/pass2") {
+        const t0 = Date.now();
+        if (!payload.pass1 || !payload.deepFlags) {
+          return new Response(JSON.stringify({ error: "Missing pass1 or deepFlags" }), { status: 400, headers: CORS });
+        }
+        const result = await runPass2Consultant(payload, env);
+        console.log(`[Consultant] /pass2 done in ${Date.now() - t0}ms biz=${payload.businessName}`);
         return new Response(JSON.stringify(result), { headers: CORS });
       }
 
@@ -379,13 +390,19 @@ URGENCY HIERARCHY — rank agents by this order, never deviate:
 2. High-confidence friction: weak conversion path, slow follow-up, poor call handling. Evidence of lost revenue.
 3. Latent opportunity: old lead reactivation (Sarah), reputation (James). Valuable but NEVER rank these above active leaks.
 
-FORCED TRADE-OFF RULES:
-- Active spend beats latent opportunity. Always.
-- Active inbound leakage beats future nurture value. Always.
-- Strong evidence beats broad inference. Always.
-- If ads running → Chris number 1, Alex number 2. Period.
-- If no ads but phone-heavy business → Chris number 1, Maddie number 2.
-- If no ads, form-based CTA → Chris number 1, Alex number 2.
+DEFAULT: ALWAYS RECOMMEND ALL 3 CORE AGENTS (Alex, Chris, Maddie):
+Alex has priority — speed-to-lead delivers up to 40% value add. Chris converts on-site. Maddie catches every call.
+Only EXCLUDE a core agent if there is STRONG POSITIVE EVIDENCE they are already covered (e.g. confirmed 24/7 AI chat = no Chris, confirmed 24/7 phone service = no Maddie).
+Absence of data is NEVER a reason to exclude. If you can't find strong evidence FOR an agent, use fallback justifications:
+- Alex fallback: "Any form, enquiry, or CTA on the site needs fast follow-up — Alex responds in under 30 seconds."
+- Chris fallback: "Every website visitor is a potential customer — Chris engages them before they bounce."
+- Maddie fallback: "If there's a phone number anywhere on the site, calls are happening — Maddie answers every one."
+
+RANKING RULES (within the default "all 3"):
+- Alex is always number 1 unless there is overwhelming evidence another agent is more urgent.
+- If ads running → Chris number 2 (engages paid clicks), Maddie number 3.
+- If phone-heavy business → Maddie number 2, Chris number 3.
+- If form-based CTA → Alex number 1, Chris number 2, Maddie number 3.
 - Sarah and James always come AFTER the 3 core agents.
 
 MISSING DATA RULES:
@@ -441,13 +458,13 @@ Return ONLY this JSON. Nothing else. No markdown. No preamble.
     "ctaAgentMapping": "REQUIRED — MUST NOT be null. Single sentence mapping THEIR actual CTAs to specific agents based on conversion events found. Only include agents that map to actual CTAs found. Generate ORIGINAL content — do NOT copy example text."
   },
   "routing": {
-    "priority_agents": ["Rank by URGENCY and ACTIVE REVENUE LEAK. Core agents (Chris, Alex, Maddie) should almost always be top 3. Ordered array of agent names."],
-    "lower_priority_agents": ["Enhancement agents or weak evidence agents"],
-    "skip_agents": ["Only agents with STRONG POSITIVE evidence they are irrelevant"],
+    "priority_agents": ["DEFAULT: ALL 3 core agents — Alex, Chris, Maddie — MUST be in this array. Alex always first. Add Sarah/James after if evidence supports. Only omit a core agent if you have STRONG POSITIVE evidence they are already covered (e.g. confirmed 24/7 AI chat = omit Chris). For each agent, find a data-backed reason from the site (CTAs, phone number, ad pixels, hiring signals, form submissions). If no strong signal, use CTA-based fallback justification."],
+    "lower_priority_agents": ["Enhancement agents — Sarah (reactivation) and James (reviews) — only if evidence supports"],
+    "skip_agents": ["Only agents with STRONG POSITIVE evidence they are ALREADY COVERED — e.g. 'confirmed 24/7 AI chat deployed' for Chris. Absence of data is NEVER a reason to skip."],
     "reasoning": {
-      "chris": "Commercial assessment — what is the active revenue leak Chris fixes? Evidence. Why now?",
-      "alex": "Commercial assessment — what leads are going cold? What is the follow-up gap? Evidence.",
-      "maddie": "Commercial assessment — is there a phone number on the site? Is this a service business? Every missed call is lost revenue.",
+      "alex": "REQUIRED. Reference SPECIFIC conversion events from the site that need fast follow-up — e.g. 'Your Contact Us form and Download Guide CTA both generate leads that need immediate response — Alex follows up in under 30 seconds.' Use verbatim CTA text. If ads detected, reference those too.",
+      "chris": "REQUIRED. Reference SPECIFIC website funnel elements — e.g. 'Your site has a Book Appointment form, a Get a Quote page, and a downloadable price guide — Chris engages every visitor and guides them toward those actions.' Use verbatim CTA/page names from the site.",
+      "maddie": "REQUIRED. Reference phone signals — e.g. 'Your site shows a phone number in the header and footer and you have a Call Now button — Maddie answers every call instantly, qualifies, and books.' If no phone visible, say 'Phone not prominent but service businesses get calls — Maddie catches every one.'",
       "sarah": "Honest assessment — is there real database opportunity or are we assuming?",
       "james": "Honest assessment — is review management a real wedge for this business?"
     },
@@ -796,4 +813,144 @@ async function runConsultant(payload, env) {
   console.log(`[Consultant] micro-calls complete elapsed=${elapsed}ms ${sliceStatus}`);
   return result;
 }
+
+
+// ── PASS 2 — Deep data enrichment after scrape completes ────────────────────
+// Called by scrape workflow after deep data lands. Takes pass1 consultant output
+// + deep flags (Google Maps, ads, hiring, LinkedIn) and generates enriched
+// narratives for WOW6+ and Recommendation stages.
+
+async function runPass2Consultant(payload, env) {
+  const apiKey = env.GEMINI_API_KEY;
+  if (!apiKey) return { error: "No GEMINI_API_KEY", _pass2: true, _fallback: true };
+
+  const t0 = Date.now();
+  const prompt = buildPromptPass2(payload);
+
+  const result = await callMicro('pass2', prompt, apiKey);
+  const elapsed = Date.now() - t0;
+
+  if (!result || !result.deepInsights) {
+    console.error(`[Consultant /pass2] failed in ${elapsed}ms — returning pass2 fallback`);
+    return { _pass2: true, _fallback: true, deepInsights: [], enrichedRouting: payload.pass1?.routing ?? {} };
+  }
+
+  result._pass2 = true;
+  result._latency = elapsed;
+  console.log(`[Consultant /pass2] done in ${elapsed}ms insights=${result.deepInsights?.length ?? 0}`);
+  return result;
+}
+
+function buildPromptPass2(payload) {
+  const { businessName, pass1, deepFlags } = payload;
+
+  return `You are Bella's Deep Intelligence Analyst at Pillar and Post AI.
+You have ALREADY analysed this business's website (pass 1). Now you have DEEP INTELLIGENCE data — Google Maps reviews, ad campaigns, hiring signals, and LinkedIn data. Your job is to produce enriched spoken narratives that Bella uses in the second half of the call (WOW6 onwards and Recommendation).
+
+CRITICAL RULES:
+⚠️ VOICE PERSPECTIVE — HARD RULE:
+You are writing words that Bella speaks DIRECTLY TO the business owner. "you" and "your" = the business. "they" and "their" = the prospect's CUSTOMERS only.
+
+- Every spoken line must be under 20 words per sentence
+- Australian English throughout
+- Reference SPECIFIC data points (exact review quotes, ad counts, hiring titles, ratings)
+- NEVER say "from the scrape" or "we scraped" — say "we picked up" or "we noticed" or "looking at your digital footprint"
+- Every insight MUST end with an agent tieback: which agent (Alex/Chris/Maddie) addresses this and HOW
+
+AGENT ROLES:
+- Chris: AI website agent — engages visitors live, converts on-page
+- Alex: Speed-to-lead — follows up every lead in under 30 seconds, 24/7
+- Maddie: AI receptionist — answers every call, qualifies, books appointments
+
+HIRING SIGNAL MAPPING — CRITICAL:
+Hiring signals justify recommending MAXIMUM agents (up to 3), not narrowing to one:
+- Hiring receptionist/admin/front desk → Maddie (replaces this role)
+- Hiring sales people/closers → Alex (speed-to-lead replaces outbound)
+- Hiring SDRs/appointment setters → Chris + Alex (Chris engages on-site, Alex follows up)
+- Hiring customer service/support → Chris (website concierge handles enquiries)
+- Hiring marketing/digital → Chris + Alex (traffic needs conversion)
+- ANY hiring = business is growing = MORE agents needed. Frame as: "you're scaling — Alex handles the speed-to-lead, Chris converts on your site, and Maddie covers every call so nothing slips through"
+
+PASS 1 CONSULTANT OUTPUT (what we already told them about their website):
+${JSON.stringify(pass1, null, 2)}
+
+DEEP INTELLIGENCE DATA (Google Maps, ads, hiring, LinkedIn):
+${JSON.stringify(deepFlags, null, 2)}
+
+Generate enriched narratives using the deep data. Every field must be data-specific — reference exact numbers, quotes, titles.
+
+⚠️ CRITICAL: Generate ORIGINAL content from the ACTUAL deep data provided above. Do NOT echo example text.
+
+Return ONLY this JSON. Nothing else. No markdown. No preamble.
+
+{
+  "deepInsights": [
+    {
+      "bellaLine": "REQUIRED. A spoken insight from the deep data that Bella says on the call. Must reference a SPECIFIC data point (rating, review quote, ad count, hiring role). Must end with which agent addresses it and how. Max 2 sentences. E.g., 'your 4.8 star rating from 230 reviews is a real asset — Chris can reference those in real-time conversations to build instant trust with new visitors.'",
+      "source": "google_maps|ads|hiring|linkedin",
+      "dataPoint": "The specific data referenced — e.g., '4.8 stars, 230 reviews' or 'hiring 2 SDRs' or 'running 12 Google Ads'"
+    },
+    {
+      "bellaLine": "Second insight — DIFFERENT category from first. Must reference different deep data source.",
+      "source": "google_maps|ads|hiring|linkedin",
+      "dataPoint": "Specific data"
+    },
+    {
+      "bellaLine": "Third insight if data supports it — different category again. null if insufficient data.",
+      "source": "google_maps|ads|hiring|linkedin|null",
+      "dataPoint": "Specific data or null"
+    }
+  ],
+  "enrichedGooglePresence": [
+    {
+      "insight": "What their Google rating and reviews reveal — specific numbers",
+      "data": "Exact rating, review count, key themes",
+      "bellaLine": "How Bella references this with agent tieback. E.g., 'Your 4.8 from 230 reviews is strong — Chris can highlight that social proof to every website visitor in real time.'"
+    }
+  ],
+  "enrichedHiringAnalysis": {
+    "matchedRoles": [
+      {
+        "jobTitle": "Exact title from deep data",
+        "ourAgents": ["Array of ALL agents this maps to — not just one"],
+        "wedge": "Spoken replacement pitch. Frame as scaling opportunity, not cost-cutting. Say salary as words if available.",
+        "urgency": "high|medium"
+      }
+    ],
+    "topHiringWedge": "The single most powerful hiring line. Must reference the specific role AND map to multiple agents where applicable. E.g., 'you're hiring two SDRs — Chris engages every website visitor on arrival and Alex follows up in under thirty seconds. That's your SDR function covered twenty-four seven.' null if no hiring data.",
+    "scalingNarrative": "1-2 sentences about how hiring signals show the business is growing and agents scale with them. Must mention specific roles."
+  },
+  "enrichedRouting": {
+    "priority_agents": ["Updated agent ranking incorporating deep signals — ads confirmed bumps Chris+Alex, hiring signals add relevant agents, review strength adds James consideration"],
+    "reasoning": {
+      "chris": "Updated reasoning with deep data evidence",
+      "alex": "Updated reasoning with deep data evidence",
+      "maddie": "Updated reasoning with deep data evidence"
+    },
+    "deepJustification": "1-2 sentences: what the deep data changed about the routing and why. Reference specific signals."
+  },
+  "enrichedConversationHooks": [
+    {
+      "topic": "A deep-data insight Bella can raise naturally",
+      "data": "Specific evidence from deep data",
+      "how": "How to bring it up — MUST include which agent addresses it. E.g., 'your reviews mention fast turnaround — Alex locks that in by responding to every lead instantly.'"
+    }
+  ],
+  "enrichedMostImpressive": [
+    {
+      "finding": "The single most notable finding from ALL deep data",
+      "source": "google_maps|ads|hiring|linkedin",
+      "bellaLine": "How Bella says it — with agent tieback"
+    }
+  ],
+  "adInsights": {
+    "isRunningAds": true,
+    "adSummary": "Specific: platform, count, type. E.g., '12 active Google Ads campaigns focused on commercial plumbing'",
+    "bellaLine": "How Bella references ads with agent tieback. E.g., 'you're running 12 Google Ads — Chris engages every click the moment they land, and Alex follows up anyone who bounces without converting.'"
+  }
+}
+
+FINAL CHECK — scan every string for "they"/"their" referring to the business. Replace with "you"/"your".`;
+}
+
 

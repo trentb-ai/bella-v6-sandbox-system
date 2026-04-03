@@ -39,6 +39,7 @@ export interface Env {
   WORKFLOWS_KV: KVNamespace;
   BELLAV9ORCHESTRATOR_WORKFLOW: Workflow;
   AI: Ai;
+  CONSULTANT: Fetcher;
   APIFY_TOKEN?: string;
   APIFY_API_KEY?: string;
   FIRECRAWL_KEY?: string;

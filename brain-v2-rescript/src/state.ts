@@ -79,8 +79,9 @@ export function initState(callId: string, leadId: string): ConversationState {
     chrisEligible: false,
     maddieEligible: false,
 
-    // ── 24/7 phone coverage skip ──
+    // ── Explicit skip flags ──
     maddieSkip: false,
+    chrisSkip: false,
 
     // ── Flow control ──
     proceedToROI: null,
@@ -215,6 +216,7 @@ export async function loadState(storage: DurableObjectStorage): Promise<Conversa
   if (!state.detectedInputUnits) state.detectedInputUnits = {};
   if (typeof state.kvExportVersion !== 'number') state.kvExportVersion = 0;
   if (typeof state.maddieSkip !== 'boolean') state.maddieSkip = false;
+  if (typeof state.chrisSkip !== 'boolean') state.chrisSkip = false;
   if (!Array.isArray(state.recentUserTranscripts)) state.recentUserTranscripts = [];
   if (!Array.isArray(state.rejectedWowSteps)) state.rejectedWowSteps = [];
   if (state.lastWowSentiment === undefined) state.lastWowSentiment = null;
@@ -713,8 +715,9 @@ export function migrateV1toV2(old: any): ConversationState {
     chrisEligible: ext.web_leads != null,
     maddieEligible: ext.phone_volume != null,
 
-    // ── 24/7 phone coverage skip ──
+    // ── Explicit skip flags ──
     maddieSkip: false,
+    chrisSkip: false,
 
     // ── Flow control ──
     proceedToROI: null,

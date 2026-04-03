@@ -141,50 +141,41 @@ export function maxQuestionsReached(stage: StageId, state: ConversationState): b
 
 // ─── Eligibility ────────────────────────────────────────────────────────────
 
-/** Derive agent eligibility from intel signals and conversation state. */
+/** Derive agent eligibility from intel signals and conversation state.
+ *
+ * DEFAULT: All 3 core agents (Alex, Chris, Maddie) are ELIGIBLE.
+ * Alex has priority (up to 40% value add via speed-to-lead).
+ * Only EXCLUDE an agent if there is explicit NEGATIVE evidence:
+ *   - chrisSkip: prospect confirms no website relevance at all
+ *   - maddieSkip: prospect confirms 24/7 phone coverage already handled
+ *   - explicitNoInbound: prospect says "other" source with zero web/phone/ads signals
+ * Absence of data is NOT a reason to exclude — we sell all 3.
+ */
 export function deriveEligibility(intel: MergedIntel, state: ConversationState): EligibilityResult {
-  const websiteSignals = !!(
-    intel.fast.websiteExists
-    || (intel.fast.websiteActions && intel.fast.websiteActions.length > 0)
-    || state.leadSourceDominant === 'website'
-    || state.leadSourceDominant === 'ads'
-    || state.websiteRelevant
-  );
-
-  const phoneSignals = !!(
-    intel.fast.phoneVisible
-    || (intel.fast.phoneSignals && intel.fast.phoneSignals.length > 0)
-    || state.leadSourceDominant === 'phone'
-    || state.phoneRelevant
-  );
-
   const explicitNoInbound = state.leadSourceDominant === 'other'
-    && !websiteSignals && !phoneSignals && !state.adsConfirmed;
+    && !state.websiteRelevant && !state.phoneRelevant && !state.adsConfirmed;
 
+  // Alex: always eligible unless prospect has zero inbound channels
   const alexEligible = !explicitNoInbound;
 
-  const chrisEligible = websiteSignals && (
-    state.leadSourceDominant === 'website'
-    || state.leadSourceDominant === 'ads'
-    || state.leadSourceDominant === 'organic'
-    || state.websiteRelevant
-  );
+  // Chris: eligible by default. Only excluded if prospect explicitly says website is irrelevant
+  let chrisEligible = true;
+  if (state.chrisSkip) {
+    chrisEligible = false;
+    console.log(`[GATE_SKIP] chrisEligible forced false — chrisSkip=true`);
+  }
 
-  let maddieEligible = phoneSignals && (
-    state.leadSourceDominant === 'phone'
-    || state.phoneRelevant
-  );
-
-  // 24/7 coverage override: skip Maddie if prospect confirmed full phone coverage
+  // Maddie: eligible by default. Only excluded if prospect confirms 24/7 phone coverage
+  let maddieEligible = true;
   if (state.maddieSkip) {
     maddieEligible = false;
     console.log(`[GATE_SKIP] maddieEligible forced false — maddieSkip=true (24/7 coverage)`);
   }
 
   const whyRecommended: string[] = [];
-  if (alexEligible) whyRecommended.push('Alex: inbound demand signals detected — speed-to-lead uplift likely.');
-  if (chrisEligible) whyRecommended.push('Chris: website actions or web-sourced leads — conversion uplift applies.');
-  if (maddieEligible) whyRecommended.push('Maddie: phone signals detected — missed call recovery opportunity.');
+  if (alexEligible) whyRecommended.push('Alex: speed-to-lead — up to 40% value add. Priority agent.');
+  if (chrisEligible) whyRecommended.push('Chris: website conversion agent — engages every visitor.');
+  if (maddieEligible) whyRecommended.push('Maddie: AI receptionist — every missed call is a missed sale.');
 
   return { alexEligible, chrisEligible, maddieEligible, whyRecommended };
 }

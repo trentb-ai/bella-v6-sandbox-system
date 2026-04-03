@@ -20,6 +20,11 @@ class_name = "BellaV9Orchestrator"
 # FIRECRAWL_KEY
 # GEMINI_API_KEY
 
+# ─── Service Bindings ──────────────────────────────────────────────────────────
+[[services]]
+binding = "CONSULTANT"
+service = "consultant-v10"
+
 [ai]
 binding = "AI"
 

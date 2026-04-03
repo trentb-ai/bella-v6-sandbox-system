@@ -267,8 +267,9 @@ export interface ConversationState {
   chrisEligible: boolean;
   maddieEligible: boolean;
 
-  // ── 24/7 phone coverage skip ──
+  // ── Explicit skip flags (only set by prospect feedback, never by data absence) ──
   maddieSkip: boolean;
+  chrisSkip: boolean;
 
   // ── Flow control ──
   proceedToROI?: boolean | null;

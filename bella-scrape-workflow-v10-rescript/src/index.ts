@@ -1,6 +1,6 @@
 // bella-scrape-workflow-v9 — Modular rewrite of deployed.js
 // Class name: BellaV9Orchestrator (MUST stay identical)
-// VERSION: v1.3.0-fix-deep-status-unconditional
+// VERSION: v1.6.0-consultant-pass2
 // All business logic extracted VERBATIM into step modules
 import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from "cloudflare:workers";
 import type { Env, WorkflowResults, WorkflowState, WorkflowPayload } from './lib/types';
@@ -15,6 +15,7 @@ import { extractDeep } from './steps/extract-deep';
 import { scrapeAdPages } from './steps/scrape-ad-pages';
 import { geminiDeepInsights } from './steps/gemini-deep-insights';
 import { writeDeepFlags } from './steps/write-deep-flags';
+import { consultantPass2 } from './steps/consultant-pass2';
 import { readDeepFlags } from './steps/read-deep-flags';
 import { buildIntel } from './steps/build-intel';
 import { writeIntel } from './steps/write-intel';
@@ -75,6 +76,9 @@ export class BellaV9Orchestrator extends WorkflowEntrypoint<Env, WorkflowPayload
 
     // ── Step 14: Write deep_flags ──
     await writeDeepFlags(step, env, _workflowResults, _workflowState, instanceId, payload);
+
+    // ── Step 14b: Consultant Pass 2 — enrich with deep data (non-fatal) ──
+    await consultantPass2(step, env, _workflowResults, _workflowState, instanceId, payload);
 
     // ── Step 15: Read deep_flags ──
     await readDeepFlags(step, env, _workflowResults, _workflowState, instanceId, payload);

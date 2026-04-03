@@ -27,6 +27,12 @@ export async function writeDeepFlags(
       await env.WORKFLOWS_KV.put(key, value, {
         expirationTtl: 86400
       });
+      // Dual-write: v2 key for new schema
+      const keyV2 = `lead:${results.step_entry_0.lid}:deep-flags:v2`;
+      await env.WORKFLOWS_KV.put(keyV2, value, {
+        expirationTtl: 86400
+      });
+      console.log(`[DEEP_FLAGS_V2] lid=${results.step_entry_0.lid} key=deep-flags:v2 written`);
       const result = { success: true, key };
       state["node-kv-deep-flags"] = {
         input: inputData,

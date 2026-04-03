@@ -87,6 +87,11 @@ export async function writeIntel(
       if (!intel.intel) intel.intel = {};
       intel.intel.deep = { ...(intel.intel.deep || {}), status: 'done', ts_done: ts };
       await env.WORKFLOWS_KV.put(intelKey, JSON.stringify(intel), { expirationTtl: 3600 });
+      // Dual-write: deep-status:v2 standalone key
+      const deepStatusV2Key = `lead:${lid}:deep-status:v2`;
+      const deepStatusV2Value = JSON.stringify({ status: 'done', ts_done: ts });
+      await env.WORKFLOWS_KV.put(deepStatusV2Key, deepStatusV2Value, { expirationTtl: 3600 });
+      console.log(`[DEEP_STATUS_V2] lid=${lid} key=deep-status:v2 written, ts_done=${ts}`);
       console.log(`[DEEP_STATUS_STAMP_INTEL] lid=${lid} intel key deep.status stamped done (both paths)`);
       return { stamped: true };
     });

@@ -1444,6 +1444,14 @@ async function writeFastIntelToKV(
   await env.LEADS_KV.put(`lead:${lid}:fast-intel`, str);
 
   log("KV", `Written lid=${lid}:fast-intel biz="${fastIntel.core_identity.business_name}" fn="${fn}" ${str.length} bytes`);
+
+  // PASS1: Write consultant object separately for direct access by bridge
+  // 24h TTL to support pass 2 reference during deep-scrape enrichment
+  if (fastIntel.consultant) {
+    const consultantStr = JSON.stringify(fastIntel.consultant);
+    await env.LEADS_KV.put(`lead:${lid}:consultant:pass1:v2`, consultantStr, { expirationTtl: 86400 });
+    log("PASS1_WRITE", `lid=${lid} key=consultant:pass1:v2 keys=${Object.keys(fastIntel.consultant).length}`);
+  }
 }
 
 

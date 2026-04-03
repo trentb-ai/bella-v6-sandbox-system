@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.12.0'; // MERGE FIX: consultant data now persists through workflow to intel envelope
+const VERSION = 'v6.13.0'; // v2 explicit KV reads + all-3-agents eligibility default
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
@@ -640,7 +640,7 @@ export class CallBrainDO {
       let kvIntel: Record<string, any> | null = null;
       if (!starterIntel && leadId && leadId !== 'unknown') {
         try {
-          const [stubRaw, fastIntelRaw, deepIntelRaw, deepFlagsRaw, intelRaw, callBriefRaw, deepScriptFillsRaw] = await Promise.all([
+          const [stubRaw, fastIntelRaw, deepIntelRaw, deepFlagsRaw, intelRaw, callBriefRaw, deepScriptFillsRaw, consultantPass1V2Raw, consultantPass2V2Raw, deepFlagsV2Raw, deepStatusV2Raw] = await Promise.all([
             this.env.LEADS_KV.get(`lead:${leadId}:stub`, 'json'),
             this.env.LEADS_KV.get(`lead:${leadId}:fast-intel`, 'json'),
             this.env.LEADS_KV.get(`lead:${leadId}:deepIntel`, 'json'),
@@ -648,9 +648,14 @@ export class CallBrainDO {
             this.env.LEADS_KV.get(`lead:${leadId}:intel`, 'json'),
             this.env.LEADS_KV.get(`lead:${leadId}:call_brief`, 'json'),
             this.env.LEADS_KV.get(`lead:${leadId}:deep_scriptFills`, 'json'),
-          ]) as [Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null];
+            // v2 explicit keys — each writer owns its own key, no clobbering
+            this.env.LEADS_KV.get(`lead:${leadId}:consultant:pass1:v2`, 'json'),
+            this.env.LEADS_KV.get(`lead:${leadId}:consultant:pass2:v2`, 'json'),
+            this.env.LEADS_KV.get(`lead:${leadId}:deep-flags:v2`, 'json'),
+            this.env.LEADS_KV.get(`lead:${leadId}:deep-status:v2`, 'json'),
+          ]) as [Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null, Record<string, any> | null];
 
-          const hasSomething = stubRaw || fastIntelRaw || deepIntelRaw || deepFlagsRaw || intelRaw || callBriefRaw || deepScriptFillsRaw;
+          const hasSomething = stubRaw || fastIntelRaw || deepIntelRaw || deepFlagsRaw || intelRaw || callBriefRaw || deepScriptFillsRaw || consultantPass1V2Raw || consultantPass2V2Raw;
           if (hasSomething) {
             // Strip fast-intel placeholder deep field (matches bridge behavior)
             if (fastIntelRaw?.deep && Object.keys(fastIntelRaw.deep).length === 1 && fastIntelRaw.deep.status === 'processing') {
@@ -714,6 +719,47 @@ export class CallBrainDO {
               console.log(`[KV_HYDRATE_FILLS] lid=${leadId} deepInsights=${deepScriptFillsRaw.deepInsights?.length ?? 0} heroReview=${!!deepScriptFillsRaw.heroReview?.available}`);
             }
 
+            // ── v2 explicit key injection ──
+            // consultant:pass1:v2 — direct consultant data (no merge collision)
+            if (consultantPass1V2Raw && typeof consultantPass1V2Raw === 'object') {
+              merged.consultant = consultantPass1V2Raw;
+              console.log(`[KV_HYDRATE_PASS1_V2] lid=${leadId} keys=${Object.keys(consultantPass1V2Raw).length}`);
+            }
+
+            // consultant:pass2:v2 — deep-enriched consultant data (WOW6+ and Recommendation)
+            // Merges INTO deep.deep_scriptFills so moves.ts reads it at the expected path
+            if (consultantPass2V2Raw && typeof consultantPass2V2Raw === 'object' && !consultantPass2V2Raw._fallback) {
+              if (!merged.deep) merged.deep = { status: 'done' };
+              merged.deep.deep_scriptFills = {
+                ...(merged.deep.deep_scriptFills || {}),
+                ...consultantPass2V2Raw,
+              };
+              // Also update routing with enriched version if available
+              if (consultantPass2V2Raw.enrichedRouting?.priority_agents) {
+                if (!merged.consultant) merged.consultant = {};
+                merged.consultant.routing = {
+                  ...(merged.consultant.routing || {}),
+                  ...consultantPass2V2Raw.enrichedRouting,
+                };
+              }
+              // Update hiring analysis with multi-agent mapping
+              if (consultantPass2V2Raw.enrichedHiringAnalysis) {
+                if (!merged.consultant) merged.consultant = {};
+                merged.consultant.hiringAnalysis = {
+                  ...(merged.consultant.hiringAnalysis || {}),
+                  ...consultantPass2V2Raw.enrichedHiringAnalysis,
+                };
+              }
+              console.log(`[KV_HYDRATE_PASS2_V2] lid=${leadId} insights=${consultantPass2V2Raw.deepInsights?.length ?? 0} routing=${!!consultantPass2V2Raw.enrichedRouting}`);
+            }
+
+            // deep-status:v2 — standalone deep completion status
+            if (deepStatusV2Raw && deepStatusV2Raw.status === 'done') {
+              if (!merged.deep) merged.deep = { status: 'done' };
+              merged.deep.status = 'done';
+              merged.deep.ts_done = deepStatusV2Raw.ts_done;
+            }
+
             // call_brief takes highest precedence when it has a valid status field
             if (callBriefRaw && callBriefRaw.status) {
               merged = deepMerge(merged, callBriefRaw);
@@ -726,6 +772,10 @@ export class CallBrainDO {
               deepIntelRaw ? 'deepIntel' : null, deepFlagsRaw ? 'deep_flags' : null,
               intelRaw ? 'intel' : null, callBriefRaw ? 'call_brief' : null,
               deepScriptFillsRaw ? 'deep_scriptFills' : null,
+              consultantPass1V2Raw ? 'pass1:v2' : null,
+              consultantPass2V2Raw ? 'pass2:v2' : null,
+              deepFlagsV2Raw ? 'deep-flags:v2' : null,
+              deepStatusV2Raw ? 'deep-status:v2' : null,
             ].filter(Boolean);
             console.log(`[KV_HYDRATE] lid=${leadId} sources=[${sources.join(',')}] consultant=${!!kvIntel.consultant} biz=${(kvIntel.business_name ?? 'none').slice(0, 30)}`);
           } else {
@@ -773,11 +823,12 @@ export class CallBrainDO {
         const flags = src.flags ?? {};
         if (src.websiteExists || ts.has_chat !== undefined || ts.has_booking !== undefined) brain.websiteRelevant = true;
         if (src.phoneVisible) brain.phoneRelevant = true;
+        const deepAds = src.deep?.ads ?? {};
         if (flags.is_running_ads || ts.is_running_ads
-            || deepFlagsRaw?.is_running_fb_ads
-            || deepFlagsRaw?.is_running_google_ads
-            || (deepFlagsRaw?.fb_ads_count ?? 0) > 0
-            || (deepFlagsRaw?.google_ads_transparency_count ?? 0) > 0) brain.adsConfirmed = true;
+            || deepAds.is_running_fb_ads
+            || deepAds.is_running_google_ads
+            || (deepAds.fb_ads_count ?? 0) > 0
+            || (deepAds.google_ads_count ?? 0) > 0) brain.adsConfirmed = true;
 
         // Seed Places into deep.googleMaps for wow_2 reputation step
         const gm = src.deep?.googleMaps ?? src.places;
