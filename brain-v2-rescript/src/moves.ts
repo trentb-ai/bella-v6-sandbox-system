@@ -430,7 +430,7 @@ function buildWowDirective(
       console.log(`[WOW2_RESOLVE] ts=${new Date().toISOString()} branch=FIRE rating=${googleRating} reviews=${googleReviews} biz=${business.slice(0, 30)}`);
       state.trialMentioned = true;
 
-      let wow2Speak = `And just before we get into it, I noticed ${business} is sitting on ${googleRating} stars from ${googleReviews} reviews, which is a strong trust signal. That makes this even more interesting, because when the agent experience behind the scenes matches the quality people already expect from the front end, results tend to move quickly. We do offer a limited number of free trials to businesses with strong Google ratings. They're available only while you're on this call, because we have all your data saved so its quick to set you up. So if you like what you hear today, we can activate the free trial at any point during the demo.`;
+      let wow2Speak = `And just before we get into it, I noticed ${business} is sitting on ${googleRating} stars from ${googleReviews} reviews, which is a strong trust signal. That makes this even more interesting, because when the agent experience behind the scenes matches the quality people already expect from the front end, results tend to move quickly. We do offer a limited number of free trials to businesses with strong Google ratings. They're available only while you're on this call, because we have all your data saved so it's quick to set you up. So if you like what you hear today, we can activate the free trial at any point during the demo.`;
 
       const heroReviewSummary = (state.intel.deep as any)?.deep_scriptFills?.heroReview?.summary ?? null;
       // FUTURE: Consultant should include full reviewer name if available for added credibility
@@ -559,15 +559,26 @@ function buildWowDirective(
       let wow4Branch: string;
       let conversionLine: string;
 
-      if (conversionNarrative && conversionNarrative.length > 30) {
+      // Guard: reject consultant narrative if it contains broken grammar fragments
+      // Detects: incomplete sentence endings (trailing comma, lowercase end), broken fragments
+      const isBrokenText = (s: string): boolean =>
+        /,\s*$/.test(s)                          // ends with comma (incomplete)
+        || /[a-z]\s*$/.test(s) && !/[.!?'"]\s*$/.test(s) // ends lowercase without punctuation
+        || /^(while|if|also|and)\s+this\s+is\s+(also\s+)?look/i.test(s); // known broken pattern
+      const safeNarrative = conversionNarrative && conversionNarrative.length > 30
+        && !isBrokenText(conversionNarrative) ? conversionNarrative : '';
+      const safeTrainingLine = agentTrainingLine && agentTrainingLine.length > 30
+        && !isBrokenText(agentTrainingLine) ? agentTrainingLine : '';
+
+      if (safeNarrative) {
         wow4Branch = 'CONVERSION_NARRATIVE';
-        conversionLine = conversionNarrative;
+        conversionLine = safeNarrative;
         if (!/\?/.test(conversionLine.slice(-40))) {
           conversionLine += ' Does that capture the main ways people engage with you?';
         }
-      } else if (agentTrainingLine && agentTrainingLine.length > 30) {
+      } else if (safeTrainingLine) {
         wow4Branch = 'AGENT_TRAINING_LINE';
-        conversionLine = agentTrainingLine;
+        conversionLine = safeTrainingLine;
         if (!/\?/.test(conversionLine.slice(-40))) {
           conversionLine += ' Does that sound right?';
         }
@@ -616,8 +627,10 @@ function buildWowDirective(
         wow5Speak = trainingBridgeLine;
         console.log(`[WOW5_RESOLVE] ts=${new Date().toISOString()} adaptive=false branch=TRAINING_BRIDGE`);
       } else {
-        wow5Speak = `Perfect. So now I've got a clear picture of who you want more of, what they come to you for, and the actions you want them taking. That's exactly the layer your agent team performs against.`;
-        console.log(`[WOW5_RESOLVE] ts=${new Date().toISOString()} adaptive=false branch=HARDCODED`);
+        const icpGuessClean = typeof fills.icp_guess === 'string' ? cleanConsultantField(fills.icp_guess) : '';
+        const icpRef = state.confirmedICP === true && icpGuessClean ? ` — like ${icpGuessClean}` : '';
+        wow5Speak = `Perfect. So now I've got a clear picture of who you want more of${icpRef}, what they come to you for, and the actions you want them taking. That's exactly the layer your agent team performs against.`;
+        console.log(`[WOW5_RESOLVE] ts=${new Date().toISOString()} adaptive=false branch=GENERIC icpRef=${!!icpRef}`);
       }
       if (!state.trialMentioned) {
         wow5Speak += ` If this is feeling like a fit as we go, we can activate the free trial at any point.`;
@@ -678,7 +691,7 @@ function buildWowDirective(
           wow6Source = 'SCRAPED_SUMMARY';
           const innerObservation = scrapedSummary;
           const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
-          observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
+          observationLine = `One more thing I noticed — ${innerObservation.replace(/[.!?]+\s*$/, '')}. ${suffix}`;
           if (!state.spokenDeepInsightIds) state.spokenDeepInsightIds = [];
           state.spokenDeepInsightIds.push('deep_insight_wow6');
         } else {
@@ -695,38 +708,34 @@ function buildWowDirective(
         wow6Source = 'SCRAPED_SUMMARY';
         const innerObservation = scrapedSummary;
         const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
-        observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
+        observationLine = `One more thing I noticed — ${innerObservation.replace(/[.!?]+\s*$/, '')}. ${suffix}`;
       }
-      if (!observationLine && googlePresence[0]?.bellaLine) {
-        wow6Source = 'GOOGLE_PRESENCE';
-        const innerObservation = googlePresence[0].bellaLine;
-        const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
-        observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
-      }
+      // REMOVED: googlePresence tier — WOW2 already speaks Google rating.
+      // Using it again here sounds repetitive and kills credibility.
       if (!observationLine && mostImpressiveLine) {
         wow6Source = 'MOST_IMPRESSIVE';
         const innerObservation = mostImpressiveLine;
         const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
-        observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
+        observationLine = `One more thing I noticed — ${innerObservation.replace(/[.!?]+\s*$/, '')}. ${suffix}`;
       }
       if (!observationLine && hooks[0]) {
         wow6Source = 'HOOK';
         const hook = hooks[0];
         const innerObservation = hook.how ? `${hook.how} — ${hook.data || hook.topic}` : `${hook.topic}: ${hook.data}`;
         const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
-        observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
+        observationLine = `One more thing I noticed — ${innerObservation.replace(/[.!?]+\s*$/, '')}. ${suffix}`;
       }
       if (!observationLine && topHiringWedge) {
         wow6Source = 'HIRING';
         const innerObservation = topHiringWedge;
         const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
-        observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
+        observationLine = `One more thing I noticed — ${innerObservation.replace(/[.!?]+\s*$/, '')}. ${suffix}`;
       }
       if (!observationLine && hiringMatches.length > 0) {
         wow6Source = 'MATCH';
         const topMatch = hiringMatches[0];
         const innerObservation = `you're hiring for ${topMatch.role || topMatch.title || 'a key role'} — that's a role Maddie or Alex could handle automatically`;
-        observationLine = `One more thing I noticed — ${innerObservation}. That's where I'd start.`;
+        observationLine = `One more thing I noticed — ${innerObservation.replace(/[.!?]+\s*$/, '')}. That's where I'd start.`;
       }
       if (!observationLine) {
         // Priority 7: Deep intel direct fallback (Sprint 2 — Issue 3/4)
@@ -735,7 +744,7 @@ function buildWowDirective(
           wow6Source = deepFallback.source;
           const innerObservation = deepFallback.line;
           const suffix = /\b(Alex|Chris|Maddie)\b/i.test(innerObservation) ? "That's where I'd start." : "That's another place your agents could create lift very quickly.";
-          observationLine = `One more thing I noticed — ${innerObservation}. ${suffix}`;
+          observationLine = `One more thing I noticed — ${innerObservation.replace(/[.!?]+\s*$/, '')}. ${suffix}`;
         }
       }
       if (!observationLine) {
@@ -827,7 +836,7 @@ function buildWowDirective(
         ask: true,
         waitForUser: true,
         canSkip: false,
-        extract: ['leadSourceDominant', 'leadSourceSecondary', 'adsConfirmed', 'websiteRelevant', 'phoneRelevant'],
+        extract: ['leadSourceDominant', 'leadSourceSecondary', 'adsConfirmed', 'websiteRelevant', 'phoneRelevant', 'inboundLeads', 'webLeads'],
         advanceOn: ['recommendation'],
         notes: [
           `If prospect gives vague reply, follow up: "Got it — and do you see more new business coming through ${fills.cta1 ?? 'your website'}, ${fills.cta2 ?? 'ads'}, or phone calls?"`,

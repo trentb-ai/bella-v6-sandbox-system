@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.39.0"; // FIX: ttsAcronym removed — stops KPMG spelling out as K.P.M.G.
+const VERSION = "9.40.0"; // P0: stream hang fix, P1: reviews data corruption fix, P2: SHA-256 turnId dedup
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -262,11 +262,14 @@ async function loadMergedIntel(lid: string, env: Env): Promise<Record<string, an
   // Workflow writes snake_case (google_maps, fb_ads_count, indeed_count)
   // Bridge expects camelCase (googleMaps { rating, review_count, recent_reviews }, hiring { is_hiring })
   if (deepFlags.google_rating !== undefined || deepFlags.google_maps || deepFlags.linkedin || deepFlags.indeed_count || deepFlags.google_search_count || deepFlags.google_ads_transparency_count) {
+    // P1 FIX: Preserve existing Places rating/reviews — deep_flags null/0 must NOT overwrite valid data
+    const existingRating = intel.deep?.googleMaps?.rating ?? fast?.places?.rating ?? fast?.star_rating ?? null;
+    const existingReviews = intel.deep?.googleMaps?.review_count ?? fast?.places?.review_count ?? 0;
     intel.deep = {
       status: "done",
       googleMaps: {
-        rating: deepFlags.google_rating ?? null,
-        review_count: deepFlags.review_count ?? 0,
+        rating: (deepFlags.google_rating != null && deepFlags.google_rating > 0) ? deepFlags.google_rating : existingRating,
+        review_count: (deepFlags.review_count != null && deepFlags.review_count > 0) ? deepFlags.review_count : existingReviews,
         address: deepFlags.address ?? "",
         categories: deepFlags.categories ?? [],
         reviews_sample: deepFlags.reviews_sample ?? [],
@@ -2324,11 +2327,18 @@ async function streamToDeepgram(
       log("BELLA_SAID", sanitizedResponse.slice(0, 2000));
       log("GEMINI_DONE", `total=${totalMs}ms chunks=${chunkCount} first_chunk=${firstContentAt}ms`);
       await writer.write(enc.encode("data: [DONE]\n\n"));
-      // Fire llm_reply_done callback after stream completes (once only)
-      // Uses sanitized response — no prompt artifacts reach DO state
+      // P0 FIX: close writer IMMEDIATELY after [DONE] — never block on callback
+      // Old code awaited doReplyCallback here, which fetches brain DO.
+      // If DO stalled, writer.close() never ran → CF detected hung worker → call death.
+      writer.close().catch(() => { });
+      // Fire callback fire-and-forget — ctx.waitUntil keeps worker alive
       if (doReplyCallback && !replySent) {
         replySent = true;
-        try { await doReplyCallback(sanitizedResponse); } catch { }
+        if (ctx) {
+          ctx.waitUntil(Promise.resolve().then(() => doReplyCallback(sanitizedResponse)).catch(() => {}));
+        } else {
+          try { await doReplyCallback(sanitizedResponse); } catch { }
+        }
       }
     } catch (e) {
       const errStr = String(e);
@@ -2340,7 +2350,11 @@ async function streamToDeepgram(
         const sanitizedResponse = stripApologies(responseText);
         if (doReplyCallback && !replySent) {
           replySent = true;
-          try { await doReplyCallback(sanitizedResponse); } catch { }
+          if (ctx) {
+            ctx.waitUntil(Promise.resolve().then(() => doReplyCallback(sanitizedResponse)).catch(() => {}));
+          } else {
+            try { await doReplyCallback(sanitizedResponse); } catch { }
+          }
         }
       } else {
         // True failure — no response at all or genuine Gemini error
@@ -2415,9 +2429,15 @@ function streamDeterministicResponse(
       log("DETERMINISTIC_DELIVERY", `streamed ${text.length} chars`);
       log("BELLA_SAID", text.slice(0, 2000));
 
-      // Fire reply callback with exact text — DO gets the precise spoken text
+      // P0 FIX: close writer IMMEDIATELY — never block on callback
+      writer.close().catch(() => {});
+      // Fire reply callback fire-and-forget
       if (doReplyCallback) {
-        try { await doReplyCallback(text); } catch { }
+        if (ctx) {
+          ctx.waitUntil(Promise.resolve().then(() => doReplyCallback(text)).catch(() => {}));
+        } else {
+          try { await doReplyCallback(text); } catch { }
+        }
       }
     } finally {
       writer.close().catch(() => {});
@@ -2849,7 +2869,11 @@ export default {
     if (useDoPath) {
       const utt = lastUser(messages);
       const turnNum = messages.length;
-      log('DO_PATH', `lid=${lid} turn=${turnNum} utt_chars=${utt.length}`);
+      // P2 FIX: SHA-256 content-hash turnId — same utterance = same hash = stable dedup
+      // Old code used plain turnNum which caused false dedup hits on retransmits with different content
+      const turnIdHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${turnNum}:${utt}`));
+      const turnId = `${turnNum}_${[...new Uint8Array(turnIdHash.slice(0, 8))].map(b => b.toString(16).padStart(2, '0')).join('')}`;
+      log('DO_PATH', `lid=${lid} turn=${turnNum} turnId=${turnId} utt_chars=${utt.length}`);
 
       // Extract identity from loaded intel for DO (bridge always has KV data)
       const ci = intel.core_identity ?? {};
@@ -2880,7 +2904,7 @@ export default {
       };
       log('DO_IDENTITY', `fn="${doIdentity.firstName}" biz="${doIdentity.businessName}" ind="${doIdentity.industry}" supp_rating=${_suppRating ?? 'none'} supp_consultant=${!!_suppConsultant} supp_deep=${!!_suppDeep} supp_fast=${!!_suppFast}`);
 
-      const doResult = await callDOTurn(lid, utt, String(turnNum), env, doIdentity);
+      const doResult = await callDOTurn(lid, utt, turnId, env, doIdentity);
       if (!doResult) {
         // DO failed — fall through to old path
         log('DO_FALLBACK', `DO call failed for lid=${lid} — falling back to old path`);
@@ -3228,7 +3252,10 @@ export default {
     if (shadowMode) {
       const shadowUtt = lastUser(messages);
       const shadowTurnNum = messages.length;
-      ctx.waitUntil(shadowDOCall(lid!, shadowUtt, String(shadowTurnNum), shadowTurnNum, s.stage, s.stall, intel, env));
+      // P2 FIX: SHA-256 content-hash for shadow path too
+      const shadowHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${shadowTurnNum}:${shadowUtt}`));
+      const shadowTurnId = `shadow_${shadowTurnNum}_${[...new Uint8Array(shadowHash.slice(0, 8))].map(b => b.toString(16).padStart(2, '0')).join('')}`;
+      ctx.waitUntil(shadowDOCall(lid!, shadowUtt, shadowTurnId, shadowTurnNum, s.stage, s.stall, intel, env));
     }
 
     // ── System message: DIRECTIVE FIRST, then reference data ─────

@@ -255,7 +255,7 @@ export interface ConversationState {
   explorePreference: ExplorePreference;
   routingConfidence: RoutingConfidence;
   leadSourceDominant: LeadSource;
-  leadSourceSecondary?: string | null;
+  leadSourceSecondary?: LeadSource;
 
   // ── Channel relevance flags ──
   websiteRelevant: boolean;

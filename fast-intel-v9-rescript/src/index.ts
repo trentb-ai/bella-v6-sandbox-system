@@ -36,7 +36,7 @@ import { Env, FastIntelResult, ConsultantPayload } from "./types";
 
 export { Env };
 
-const VERSION = "1.16.0"; // TASK3-BUGA: fix fireApifyEarly payload field names — url/name match WorkflowPayload type
+const VERSION = "1.18.0"; // fix: unconditional deep scrape trigger — was gated on fast consultant success
 // KV_TTL removed — data persists permanently
 
 const CORS = {
@@ -346,10 +346,10 @@ function extractBizNameSignals(html: string): { jsonLdName: string; footerCopyri
 }
 
 // ─── Fire Apify early — called from fast consultant callback ─────────────────
-function fireApifyEarly(lid: string, websiteUrl: string, businessName: string, env: Env) {
+function fireApifyEarly(lid: string, websiteUrl: string, businessName: string, env: Env, ctx?: ExecutionContext) {
   log("APIFY_EARLY", `lid=${lid} biz="${businessName}" — firing Apify from fast consultant`);
   try {
-    env.DEEP_SCRAPE.fetch(
+    const triggerPromise = env.DEEP_SCRAPE.fetch(
       new Request("https://deep-scrape/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -359,6 +359,8 @@ function fireApifyEarly(lid: string, websiteUrl: string, businessName: string, e
     .then(r => r.json())
     .then(d => log("APIFY_EARLY_OK", `lid=${lid} ${JSON.stringify(d)}`))
     .catch(e => log("APIFY_EARLY_ERR", `lid=${lid} ${e.message}`));
+    // Ensure the trigger completes even after response is sent
+    if (ctx) ctx.waitUntil(triggerPromise);
   } catch (e: any) {
     log("APIFY_EARLY_ERR", `lid=${lid} ${e.message}`);
   }
@@ -523,7 +525,8 @@ async function runFastIntel(
   lid: string,
   websiteUrl: string,
   firstName: string,
-  env: Env
+  env: Env,
+  ctx?: ExecutionContext
 ): Promise<FastIntelResult> {
   const t0 = Date.now();
   const domain = extractDomain(websiteUrl);
@@ -531,6 +534,7 @@ async function runFastIntel(
   const bizNameTitle = bizName.charAt(0).toUpperCase() + bizName.slice(1);
   const fn = normaliseName(firstName);
 
+  let apifyEarlyFired = false;
   log("START", `lid=${lid} url=${websiteUrl} firstName=${fn}`);
 
   // ── Step 1: Parallel scrape — Firecrawl + direct fetch race ──────────────
@@ -679,7 +683,8 @@ async function runFastIntel(
         log("CONSULTANT_FAST", `Done in ${Date.now() - t2}ms name=${r.correctedName ?? "?"}`);
         // Fire Apify immediately with confirmed name
         const confirmedName = r.correctedName || scrapedBizName;
-        fireApifyEarly(lid, websiteUrl, confirmedName, env);
+        fireApifyEarly(lid, websiteUrl, confirmedName, env, ctx);
+        apifyEarlyFired = true;
         // Write starter scriptFills to KV so bridge has data when call connects
         const starterFills: Record<string, any> = {
           business_name: confirmedName,
@@ -782,6 +787,17 @@ async function runFastIntel(
   // Fast consultant is the authority on name, full consultant for everything else
   const bi = consultant?.businessIdentity ?? {};
   const resolvedBizName = bi.correctedName || scrapedBizName;
+
+  // ── Unconditional deep scrape trigger ─────────────────────────────────────
+  // fireApifyEarly was previously only called inside the fast consultant
+  // .then() callback — if fast consultant returned null (common for JS-rendered
+  // sites like mcgrath.com.au), the deep scrape workflow was never triggered.
+  // Now we fire unconditionally with the best name we have.
+  if (!apifyEarlyFired) {
+    fireApifyEarly(lid, websiteUrl, resolvedBizName || bizNameTitle, env, ctx);
+    apifyEarlyFired = true;
+    log("TRIGGER_FALLBACK", `lid=${lid} name="${resolvedBizName || bizNameTitle}" — unconditional trigger (fast consultant didn't fire it)`);
+  }
 
   const sf = consultant?.scriptFills ?? {};
 
@@ -1538,7 +1554,7 @@ export default {
       log("REQUEST", `POST /fast-intel lid=${lid} url=${websiteUrl} fn=${firstName}`);
 
       // Run fast intel pipeline
-      const fastIntel = await runFastIntel(lid, websiteUrl, firstName, env);
+      const fastIntel = await runFastIntel(lid, websiteUrl, firstName, env, ctx);
 
       // P2-T1: Google Places cross-ref — verify name, grab rating + reviews
       if (env.GOOGLE_PLACES_API_KEY) {

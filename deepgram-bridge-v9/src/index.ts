@@ -27,7 +27,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.16.0-channel-confinement"; // Channel constraint + memory injection in DO prompt
+const VERSION = "9.17.0-turnId-dedup-fix"; // Unique turnId per request — fixes dedup false hits under retransmit/barge-in
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2607,7 +2607,10 @@ export default {
       }
 
       // POST /turn → get NextTurnPacket
-      const doResult = await callDOTurn(lid, utt, String(turnNum), env);
+      // turnId = content hash of utterance + turn number — stable across retransmits of same content
+      const turnIdHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${turnNum}:${utt}`));
+      const turnId = `${turnNum}_${[...new Uint8Array(turnIdHash.slice(0, 8))].map(b => b.toString(16).padStart(2, '0')).join('')}`;
+      const doResult = await callDOTurn(lid, utt, turnId, env);
       if (!doResult) {
         // DO failed — fall through to old path
         log('DO_FALLBACK', `DO call failed for lid=${lid} — falling back to old path`);
@@ -2808,7 +2811,9 @@ export default {
     if (shadowMode) {
       const shadowUtt = lastUser(messages);
       const shadowTurnNum = messages.length;
-      ctx.waitUntil(shadowDOCall(lid!, shadowUtt, String(shadowTurnNum), shadowTurnNum, s.stage, s.stall, intel, env));
+      const shadowHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${shadowTurnNum}:${shadowUtt}`));
+      const shadowTurnId = `shadow_${shadowTurnNum}_${[...new Uint8Array(shadowHash.slice(0, 8))].map(b => b.toString(16).padStart(2, '0')).join('')}`;
+      ctx.waitUntil(shadowDOCall(lid!, shadowUtt, shadowTurnId, shadowTurnNum, s.stage, s.stall, intel, env));
     }
 
     // ── System message: DIRECTIVE FIRST, then reference data ─────

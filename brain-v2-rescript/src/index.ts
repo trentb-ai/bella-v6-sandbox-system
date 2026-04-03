@@ -58,12 +58,13 @@ import {
   resolveDeliveryBargedIn,
   resolveDeliveryFailed,
   resolveDeliveryTimeout,
+  computeMoveId,
 } from './flow';
 import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.13.0'; // v2 explicit KV reads + all-3-agents eligibility default
+const VERSION = 'v6.16.1'; // fix directive lag + remove blocking spoken gate (log-only)
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
@@ -109,7 +110,7 @@ function extractTargetsForStage(stage: StageId, wowStep?: WowStepId | null): str
     case 'greeting':              return [];
     case 'wow': {
       if (wowStep === 'wow_8_source_check') {
-        return ['leadSourceDominant', 'adsConfirmed', 'websiteRelevant', 'phoneRelevant', '_just_demo'];
+        return ['leadSourceDominant', 'leadSourceSecondary', 'adsConfirmed', 'websiteRelevant', 'phoneRelevant', 'inboundLeads', 'webLeads', '_just_demo'];
       }
       return ['_just_demo'];
     }
@@ -1137,7 +1138,17 @@ export class CallBrainDO {
     // ── 3. FLOW HARNESS ──
     const flowResult = processFlow(brain, intel, cleanTranscript, turnId, Date.now());
     const advanced = flowResult.advanced;
-    let directive = flowResult.directive;
+    // If flow advanced, rebuild directive + moveId from FINAL state — otherwise response
+    // returns the OLD step's directive (causes 2-turn repetition + moveId mismatch).
+    let directive: ReturnType<typeof buildStageDirective>;
+    let resolvedMoveId: string;
+    if (advanced) {
+      directive = buildStageDirective({ stage: brain.currentStage, wowStep: brain.currentWowStep, intel, state: brain });
+      resolvedMoveId = computeMoveId(brain).moveId;
+    } else {
+      directive = flowResult.directive;
+      resolvedMoveId = flowResult.moveId;
+    }
 
     // ── 3b. POST-ADVANCE RE-EXTRACTION ────────────────────────────────────
     // When processFlow advances into a channel stage, re-extract from recent
@@ -1257,7 +1268,7 @@ export class CallBrainDO {
     // Sprint 1A: pass semantic moveId from processFlow so bridge sends it back in callDOLlmReplyDone.
     // This ensures resolveDeliveryCompleted correlation check passes and spoken.moveIds gets the
     // correct _synthesis suffix for Phase 2 advancement gating.
-    const packet = directiveToPacket(directive, brain, flowResult.moveId);
+    const packet = directiveToPacket(directive, brain, resolvedMoveId);
 
     // ── 7. Update watchdog ──
     brain.watchdog.lastTurnAt = new Date().toISOString();

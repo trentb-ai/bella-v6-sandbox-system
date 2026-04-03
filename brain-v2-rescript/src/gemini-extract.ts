@@ -190,6 +190,11 @@ const STAGE_SCHEMAS: Record<string, Record<string, FieldSpec>> = {
       enum: ['website', 'ads', 'phone', 'organic', 'other'],
       description: 'Primary source of new business. "website/online/forms"→website, "Google/Facebook ads/paid"→ads, "phone calls/ring"→phone, "SEO/organic/Google search"→organic, anything else→other. Return null if unclear.',
     },
+    leadSourceSecondary: {
+      type: 'STRING', nullable: true,
+      enum: ['website', 'ads', 'phone', 'organic', 'other'],
+      description: 'Secondary source of new business if mentioned. Same enum as leadSourceDominant. Return null if only one source mentioned.',
+    },
     websiteRelevant: {
       type: 'BOOLEAN', nullable: true,
       description: 'Did they mention website/online/forms as a lead source? true if yes, null if not mentioned.',
@@ -201,6 +206,14 @@ const STAGE_SCHEMAS: Record<string, Record<string, FieldSpec>> = {
     adsConfirmed: {
       type: 'BOOLEAN', nullable: true,
       description: 'Did they mention paid ads (Google Ads, Facebook Ads, Meta, PPC, campaigns) as a lead source? true if yes, null if not mentioned.',
+    },
+    inboundLeads: {
+      type: 'NUMBER', nullable: true,
+      description: 'Number of inbound leads/enquiries if mentioned. "fifty leads"=50, "about twenty a month"=20, "couple hundred"=200. Return null if no number stated.',
+    },
+    webLeads: {
+      type: 'NUMBER', nullable: true,
+      description: 'Number of website leads/enquiries if mentioned separately from total inbound. Return null if not stated.',
     },
   },
 };

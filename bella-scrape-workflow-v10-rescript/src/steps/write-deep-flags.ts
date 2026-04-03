@@ -45,6 +45,8 @@ export async function writeDeepFlags(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.log("type:WF_NODE_ERROR:nodeId:node-kv-deep-flags:nodeName:kv-put:nodeType:kv-put:timestamp:" + Date.now() + ":instanceId:" + instanceId + ":success:false:error:" + errorMessage);
-    throw error;
+    // Non-fatal: deep flags write failure should not abort entire workflow
+    // Steps 14b+ (consultant pass2, intel write, status stamps) must still run
+    console.log(`[WRITE_DEEP_FLAGS_ERR] lid=${results.step_entry_0.lid} write-deep-flags failed (non-fatal): ${errorMessage}`);
   }
 }

@@ -497,6 +497,26 @@ export function resolveDeliveryTimeout(
  * 3. BUILD DIRECTIVE — calls buildStageDirective() from moves.ts
  * 4. SET PENDING DELIVERY — gate for next turn
  */
+
+const CHANNEL_STAGES: Set<StageId> = new Set(['ch_alex', 'ch_chris', 'ch_maddie', 'ch_sarah', 'ch_james']);
+const AGENT_FOR_STAGE: Record<string, string> = { ch_alex: 'alex', ch_chris: 'chris', ch_maddie: 'maddie', ch_sarah: 'sarah', ch_james: 'james' };
+
+/** Compute context-aware moveId for current state. Exported for index.ts directive rebuild. */
+export function computeMoveId(state: ConversationState): { moveId: string; isSynthesis: boolean } {
+  if (CHANNEL_STAGES.has(state.currentStage)) {
+    const agentKey = AGENT_FOR_STAGE[state.currentStage];
+    const hasRoi = !!(agentKey && state.calculatorResults[agentKey as keyof typeof state.calculatorResults]);
+    return {
+      moveId: hasRoi ? `v2_${state.currentStage}_synthesis` : `v2_${state.currentStage}`,
+      isSynthesis: hasRoi,
+    };
+  }
+  return {
+    moveId: `v2_${state.currentStage}${state.currentWowStep ? '_' + state.currentWowStep : ''}`,
+    isSynthesis: false,
+  };
+}
+
 export function processFlow(
   state: ConversationState,
   intel: MergedIntel,
@@ -657,7 +677,9 @@ export function processFlow(
       }
 
       // Advance to next WOW step
-      if (cleanTranscript.length > 0) {
+      // Auto-advance monologue steps (!waitForUser) even with no user input —
+      // otherwise Bella stalls waiting for a response that was never requested.
+      if (cleanTranscript.length > 0 || !currentDirective.waitForUser) {
         // ── Sprint 2 (Issue 8): Sentiment check for wow_3/wow_4 ──
         // Detect negative sentiment (rejection/correction) and adapt flow.
         // wow_3 negative → skip wow_4, jump to wow_5
@@ -736,7 +758,7 @@ export function processFlow(
           const expectedMoveId = `v2_wow_${state.currentWowStep}`;
           const wasSpoken = state.spoken.moveIds.includes(expectedMoveId);
           if (!currentDirective.waitForUser && currentDirective.speak && !wasSpoken) {
-            console.log(`[WOW_SPOKEN_GATE] step=${state.currentWowStep} moveId=${expectedMoveId} NOT in spoken.moveIds — completing anyway but flagging`);
+            console.log(`[WOW_SPOKEN_GATE] step=${state.currentWowStep} moveId=${expectedMoveId} NOT in spoken.moveIds — advancing anyway (delivery tracked separately)`);
           }
           state.completedWowSteps.push(state.currentWowStep);
         }
@@ -894,21 +916,7 @@ export function processFlow(
   // Sprint 1A: context-aware moveId — channel stages get `_synthesis` suffix
   // when the directive is delivering ROI results. This prevents the flat moveId
   // from conflating question delivery with synthesis delivery.
-  const CHANNEL_STAGES: Set<StageId> = new Set(['ch_alex', 'ch_chris', 'ch_maddie', 'ch_sarah', 'ch_james']);
-  const AGENT_FOR_STAGE: Record<string, string> = { ch_alex: 'alex', ch_chris: 'chris', ch_maddie: 'maddie', ch_sarah: 'sarah', ch_james: 'james' };
-  let moveId: string;
-  let isSynthesis = false;
-
-  if (CHANNEL_STAGES.has(state.currentStage)) {
-    const agentKey = AGENT_FOR_STAGE[state.currentStage];
-    const hasRoi = !!(agentKey && state.calculatorResults[agentKey as keyof typeof state.calculatorResults]);
-    isSynthesis = hasRoi;
-    moveId = hasRoi
-      ? `v2_${state.currentStage}_synthesis`
-      : `v2_${state.currentStage}`;
-  } else {
-    moveId = `v2_${state.currentStage}${state.currentWowStep ? '_' + state.currentWowStep : ''}`;
-  }
+  const { moveId, isSynthesis } = computeMoveId(state);
 
   // ═════════════════════════════════════════════════════════════════════════
   // PHASE 4: SET PENDING DELIVERY

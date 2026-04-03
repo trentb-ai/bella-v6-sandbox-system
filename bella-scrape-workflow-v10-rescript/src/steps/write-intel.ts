@@ -27,7 +27,7 @@ export async function writeIntel(
         input: inputData,
         output: result
       };
-      console.log(`[MERGE_INTEL] lid=${lid} merged ${Object.keys(buildOutput).length} build keys + ${Object.keys(fastIntel).length} fast-intel keys = ${Object.keys(merged).length} final keys, consultant=${!!merged.consultant}`);
+      console.log(`[WRITE_INTEL] lid=${lid} key=${key} written`);
       return result;
     });
     state["node-kv-write-intel"] = state["node-kv-write-intel"] || { output: results.step_kv_put_18 };
@@ -35,7 +35,8 @@ export async function writeIntel(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.log("type:WF_NODE_ERROR:nodeId:node-kv-write-intel:nodeName:kv-put:nodeType:kv-put:timestamp:" + Date.now() + ":instanceId:" + instanceId + ":success:false:error:" + errorMessage);
-    throw error;
+    // Non-fatal: allow steps 18b/18c (deep.status stamps) to still run
+    console.log(`[WRITE_INTEL_ERR] lid=${results.step_entry_0.lid} write-intel failed (non-fatal): ${errorMessage}`);
   }
 
   // Step 18b: Stamp fast-intel envelope deep.status = "done"

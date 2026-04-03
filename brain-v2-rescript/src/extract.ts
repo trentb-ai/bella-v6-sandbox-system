@@ -1025,7 +1025,7 @@ const V2_SCALAR_FIELDS: ReadonlySet<string> = new Set([
   'responseSpeedBand', 'webLeads', 'webConversions', 'webConversionRate',
   'phoneVolume', 'missedCalls', 'missedCallRate',
   'oldLeads', 'newCustomersPerWeek', 'currentStars', 'hasReviewSystem',
-  'leadSourceDominant', 'websiteRelevant', 'phoneRelevant', 'adsConfirmed',
+  'leadSourceDominant', 'leadSourceSecondary', 'websiteRelevant', 'phoneRelevant', 'adsConfirmed',
   'confirmedICP', 'overriddenICP', 'confirmedCTA', 'overriddenCTA',
   'userOverrideIcp', 'userOverrideCta',
   // Close stage fields — written by processFlow directly; also allow scribe/Gemini extraction

@@ -13,7 +13,7 @@ MAGENTA='\033[0;35m'
 BLUE='\033[0;34m'
 RESET='\033[0m'
 
-BASE="/Users/trentbelasco/Desktop/BELLA_v9_SANDBOX_COMPLETE_SYSTEM"
+BASE="/Users/trentbelasco/Desktop/BELLA_V1.0_SANDBOX_COMPLETE_SYSTEM"
 
 echo ""
 echo "${BOLD}${GREEN}╔══════════════════════════════════════════════════════╗${RESET}"
@@ -24,32 +24,28 @@ echo ""
 
 # Named pipe approach — fan-in all 4 tails into one stream with labels
 (
-  cd "$BASE/fast-intel-sandbox"
-  npx wrangler tail --format pretty 2>&1 | while IFS= read -r line; do
+  npx wrangler tail fast-intel-v9-rescript --format pretty 2>&1 | while IFS= read -r line; do
     echo "${CYAN}[FAST-INTEL]${RESET} $line"
   done
 ) &
 PID1=$!
 
 (
-  cd "$BASE/deepgram-bridge-v9"
-  npx wrangler tail --format pretty 2>&1 | while IFS= read -r line; do
+  npx wrangler tail deepgram-bridge-v2-rescript --format pretty 2>&1 | while IFS= read -r line; do
     echo "${MAGENTA}[BRIDGE]${RESET}     $line"
   done
 ) &
 PID2=$!
 
 (
-  cd "$BASE/voice-agent-v9"
-  npx wrangler tail --format pretty 2>&1 | while IFS= read -r line; do
+  npx wrangler tail bella-voice-agent-v2-rescript --format pretty 2>&1 | while IFS= read -r line; do
     echo "${YELLOW}[VOICE-AGENT]${RESET} $line"
   done
 ) &
 PID3=$!
 
 (
-  cd "$BASE/consultant-v9"
-  npx wrangler tail --format pretty 2>&1 | while IFS= read -r line; do
+  npx wrangler tail consultant-v10 --format pretty 2>&1 | while IFS= read -r line; do
     echo "${GREEN}[CONSULTANT]${RESET} $line"
   done
 ) &

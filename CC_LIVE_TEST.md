@@ -3,7 +3,7 @@
 
 ## CONTEXT
 
-Bella Flow Harness v5.0 is deployed across call-brain-do (v5.3.0) and deepgram-bridge-v11 (9.26.0).
+Bella Flow Harness v5.0 is deployed across call-brain-do-v2-rescript and deepgram-bridge-v2-rescript.
 Five fixes were applied this session. We need a FRESH live test to verify everything works end-to-end.
 
 ## YOUR TASK — 3 PHASES
@@ -14,19 +14,19 @@ Open 4 terminal tails in parallel. Keep them ALL running throughout the test.
 
 ```bash
 # Terminal 1: Call Brain DO
-npx wrangler tail call-brain-do --format json > /tmp/bella-test-do.log 2>&1 &
+npx wrangler tail call-brain-do-v2-rescript --format json > /tmp/bella-test-do.log 2>&1 &
 DO_PID=$!
 
 # Terminal 2: Bridge
-npx wrangler tail deepgram-bridge-v11 --format json > /tmp/bella-test-bridge.log 2>&1 &
+npx wrangler tail deepgram-bridge-v2-rescript --format json > /tmp/bella-test-bridge.log 2>&1 &
 BRIDGE_PID=$!
 
 # Terminal 3: Fast Intel
-npx wrangler tail fast-intel-v8 --format json > /tmp/bella-test-intel.log 2>&1 &
+npx wrangler tail fast-intel-v9-rescript --format json > /tmp/bella-test-intel.log 2>&1 &
 INTEL_PID=$!
 
 # Terminal 4: Voice Agent
-npx wrangler tail bella-voice-agent-v11 --format json > /tmp/bella-test-voice.log 2>&1 &
+npx wrangler tail bella-voice-agent-v2-rescript --format json > /tmp/bella-test-voice.log 2>&1 &
 VOICE_PID=$!
 
 echo "All 4 tails running. PIDs: DO=$DO_PID BRIDGE=$BRIDGE_PID INTEL=$INTEL_PID VOICE=$VOICE_PID"
@@ -69,7 +69,7 @@ echo "Tails stopped."
 #### 2a. Pull DO debug state
 ```bash
 echo "=== DO DEBUG STATE ==="
-curl -s "https://call-brain-do.trentbelasco.workers.dev/debug?callId=${TEST_LID}" | python3 -m json.tool > /tmp/bella-test-debug.json
+curl -s "https://call-brain-do-v2-rescript.trentbelasco.workers.dev/debug?callId=${TEST_LID}" | python3 -m json.tool > /tmp/bella-test-debug.json
 cat /tmp/bella-test-debug.json
 ```
 
@@ -283,8 +283,8 @@ echo "Test LID: ${TEST_LID}"
 echo "Date: $(date)"
 echo ""
 echo "=== DEPLOYED VERSIONS ==="
-curl -s "https://call-brain-do.trentbelasco.workers.dev/health" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'DO: {d.get(\"version\",\"?\")}')" 2>/dev/null || echo "DO: unreachable"
-curl -s "https://deepgram-bridge-v11.trentbelasco.workers.dev/health" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Bridge: {d.get(\"version\",\"?\")}')" 2>/dev/null || echo "Bridge: unreachable"
+curl -s "https://call-brain-do-v2-rescript.trentbelasco.workers.dev/health" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'DO: {d.get(\"version\",\"?\")}')" 2>/dev/null || echo "DO: unreachable"
+curl -s "https://deepgram-bridge-v2-rescript.trentbelasco.workers.dev/health" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Bridge: {d.get(\"version\",\"?\")}')" 2>/dev/null || echo "Bridge: unreachable"
 echo ""
 echo "=== KEY METRICS ==="
 python3 -c "

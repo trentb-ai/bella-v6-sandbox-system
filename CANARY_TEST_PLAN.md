@@ -1,19 +1,19 @@
 # BELLA V1 CANARY TEST PLAN
 **Target:** Beat 40/47 baseline with V1 rescript (no ROI calculator)
 **Date:** 2026-03-30
-**Version:** deepgram-bridge-v11 v1.0.0-rescript
+**Version:** deepgram-bridge-v2-rescript
 
 ---
 
 ## PRE-FLIGHT CHECKLIST
 
 **Deployed Workers:**
-- [ ] deepgram-bridge-v11 (https://deepgram-bridge-v11.trentbelasco.workers.dev)
-- [ ] call-brain-do (https://call-brain-do.trentbelasco.workers.dev)
-- [ ] fast-intel-v8 (https://fast-intel-v8.trentbelasco.workers.dev)
+- [ ] deepgram-bridge-v2-rescript (https://deepgram-bridge-v2-rescript.trentbelasco.workers.dev)
+- [ ] call-brain-do-v2-rescript (https://call-brain-do-v2-rescript.trentbelasco.workers.dev)
+- [ ] fast-intel-v9-rescript (https://fast-intel-v9-rescript.trentbelasco.workers.dev)
 
 **Health Checks:**
-- [ ] deepgram-bridge-v11/health returns v1.0.0-rescript
+- [ ] deepgram-bridge-v2-rescript/health returns version
 - [ ] Secrets verified (GEMINI_API_KEY, TOOLS_BEARER, etc.)
 - [ ] Stage machine test passed (wow → channels → close)
 
@@ -29,7 +29,7 @@
 ### Real-Time Tail Command
 ```bash
 cd ~/Desktop/BELLA_V1.0_SANDBOX_COMPLETE_SYSTEM
-npx wrangler tail deepgram-bridge-v11 --format pretty 2>&1 | tee logs/canary-$(date +%Y%m%d-%H%M%S).log
+npx wrangler tail deepgram-bridge-v2-rescript --format pretty 2>&1 | tee logs/canary-$(date +%Y%m%d-%H%M%S).log
 ```
 
 ### Key Log Tags to Watch
