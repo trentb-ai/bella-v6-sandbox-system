@@ -194,7 +194,7 @@ export function normalizeSpokenNumbers(text: string): string {
   // Standalone units 2-19 with context
   const contextPat = `(?:about|around|roughly|maybe|probably|say|like|approximately|get|getting|have|had|do|did|see|saw|receive|received|handle|handled|average|total)\\s+`;
   for (const [word, val] of Object.entries(units)) {
-    if (val < 2) continue;
+    if (val < 1) continue;
     s = s.replace(
       new RegExp(`(?:${contextPat})\\b${word}\\b`, 'gi'),
       match => match.replace(new RegExp(`\\b${word}\\b`, 'i'), String(val))
@@ -419,7 +419,7 @@ const FILLER_ONLY = /^((yeah|yep|yes|yup|sure|ok|okay|mm+h?m?|uh\s*huh|right|got
 
 function detectMemoryNotes(text: string, turnIndex: number): MemoryNote[] {
   if (FILLER_ONLY.test(text.trim())) return [];
-  if (text.trim().length < 10) return [];
+  if (text.trim().length < 5) return [];
 
   const notes: MemoryNote[] = [];
   for (const mp of MEMORY_PATTERNS) {
@@ -523,14 +523,14 @@ export function extractFromTranscript(
       }
     }
     // Bare number fallback — only for SHORT direct answers (not historical RE_EXTRACT context).
-    // Guards: text < 50 chars (direct answer), not an ACV fragment, not ACV itself.
-    if (!fields.inboundLeads && currentState?.inboundLeads == null && s.length < 50) {
+    // Guards: text < 20 chars (direct answer), not an ACV fragment, not ACV itself.
+    if (!fields.inboundLeads && currentState?.inboundLeads == null && s.length < 20) {
       const bareNum = s.match(/\b(\d{1,4})\b/);
       if (bareNum) {
         const val = parseInt(bareNum[1]);
         const acv = currentState?.acv ?? 0;
         const isAcvFragment = acv > 0 && (acv === val * 1000 || acv === val * 100 || acv === val * 10 || val === acv);
-        if (val > 0 && val < 10000 && !isAcvFragment) {
+        if (val > 0 && val < 1000000 && !isAcvFragment) {
           fields.inboundLeads = val;
           normalized.inboundLeads = bareNum[0];
         }
@@ -595,12 +595,12 @@ export function extractFromTranscript(
 
     // Priority 2: greedy single-number fallback — only for SHORT direct answers
     // (not historical RE_EXTRACT context which picks up ACV fragments)
-    if (!fields.webLeads && s.length < 50) {
+    if (!fields.webLeads && s.length < 20) {
       const numMatches = s.match(/\b(\d+)\b/g);
       if (numMatches) {
         const acv = currentState?.acv ?? 0;
         const nums = numMatches.map(n => parseInt(n)).filter(n => {
-          if (n <= 0 || n >= 100000) return false;
+          if (n <= 0 || n >= 10000000) return false;
           // Skip ACV fragments (e.g. "20" from "$20,000")
           if (acv > 0 && (acv === n * 1000 || acv === n * 100 || acv === n * 10 || n === acv)) return false;
           return true;

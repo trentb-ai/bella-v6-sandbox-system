@@ -362,7 +362,7 @@ export async function geminiExtract(
       if (value === null || value === undefined) continue;
       const spec = effectiveSpecs[key];
       if (!spec) continue;
-      if (spec.type === 'NUMBER' && typeof value === 'number' && value > 0) fields[key] = value;
+      if (spec.type === 'NUMBER' && typeof value === 'number' && value !== null && value !== undefined) fields[key] = value;
       else if (spec.type === 'STRING' && typeof value === 'string' && value.length > 0) fields[key] = value;
       else if (spec.type === 'BOOLEAN' && typeof value === 'boolean') fields[key] = value;
     }
@@ -437,7 +437,7 @@ export async function geminiExtractHistory(
       if (value === null || value === undefined) continue;
       const spec = HISTORY_SCHEMA[key];
       if (!spec) continue;
-      if (spec.type === 'NUMBER' && typeof value === 'number' && value > 0) fields[key] = value;
+      if (spec.type === 'NUMBER' && typeof value === 'number' && value !== null && value !== undefined) fields[key] = value;
       else if (spec.type === 'STRING' && typeof value === 'string' && value.length > 0) fields[key] = value;
       else if (spec.type === 'BOOLEAN' && typeof value === 'boolean') fields[key] = value;
     }

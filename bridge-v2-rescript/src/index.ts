@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.40.0"; // P0: stream hang fix, P1: reviews data corruption fix, P2: SHA-256 turnId dedup
+const VERSION = "9.44.0"; // P0: FIX-5 Gemini API key header to brain
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -258,6 +258,8 @@ async function loadMergedIntel(lid: string, env: Env): Promise<Record<string, an
   intel = deepMerge(intel, oldIntel);    // Backwards compat: old :intel key
   intel = deepMerge(intel, fast);        // V8 fast-intel takes priority
 
+  log("KV_LOAD", `lid=${lid} merged_consultant=${intel.consultant ? Object.keys(intel.consultant).length : 0} root_script_fills=${intel.script_fills ? Object.keys(intel.script_fills).length : 0}`);
+
   // Inject deep-scrape data at intel.deep if present (from either pipeline)
   // Workflow writes snake_case (google_maps, fb_ads_count, indeed_count)
   // Bridge expects camelCase (googleMaps { rating, review_count, recent_reviews }, hiring { is_hiring })
@@ -411,6 +413,7 @@ interface State {
   // T007: Just Demo branch — prospect says "just show me"
   just_demo: boolean;        // true = skip remaining channel stages, go to roi_delivery
   trial_reviews_done: boolean; // true if review-linked free trial was delivered (prevents repeat at stall 5)
+  user_disagreed: boolean;   // true if prospect contradicted something Bella said (gate blocker)
 
   // === SPRINT 0 EXTENSIONS — wired in Sprint 1A/1B/2 ===
   // unifiedState?: UnifiedLeadState;
@@ -544,7 +547,7 @@ async function initState(lid: string, env: Env, preloadedIntel?: Record<string, 
   const s: State = {
     stage: "wow", queue, done: [], inputs: { ...BLANK },
     maddie_skip: false, wants_numbers: false, just_demo: false, apify_done: false, calc_ready: false,
-    trial_reviews_done: false, stall: 0, init: new Date().toISOString(), _lastTurn: 0, _lastUttHash: "",
+    trial_reviews_done: false, user_disagreed: false, stall: 0, init: new Date().toISOString(), _lastTurn: 0, _lastUttHash: "",
   };
 
   await saveState(lid, s, env);
@@ -558,7 +561,7 @@ function gateOpen(s: State): boolean {
   const { stage: st, inputs: i } = s;
   switch (st) {
     // WOW: stalls 1-9, gate at 10 so stall 9 (bridge to numbers) renders before advancing
-    case "wow": return s.stall >= 10;
+    case "wow": return s.stall >= 10 && !s.user_disagreed;
     // deep_dive: no longer a blocking stage — auto-advance
     case "deep_dive": return true;
     case "anchor_acv": return i.acv !== null;
@@ -1285,11 +1288,17 @@ function regexExtract(utt: string, stage: Stage, industry?: string): Partial<Inp
 
 // ─── APPLY EXTRACTION + KV WRITES (sync extraction, async KV only) ──────────
 
-async function extractAndApply(utterance: string, s: State, lid: string, env: Env, stageOverride?: Stage, industry?: string): Promise<State> {
+async function extractAndApply(utterance: string, s: State, lid: string, env: Env, stageOverride?: Stage, industry?: string, ctx?: ExecutionContext): Promise<State> {
   if (!utterance) return s;
 
   const stage = stageOverride ?? s.stage;
   const extracted = regexExtract(utterance, stage, industry);
+
+  // Detect disagreement with Bella's statements
+  if (/\b(that's wrong|not right|not accurate|incorrect|disagree|that's not|we don't actually|you're wrong|no that's)\b/i.test(utterance)) {
+    s.user_disagreed = true;
+    log("DISAGREEMENT", `lid=${lid} prospect contradicted Bella — blocking stage advance`);
+  }
 
   // ch_website: if we extracted web_leads but state already has web_leads, this is actually web_conversions
   if (stage === "ch_website" && extracted.web_leads != null && s.inputs.web_leads != null && extracted.web_conversions == null) {
@@ -1338,7 +1347,16 @@ async function extractAndApply(utterance: string, s: State, lid: string, env: En
       stage: s.stage,
       lid,
     });
-    env.LEADS_KV.put(`lead:${lid}:captured_inputs`, capturedPayload).catch(() => {});
+    log("KV_WRITE", `lid=${lid} key=captured_inputs ctx=${!!ctx}`);
+    if (ctx) {
+      ctx.waitUntil(env.LEADS_KV.put(`lead:${lid}:captured_inputs`, capturedPayload).catch(e => {
+        log("KV_WRITE_ERR", `lid=${lid} key=captured_inputs error=${e?.message || e}`);
+      }));
+    } else {
+      env.LEADS_KV.put(`lead:${lid}:captured_inputs`, capturedPayload).catch(e => {
+        log("KV_WRITE_ERR", `lid=${lid} key=captured_inputs no_ctx error=${e?.message || e}`);
+      });
+    }
 
     // Write ROI to canonical key for bella-tools (FIX-4 schema alignment)
     // Format: { agents: { AgentName: { monthly_opportunity, weekly, precise, why } }, total_monthly, calcs, updated_at }
@@ -1422,7 +1440,7 @@ function trimHistory(messages: Msg[]): Msg[] {
 
 function buildFullSystemContext(intel: Record<string, any>, apifyDone: boolean): string {
   const ci = intel.core_identity ?? {};
-  const sf = intel.consultant?.scriptFills ?? {};
+  const sf = intel.consultant?.scriptFills ?? intel.script_fills ?? {};
   const cons = intel.consultant ?? {};
   const ts = intel.tech_stack ?? {};
   const flags = intel.flags ?? {};
@@ -1435,6 +1453,10 @@ function buildFullSystemContext(intel: Record<string, any>, apifyDone: boolean):
   const ind = ci.industry ?? ci.industry_key ?? "";
   const loc = ci.location ?? "";
   const ct = custTerm(ind);
+
+  // BUG 2 diagnostic — verify fallback path is working
+  const lid = intel.lid ?? "unknown";
+  log("PROMPT_BUILD", `lid=${lid} sf_keys=${sf ? Object.keys(sf).length : 0} cons_routing_agents=${intel.consultant?.routing?.priority_agents?.length ?? 0}`);
 
   const rawOpener = intel.bella_opener ?? "";
   const opener = rawOpener && biz !== "your business"
@@ -1828,6 +1850,15 @@ function buildStageDirective(
       //   4=PreTrain → 5=Conversion → 6=AuditTransition → 7=LeadSource →
       //   8=Hiring → 9=ProvisionalRec+Bridge
       // IMPORTANT: stall is incremented BEFORE this function runs, so stall=1 is first turn
+
+      // DISAGREEMENT HANDLING: If the prospect says something you mentioned is wrong or inaccurate,
+      // acknowledge the correction immediately, thank them, and ask what the correct information is.
+      // Do NOT move on until you've addressed their concern.
+      if (s.user_disagreed) {
+        return `WOW — DISAGREEMENT HANDLER
+<DELIVER_THIS>Thanks for catching that, ${fn}. I appreciate the correction. Can you tell me the accurate information so I make sure our agents have the right data?</DELIVER_THIS>
+Then STOP and wait for their response. Once they clarify, reset the disagreement flag mentally and continue with stall ${s.stall}.`;
+      }
 
       // Consultant pre-built spoken lines (narratives)
       const convNarrative: string = (intel.consultant as any)?.conversionEventAnalysis?.conversionNarrative ?? "";
@@ -2243,6 +2274,7 @@ async function streamToDeepgram(
   if (!gemRes.ok || !gemRes.body) {
     const errBody = await gemRes.text().catch(() => "no-body");
     log("GEMINI_ERR", `status=${gemRes.status} body=${errBody}`);
+    log("BELLA_SILENT", `reason=gemini_error_${gemRes.status} utterance="Give me one moment."`); // Fallback response
     // Notify DO: the intended directive FAILED even though fallback text is spoken
     if (doFailureCallback) {
       try { await doFailureCallback(`gemini_${gemRes.status}`); } catch { }
@@ -2348,6 +2380,7 @@ async function streamToDeepgram(
         // Deepgram cancelled but we got partial response — treat as soft success
         log("GEMINI_STREAM_CANCELLED", `partial=${responseText.length}chars chunks=${chunkCount}`);
         const sanitizedResponse = stripApologies(responseText);
+        log("BELLA_SAID", sanitizedResponse.slice(0, 2000)); // Log partial response (Bug 3 fix)
         if (doReplyCallback && !replySent) {
           replySent = true;
           if (ctx) {
@@ -2359,6 +2392,7 @@ async function streamToDeepgram(
       } else {
         // True failure — no response at all or genuine Gemini error
         log("GEMINI_STREAM_ERR", `${errStr}`);
+        log("BELLA_SILENT", `reason=stream_error utterance="Give me one moment"`); // Fallback spoken
         if (doFailureCallback && !failureSent) {
           failureSent = true;
           try { await doFailureCallback(`stream_error:${errStr.slice(0, 200)}`); } catch { }
@@ -2576,7 +2610,7 @@ async function callDOTurn(
     const res = await env.CALL_BRAIN.fetch(
       new Request(`https://do-internal/turn?callId=${encodeURIComponent(lid)}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
+        headers: { 'Content-Type': 'application/json', 'x-call-id': lid, 'x-gemini-key': env.GEMINI_API_KEY || '' },
         body: JSON.stringify({ leadId: lid, transcript, turnId, identity }),
       }),
     );
@@ -2916,6 +2950,44 @@ export default {
           return new Response('data: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } });
         }
 
+        // KV export: write captured_inputs, conv_memory, script_state from DO path
+        if (lid && doResult && doResult.extraction) {
+          const extractedState = doResult.extractedState as Record<string, any>;
+
+          // 1. captured_inputs
+          const capturedPayload = JSON.stringify({
+            ...doResult.extraction.normalized,
+            updated_at: new Date().toISOString(),
+            stage: doResult.stage,
+            lid,
+          });
+          ctx.waitUntil(env.LEADS_KV.put(`lead:${lid}:captured_inputs`, capturedPayload).catch(e => {
+            log("KV_WRITE_ERR", `DO path captured_inputs error=${e?.message || e}`);
+          }));
+
+          // 2. script_state
+          if (extractedState) {
+            ctx.waitUntil(env.LEADS_KV.put(`lead:${lid}:script_state`, JSON.stringify(extractedState)).catch(e => {
+              log("KV_WRITE_ERR", `DO path script_state error=${e?.message || e}`);
+            }));
+          }
+
+          // 3. conv_memory
+          if (extractedState && extractedState.memoryNotes && Array.isArray(extractedState.memoryNotes)) {
+            const memLines = extractedState.memoryNotes
+              .filter((n: any) => n.status === 'active')
+              .map((n: any) => `[${n.category}] ${n.text}`)
+              .join('\n');
+            if (memLines) {
+              ctx.waitUntil(env.LEADS_KV.put(`lead:${lid}:conv_memory`, memLines).catch(e => {
+                log("KV_WRITE_ERR", `DO path conv_memory error=${e?.message || e}`);
+              }));
+            }
+          }
+
+          log("KV_EXPORT", `DO path lid=${lid} stage=${doResult.stage} captured=${Object.keys(doResult.extraction.normalized || {}).length} mem=${extractedState?.memoryNotes?.length ?? 0}`);
+        }
+
         try {
         // Build rich directive from DO packet (~1.5K)
         // Pass raw biz name so TTS acronym formatting can be applied to speak text
@@ -3169,7 +3241,7 @@ export default {
     // ── EXTRACTION: only on genuinely new content — prevents stale utterance
     // from previous stage leaking numbers into newly-advanced stage ────────────
     if (utt && lid && (isNewTurn || isNewContent)) {
-      s = await extractAndApply(utt, s, lid, env, stageAtUtterance, extractIndustry);
+      s = await extractAndApply(utt, s, lid, env, stageAtUtterance, extractIndustry, ctx);
     } else if (utt && lid && !isNewTurn) {
       log("EXTRACT_SKIP", `lid=${lid} same-turn duplicate — skipping extraction to prevent cross-stage pollution`);
     }
@@ -3220,8 +3292,17 @@ export default {
       if (signals) {
         const updated = convMemory ? `${convMemory}\n${signals}` : signals;
         convMemory = updated.length > 2000 ? updated.slice(-2000) : updated;
-        // Fire-and-forget KV write — don't block the stream
-        env.LEADS_KV.put(`lead:${lid}:conv_memory`, convMemory).catch(() => {});
+        // Ensure KV write completes (use ctx.waitUntil when available)
+        log("KV_WRITE", `lid=${lid} key=conv_memory ctx=${!!ctx}`);
+        if (ctx) {
+          ctx.waitUntil(env.LEADS_KV.put(`lead:${lid}:conv_memory`, convMemory).catch(e => {
+            log("KV_WRITE_ERR", `lid=${lid} key=conv_memory error=${e?.message || e}`);
+          }));
+        } else {
+          env.LEADS_KV.put(`lead:${lid}:conv_memory`, convMemory).catch(e => {
+            log("KV_WRITE_ERR", `lid=${lid} key=conv_memory no_ctx error=${e?.message || e}`);
+          });
+        }
         log("MEMORY", `regex signals: ${signals.replace(/\n/g, " | ")}`);
       }
     }

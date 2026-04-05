@@ -52,7 +52,6 @@ import { buildStageDirective, buildCriticalFacts, buildContextNotes } from './mo
 import { deriveEligibility, maxQuestionsReached } from './gate';
 import {
   processFlow,
-  tryRunCalculator,
   buildMergedIntel,
   resolveDeliveryCompleted,
   resolveDeliveryBargedIn,
@@ -64,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.16.1'; // fix directive lag + remove blocking spoken gate (log-only)
+const VERSION = 'v6.26.0'; // FIX-13: DO state isolation — validate leadId match, reset on mismatch
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
@@ -629,6 +628,13 @@ export class CallBrainDO {
     starterIntel?: Record<string, unknown>,
   ): Promise<{ brain: ConversationState; created: boolean }> {
     let brain = await loadState(this.state.storage) as ConversationState | null;
+
+    // ISOLATION FIX: If state exists from previous session, validate leadId matches
+    // DO instances are persistent — force fresh state if callId has changed
+    if (brain && brain.leadId !== leadId) {
+      console.log(`[SESSION_RESET] leadId mismatch: stored=${brain.leadId} incoming=${leadId} — force fresh state`);
+      brain = null;
+    }
 
     if (!brain) {
       brain = initState(this.state.id.toString(), leadId);
@@ -1654,14 +1660,7 @@ export class CallBrainDO {
       return json({ status: 'no_session' });
     }
 
-    // Run any pending calculators for final state
-    const channelStages: StageId[] = ['ch_alex', 'ch_chris', 'ch_maddie'];
-    for (const stage of channelStages) {
-      if (!brain.calculatorResults[stage === 'ch_alex' ? 'alex' : stage === 'ch_chris' ? 'chris' : 'maddie']) {
-        tryRunCalculator(stage, brain);
-      }
-    }
-
+    // Calculators disabled in v6.25.0 — agents use Gemini freestyle
     await persistState(this.state.storage, brain as any);
 
     // Export cross-call memory to KV (non-fatal)
@@ -2043,19 +2042,7 @@ export class CallBrainDO {
       // additional flag needed — the gate logic covers all ROI-pressure scenarios.
       if (lastTurnMs && now - lastTurnMs > 120_000) {
         console.log(`[ALARM] Call stale — no turn for ${Math.round((now - lastTurnMs) / 1000)}s callId=${brain.callId}`);
-        // Run pending calculators on stale call.
-        // Idempotent: the guard (!brain.calculatorResults[agent]) skips agents
-        // whose ROI was already computed. tryRunCalculator itself no-ops when
-        // minimum data is absent (hasXxxMinimumData returns false). Safe to
-        // re-enter on repeated alarms.
-        const channelStages: StageId[] = ['ch_alex', 'ch_chris', 'ch_maddie'];
-        for (const stage of channelStages) {
-          const agent: CoreAgent = stage === 'ch_alex' ? 'alex' : stage === 'ch_chris' ? 'chris' : 'maddie';
-          if (!brain.calculatorResults[agent]) {
-            console.log(`[ALARM_CALC] Running ${agent} calculator (acv=${brain.acv})`);
-            tryRunCalculator(stage, brain);
-          }
-        }
+        // Calculators disabled in v6.25.0 — agents use Gemini freestyle
       }
 
       // ── Question budget tight ──

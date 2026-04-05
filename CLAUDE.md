@@ -1,15 +1,50 @@
 # BELLA V9 — CLAUDE CODE MASTER BRIEF
-### Last updated: 2026-03-20 AEST | Authority: Trent Belasco
-### Current bridge version: v9.13.2
-### Current fast-intel version: v1.9.0
-### Current voice-agent version: v4.0.3-SUPERGOD
+### Last updated: 2026-04-03 AEST | Authority: Trent Belasco
+### Current brain version: v6.16.1
+### Current bridge version: v9.40.0
+### Current fast-intel version: v1.18.0
+### Current voice-agent version: v4.2.0-EOT-INJECT
 ### Current consultant version: synced (v8 = v9)
 
 ---
 
-> **NOTE: NAMING CONVENTION**
-> Local folders are named `-v9` but deploy to `-v8` worker names for backwards compatibility.
-> The deployed worker names are the source of truth. See `wrangler.toml` in each folder.
+> ## 🟢 BELLA GOLDEN v1 — KNOWN-GOOD RESTORE POINT
+>
+> **Git tag:** `bella-golden-v1` | **Commit:** `8e23c66` | **Date:** 2026-04-03
+>
+> | Worker | Version | Folder | Deploys As |
+> |--------|---------|--------|------------|
+> | Brain | v6.16.1 | `brain-v2-rescript/` | `call-brain-do-v2-rescript` |
+> | Bridge | v9.40.0 | `bridge-v2-rescript/` | `deepgram-bridge-v2-rescript` |
+> | Fast-intel | v1.18.0 | `fast-intel-v9-rescript/` | `fast-intel-v9-rescript` |
+> | Scrape | v1.7.0 | `bella-scrape-workflow-v10-rescript/` | `bella-scrape-workflow-v10-rescript` |
+>
+> **Restore:**
+> ```bash
+> git checkout bella-golden-v1
+> cd brain-v2-rescript && npx wrangler deploy
+> cd ../bridge-v2-rescript && npx wrangler deploy
+> cd ../fast-intel-v9-rescript && npx wrangler deploy
+> cd ../bella-scrape-workflow-v10-rescript && npx wrangler deploy
+> ```
+>
+> **Live test result:** 10/10 stages (WOW1-8 + recommendation + close), all compliance 1.00, zero errors.
+
+---
+
+> **NOTE: NAMING CONVENTION — TWO WORKER SETS**
+>
+> **V2-RESCRIPT (LIVE — used by `cleanestbellav2rescripted.netlify.app`):**
+>
+> | Folder | Deploys As |
+> |--------|-----------|
+> | `brain-v2-rescript/` | `call-brain-do-v2-rescript` |
+> | `bridge-v2-rescript/` | `deepgram-bridge-v2-rescript` |
+> | `bella-voice-agent-v2-rescript/` | `bella-voice-agent-v2-rescript` |
+> | `fast-intel-v9-rescript/` | `fast-intel-v9-rescript` |
+> | `bella-scrape-workflow-v10-rescript/` | `bella-scrape-workflow-v10-rescript` |
+>
+> **SANDBOX V8/V9 (OLD — used by `demofunnelbellasandboxv8.netlify.app`):**
 >
 > | Folder | Deploys As |
 > |--------|-----------|
@@ -19,6 +54,10 @@
 > | `voice-agent-v9/` | `bella-voice-agent-sandbox-v8` |
 > | `bella-scrape-workflow-v9/` | `bella-scrape-workflow-v9-test` |
 > | `bella-tools-worker-v9/` | `bella-tools-worker-v8` |
+>
+> **⚠️ CRITICAL: Always check which frontend Trent is testing with before deploying fixes.
+> If `cleanestbellav2rescripted` → deploy to v2-rescript folders.
+> If `demofunnelbellasandboxv8` → deploy to v9/sandbox folders.**
 
 ---
 

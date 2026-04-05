@@ -92,70 +92,7 @@ export function buildMergedIntel(state: ConversationState): MergedIntel {
   };
 }
 
-// ─── Try running a V2 calculator for a channel stage ────────────────────────
-
-// TODO: re-enable for ROI sprint — commented out for V1 rescript
-/** Run the ROI calculator for a channel stage if minimum data is available. */
-export function tryRunCalculator(stage: StageId, state: ConversationState): boolean {
-  /*
-  if (stage === 'ch_alex' && hasAlexMinimumData(state)) {
-    state.calculatorResults.alex = computeAlexRoi({
-      acv: state.acv!,
-      leads: state.inboundLeads!,
-      conversions: state.inboundConversions,
-      conversionRate: state.inboundConversionRate,
-      responseSpeedBand: state.responseSpeedBand ?? 'unknown',
-    });
-    console.log(`[CALC] Alex ROI computed: $${state.calculatorResults.alex.weeklyValue}/wk`);
-    return true;
-  }
-
-  if (stage === 'ch_chris' && hasChrisMinimumData(state)) {
-    state.calculatorResults.chris = computeChrisRoi({
-      acv: state.acv!,
-      leads: state.webLeads!,
-      conversions: state.webConversions,
-      conversionRate: state.webConversionRate,
-    });
-    console.log(`[CALC] Chris ROI computed: $${state.calculatorResults.chris.weeklyValue}/wk`);
-    return true;
-  }
-
-  if (stage === 'ch_maddie' && hasMaddieMinimumData(state)) {
-    state.calculatorResults.maddie = computeMaddieRoi({
-      acv: state.acv!,
-      phoneVolume: state.phoneVolume!,
-      missedCalls: state.missedCalls,
-      missedCallRate: state.missedCallRate,
-    });
-    console.log(`[CALC] Maddie ROI computed: $${state.calculatorResults.maddie.weeklyValue}/wk`);
-    return true;
-  }
-
-  if (stage === 'ch_sarah' && hasSarahMinimumData(state)) {
-    state.calculatorResults.sarah = computeSarahRoi({
-      acv: state.acv!,
-      oldLeads: state.oldLeads!,
-    });
-    console.log(`[CALC] Sarah ROI computed: $${state.calculatorResults.sarah.weeklyValue}/wk`);
-    return true;
-  }
-
-  if (stage === 'ch_james' && hasJamesMinimumData(state)) {
-    state.calculatorResults.james = computeJamesRoi({
-      acv: state.acv!,
-      newCustomersPerWeek: state.newCustomersPerWeek!,
-      currentStars: state.currentStars!,
-      hasReviewSystem: state.hasReviewSystem!,
-    });
-    console.log(`[CALC] James ROI computed: $${state.calculatorResults.james.weeklyValue}/wk`);
-    return true;
-  }
-
-  return false;
-  */
-  return false;
-}
+// ROI calculator disabled for V1 rescript — agents use Gemini freestyle
 
 // ─── Delivery Gate ──────────────────────────────────────────────────────────
 
@@ -540,6 +477,7 @@ export function processFlow(
       wowStep: state.currentWowStep,
       intel,
       state,
+      memory: state.memory,
     });
     const moveId = state.pendingDelivery!.moveId;
     return { directive, moveId, advanced: false };
@@ -646,7 +584,9 @@ export function processFlow(
       // Auto-skip chain: loop through consecutive skippable steps
       if (currentDirective.canSkip && !currentDirective.waitForUser) {
         let skipStep: WowStepId | null | undefined = state.currentWowStep;
-        while (skipStep) {
+        let skipIterations = 0;
+        const MAX_SKIP_ITERATIONS = 5;
+        while (skipStep && skipIterations < MAX_SKIP_ITERATIONS) {
           const sd = buildStageDirective({ stage: 'wow', wowStep: skipStep, intel, state });
           if (!sd.canSkip || sd.waitForUser) break; // found non-skippable — stop here
           auditStepSkipped(state, 'wow', skipStep, 'canSkip_no_waitForUser', 'turn');
@@ -657,6 +597,7 @@ export function processFlow(
             state.currentWowStep = nxt;
             console.log(`[WOW] → ${nxt}`);
             skipStep = nxt;
+            skipIterations++;
           } else {
             state.completedStages.push('wow');
             state.currentWowStep = null;
@@ -666,6 +607,9 @@ export function processFlow(
             console.log(`[ADVANCE] wow → recommendation`);
             skipStep = null;
           }
+        }
+        if (skipIterations >= MAX_SKIP_ITERATIONS) {
+          console.log(`[WOW_SKIP_LIMIT] Hit max iterations (${MAX_SKIP_ITERATIONS}) — stopping auto-skip chain`);
         }
         break; // match old behavior: break out of wow case after auto-skip chain
       }
@@ -686,70 +630,75 @@ export function processFlow(
         // wow_4 negative → record but continue normally
         const SENTIMENT_STEPS: Set<string> = new Set(['wow_3_icp_problem_solution', 'wow_4_conversion_action']);
         if (state.currentWowStep && SENTIMENT_STEPS.has(state.currentWowStep)) {
-          const sentiment = extractWowSentiment(cleanTranscript);
-          state.lastWowSentiment = sentiment;
-          console.log(`[WOW_SENTIMENT] step=${state.currentWowStep} sentiment=${sentiment} transcript="${cleanTranscript.slice(0, 60)}"`);
+          try {
+            const sentiment = extractWowSentiment(cleanTranscript);
+            state.lastWowSentiment = sentiment;
+            console.log(`[WOW_SENTIMENT] step=${state.currentWowStep} sentiment=${sentiment} transcript="${cleanTranscript.slice(0, 60)}"`);
 
-          if (sentiment === 'negative') {
-            state.rejectedWowSteps.push(state.currentWowStep);
+            if (sentiment === 'negative') {
+              state.rejectedWowSteps.push(state.currentWowStep);
 
-            if (state.currentWowStep === 'wow_3_icp_problem_solution') {
-              // wow_3 rejected → confirmedICP=false, skip wow_4 entirely, jump to wow_5
-              state.confirmedICP = false;
-              state.completedWowSteps.push('wow_3_icp_problem_solution');
-              state.completedWowSteps.push('wow_4_conversion_action');
-              state.currentWowStep = 'wow_5_alignment_bridge';
-              advanced = true;
-              auditStageAdvanced(state, 'wow', 'wow', 'wow3_rejected → skip wow_4 → wow_5', undefined, 'turn');
-              console.log(`[WOW_REJECTION_SKIP] wow_3 rejected → confirmedICP=false → skipping wow_4 → wow_5_alignment_bridge`);
-              break;
-            }
-
-            if (state.currentWowStep === 'wow_4_conversion_action') {
-              // wow_4 negative: prospect gave a correction/alternative
-              // Long response (>30 chars) = overridden CTA, short = confirmed false
-              if (cleanTranscript.length > 30) {
-                state.overriddenCTA = true;
-                state.confirmedCTA = false;
-                console.log(`[WOW4_CTA] overriddenCTA=true (long correction ${cleanTranscript.length} chars)`);
-              } else {
-                state.confirmedCTA = false;
-                console.log(`[WOW4_CTA] confirmedCTA=false (short negation)`);
-              }
-            }
-            // wow_4 negative → record but continue normal advancement below
-          } else {
-            // ── D7/D8: Pattern-match affirmations as fallback for SCRIBE misses ──
-            // For short responses (≤30 chars) that SCRIBE may have missed, use regex to confirm.
-            const AFFIRM_PATTERN = /^(yes|yeah|yep|sure|right|correct|sounds right|that.s right|ok|okay)\b/i;
-            const NEGATE_PATTERN = /\b(no|not quite|not really|wrong|incorrect)\b/i;
-            const isAffirm = AFFIRM_PATTERN.test(cleanTranscript);
-            const isNegate = !isAffirm && NEGATE_PATTERN.test(cleanTranscript);
-
-            if (state.currentWowStep === 'wow_3_icp_problem_solution') {
-              if (isAffirm || sentiment === 'positive') {
-                state.confirmedICP = true;
-                console.log(`[WOW3_ICP] confirmedICP=true (sentiment=${sentiment} affirm=${isAffirm})`);
-              } else if (isNegate) {
+              if (state.currentWowStep === 'wow_3_icp_problem_solution') {
+                // wow_3 rejected → confirmedICP=false, skip wow_4 entirely, jump to wow_5
                 state.confirmedICP = false;
-                console.log(`[WOW3_ICP] confirmedICP=false (negate pattern)`);
+                state.completedWowSteps.push('wow_3_icp_problem_solution');
+                state.completedWowSteps.push('wow_4_conversion_action');
+                state.currentWowStep = 'wow_5_alignment_bridge';
+                advanced = true;
+                auditStageAdvanced(state, 'wow', 'wow', 'wow3_rejected → skip wow_4 → wow_5', undefined, 'turn');
+                console.log(`[WOW_REJECTION_SKIP] wow_3 rejected → confirmedICP=false → skipping wow_4 → wow_5_alignment_bridge`);
+                break;
               }
-            }
 
-            if (state.currentWowStep === 'wow_4_conversion_action') {
-              if (cleanTranscript.length > 30) {
-                // Long response without negative sentiment = user provided alternative/correction
-                state.overriddenCTA = true;
-                state.confirmedCTA = false;
-                console.log(`[WOW4_CTA] overriddenCTA=true (long non-negative response ${cleanTranscript.length} chars)`);
-              } else if (isAffirm || sentiment === 'positive') {
-                state.confirmedCTA = true;
-                console.log(`[WOW4_CTA] confirmedCTA=true (sentiment=${sentiment} affirm=${isAffirm})`);
-              } else if (isNegate) {
-                state.confirmedCTA = false;
-                console.log(`[WOW4_CTA] confirmedCTA=false (negate pattern)`);
+              if (state.currentWowStep === 'wow_4_conversion_action') {
+                // wow_4 negative: prospect gave a correction/alternative
+                // Long response (>30 chars) = overridden CTA, short = confirmed false
+                if (cleanTranscript.length > 30) {
+                  state.overriddenCTA = true;
+                  state.confirmedCTA = false;
+                  console.log(`[WOW4_CTA] overriddenCTA=true (long correction ${cleanTranscript.length} chars)`);
+                } else {
+                  state.confirmedCTA = false;
+                  console.log(`[WOW4_CTA] confirmedCTA=false (short negation)`);
+                }
+              }
+              // wow_4 negative → record but continue normal advancement below
+            } else {
+              // ── D7/D8: Pattern-match affirmations as fallback for SCRIBE misses ──
+              // For short responses (≤30 chars) that SCRIBE may have missed, use regex to confirm.
+              const AFFIRM_PATTERN = /^(yes|yeah|yep|sure|right|correct|sounds right|that.s right|ok|okay)\b/i;
+              const NEGATE_PATTERN = /\b(no|not quite|not really|wrong|incorrect)\b/i;
+              const isAffirm = AFFIRM_PATTERN.test(cleanTranscript);
+              const isNegate = !isAffirm && NEGATE_PATTERN.test(cleanTranscript);
+
+              if (state.currentWowStep === 'wow_3_icp_problem_solution') {
+                if (isAffirm || sentiment === 'positive') {
+                  state.confirmedICP = true;
+                  console.log(`[WOW3_ICP] confirmedICP=true (sentiment=${sentiment} affirm=${isAffirm})`);
+                } else if (isNegate) {
+                  state.confirmedICP = false;
+                  console.log(`[WOW3_ICP] confirmedICP=false (negate pattern)`);
+                }
+              }
+
+              if (state.currentWowStep === 'wow_4_conversion_action') {
+                if (cleanTranscript.length > 30) {
+                  // Long response without negative sentiment = user provided alternative/correction
+                  state.overriddenCTA = true;
+                  state.confirmedCTA = false;
+                  console.log(`[WOW4_CTA] overriddenCTA=true (long non-negative response ${cleanTranscript.length} chars)`);
+                } else if (isAffirm || sentiment === 'positive') {
+                  state.confirmedCTA = true;
+                  console.log(`[WOW4_CTA] confirmedCTA=true (sentiment=${sentiment} affirm=${isAffirm})`);
+                } else if (isNegate) {
+                  state.confirmedCTA = false;
+                  console.log(`[WOW4_CTA] confirmedCTA=false (negate pattern)`);
+                }
               }
             }
+          } catch (err: any) {
+            console.error(`[SENTIMENT_ERROR] step=${state.currentWowStep} error=${err.message} — skipping sentiment check`);
+            // Continue without sentiment (safe fallback)
           }
         }
 

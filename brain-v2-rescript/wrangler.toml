@@ -21,3 +21,8 @@ enabled = true
 [observability.logs]
 invocation_logs = true
 head_sampling_rate = 1
+
+[env.production]
+# GEMINI_API_KEY set via: wrangler secret put GEMINI_API_KEY
+# Fallback for brain DO when bridge header doesn't pass through service binding
+vars = { }
