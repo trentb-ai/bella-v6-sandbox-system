@@ -64,7 +64,7 @@
 ## CRITICAL RULES — READ FIRST
 
 1. **One problem at a time.** Pick ONE layer below. Deploy → verify → next.
-2. **Bridge is READ-ONLY from `lead:{lid}:intel`.** Bridge writes ONLY: `script_state`, `conv_memory`, `captured_inputs`, `bridge_system`.
+2. **Bridge is READ-ONLY from `lead:{lid}:fast-intel`.** Bridge writes ONLY: `script_state`, `conv_memory`, `captured_inputs`, `bridge_system`.
 3. **No unsolicited tests or browser opens.** Wait for Trent.
 4. **Always bump VERSION string** on every deploy.
 5. **Always pipe wrangler tail through `tee`** to `/logs/` folder.
@@ -172,7 +172,7 @@ Browser → demo_v95_hybrid.html → WebSocket → bella-voice-agent-sandbox-v9 
 
 | Key | Writer | Reader | Status |
 |-----|--------|--------|--------|
-| `lead:{lid}:intel` | fast-intel, deep-scrape, personalisedaidemofinal | bridge | Working |
+| `lead:{lid}:fast-intel` | fast-intel, deep-scrape, personalisedaidemofinal | bridge | Working |
 | `lead:{lid}:script_state` | bridge | bridge | Working |
 | `lead:{lid}:conv_memory` | bridge | bridge | Working |
 | `lead:{lid}:bridge_system` | bridge (write-once) | bridge | Working (KV cache) |
@@ -180,7 +180,7 @@ Browser → demo_v95_hybrid.html → WebSocket → bella-voice-agent-sandbox-v9 
 | `lead:{lid}:deepIntel` | deep-scrape | bridge (via intel merge) | Written by deep-scrape |
 | `{lid}` (bare key) | fast-intel, personalisedaidemofinal | MCP worker | Working |
 
-### intel envelope structure (what bridge reads from `lead:{lid}:intel`)
+### intel envelope structure (what bridge reads from `lead:{lid}:fast-intel`)
 
 ```
 {
