@@ -1,0 +1,25 @@
+
+ ⛅️ wrangler 4.75.0 (update available 4.80.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-04-04T10:32:40Z
+Connected to call-brain-do-v2-rescript, waiting for logs...
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=debug_gemini_20260404 - Ok @ 04/04/2026, 4:02:00 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=debug_gemini_20260404 - Ok @ 04/04/2026, 4:02:00 pm
+  (log) [INIT] received x-gemini-key header: AIzaSyDaNo...
+  (log) [KV_HYDRATE] lid=debug_gemini_20260404 no intel in KV yet
+  (log) [ALARM_SCHED] next in 20s
+  (log) [INIT] callId=44d99a048b95ac43d16121a2359fca235a731263db837f89e5876785c45e89a5 leadId=debug_gemini_20260404 stage=greeting ts=2026-04-04T05:02:01.428Z name=none biz=none industry=none
+  (log) [INIT_INTEL] callId=44d99a048b95ac43d16121a2359fca235a731263db837f89e5876785c45e89a5 fast=false consultant=false deep=false mergedVersion=0 kvSources=empty
+  (log) [EXTRACT] stage=greeting det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=1 role=user chars=2
+  (log) [TURN] turnId=1 stage=greeting wowStep=null extracted=[]
+  (log) [ADVANCE] greeting → wow (wow_1_research_intro)
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:02:01.457Z source=GENERIC name=Test biz=Test industry=business
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:02:01.457Z source=GENERIC name=Test biz=Test industry=business
+  (log) [DIRECTIVE] ts=2026-04-04T05:02:01.457Z stage=wow wowStep=wow_1_research_intro ask=true canSkip=false waitForUser=true speak="The idea is simple. So Test, your agents will engage with you in real time. They'll answer questions"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=debug_gemini_20260404 captured=yes roi=no_calcs
+Alarm @ 04/04/2026, 4:02:04 pm - Ok
+  (log) [ALARM_SCHED] next in 5s

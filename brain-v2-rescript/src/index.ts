@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.26.0'; // FIX-13: DO state isolation — validate leadId match, reset on mismatch
+const VERSION = 'v6.29.0'; // FIX-15: Extract normalization for bridge
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 
@@ -1096,6 +1096,12 @@ export class CallBrainDO {
       _geminiFields: geminiFieldFlags as any,
     };
     result.fields = mergedFields;
+    // Normalize extracted fields for packet (FIX-15: extract pipeline null)
+    result.normalized = Object.fromEntries(
+      Object.entries(mergedFields)
+        .filter(([k, v]) => !k.startsWith('_'))
+        .map(([k, v]) => [k, v ?? null])
+    );
     if (geminiResult?.correctionDetected) result.correctionDetected = true;
 
     // Log extraction sources

@@ -1,0 +1,806 @@
+
+ ⛅️ wrangler 4.78.0 (update available 4.80.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-04-04T10:32:40Z
+Connected to call-brain-do-v2-rescript, waiting for logs...
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:29 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:29 pm
+  (log) [KV_HYDRATE] lid=anon_canary_v6230_20260404 no intel in KV yet
+  (log) [ALARM_SCHED] next in 20s
+  (log) [INIT] callId=16923f7dfff8685c379a4cab508af088620b2fdbde4c551fbf94d127b8b2bc37 leadId=anon_canary_v6230_20260404 stage=greeting ts=2026-04-04T05:25:30.582Z name=none biz=none industry=none
+  (log) [INIT_INTEL] callId=16923f7dfff8685c379a4cab508af088620b2fdbde4c551fbf94d127b8b2bc37 fast=false consultant=false deep=false mergedVersion=0 kvSources=empty
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=33 stage=greeting
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=0 signals=no
+  (log) [EXTRACT] stage=greeting det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=1 role=user chars=33
+  (log) [TURN] turnId=1 stage=greeting wowStep=null extracted=[]
+  (log) [ADVANCE] greeting → wow (wow_1_research_intro)
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:25:30.586Z source=GENERIC name=Sarah biz=Canary industry=business
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:25:30.586Z source=GENERIC name=Sarah biz=Canary industry=business
+  (log) [DIRECTIVE] ts=2026-04-04T05:25:30.586Z stage=wow wowStep=wow_1_research_intro ask=true canSkip=false waitForUser=true speak="The idea is simple. So Sarah, your agents will engage with you in real time. They'll answer question"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6230_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:31 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:31 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_1_research_intro name=Sarah biz=Canary Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=94 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_API] schema_type=object schema_props=33 body_len=11324
+  (log) [GEMINI_API_RESPONSE] parts=1 raw_len=28 ms=2638
+  (error) [GEMINI_EXTRACT_ERR] bad JSON: Here is the JSON requested:
+ parts=1 ms=2638
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=0 signals=no
+  (log) [SLOT_FALLBACK] stage=ch_maddie slot=missedCalls source=regex_context val=80
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[inboundLeads,webLeads,missedCalls]
+  (log) [UNIFIED_STATE] inbound_volume_weekly=80 (first write)
+  (log) [UNIFIED_STATE] inbound_volume_weekly corrected: 80 → 80
+  (log) [TRANSCRIPT] entries=2 role=user chars=94
+  (log) [TURN] turnId=2 stage=wow wowStep=wow_1_research_intro extracted=[inboundLeads,webLeads,missedCalls]
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:25:34.515Z source=GENERIC name=Sarah biz=Canary industry=business
+  (log) [WOW] → wow_2_reputation_trial
+  (log) [WOW2_RESOLVE] ts=2026-04-04T05:25:34.515Z branch=SKIP rating=null reviews=0 biz=Canary
+  (log) [WOW_CHAIN_SKIP] wow_2_reputation_trial (canSkip + no waitForUser)
+  (log) [WOW] → wow_3_icp_problem_solution
+  (log) [WOW3_RESOLVE] ts=2026-04-04T05:25:34.515Z branch=GENERIC raw_icp="" cleaned_icp="" problems=0 solutions=0 refOffer=false icpNarrative=false bellaCheckLine=false
+  (log) [WOW3_RESOLVE] ts=2026-04-04T05:25:34.515Z branch=GENERIC raw_icp="" cleaned_icp="" problems=0 solutions=0 refOffer=false icpNarrative=false bellaCheckLine=false
+  (log) [DIRECTIVE] ts=2026-04-04T05:25:34.515Z stage=wow wowStep=wow_3_icp_problem_solution ask=true canSkip=false waitForUser=true speak="The site does a strong job of positioning what Canary does. Does that sound right? You can just say "
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6230_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:35 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:35 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_3_icp_problem_solution name=Sarah biz=Canary Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=21 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_API] schema_type=object schema_props=4 body_len=3378
+  (log) [GEMINI_API_RESPONSE] parts=1 raw_len=101 ms=2111
+  (log) [GEMINI_PARSING] raw_parsed={"intent_signal":"uncertain","objection_detected":false,"sentiment":"neutral","urgency":"low"}
+  (log) [GEMINI_EXTRACT] stage=wow schema=wow_3_icp_problem_solution fields=4 keys=[intent_signal,objection_detected,sentiment,urgency] correction=false ms=2111
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=4 signals=yes
+  (log) [EXTRACT] stage=wow det=[] gemini=[intent_signal,objection_detected,sentiment,urgency] ms=2111 regex=[intent_signal,objection_detected,sentiment,urgency]
+  (log) [TRANSCRIPT] entries=3 role=user chars=21
+  (log) [TURN] turnId=3 stage=wow wowStep=wow_3_icp_problem_solution extracted=[]
+  (log) [WOW3_RESOLVE] ts=2026-04-04T05:25:37.869Z branch=GENERIC raw_icp="" cleaned_icp="" problems=0 solutions=0 refOffer=false icpNarrative=false bellaCheckLine=false
+  (log) [WOW_SENTIMENT] step=wow_3_icp_problem_solution sentiment=positive transcript="Yeah that makes sense"
+  (log) [WOW3_ICP] confirmedICP=true (sentiment=positive affirm=true)
+  (log) [WOW] → wow_4_conversion_action
+  (log) [WOW4_RESOLVE] ts=2026-04-04T05:25:37.869Z branch=GENERIC cta="none" secondaryCTAs=0 conversionNarrative=false agentTrainingLine=false
+  (log) [WOW4_RESOLVE] ts=2026-04-04T05:25:37.869Z branch=GENERIC cta="none" secondaryCTAs=0 conversionNarrative=false agentTrainingLine=false
+  (log) [DIRECTIVE] ts=2026-04-04T05:25:37.869Z stage=wow wowStep=wow_4_conversion_action ask=true canSkip=false waitForUser=true speak="And looking at how your site converts visitors, these exact actions and resource titles are what you"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6230_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:38 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:38 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_4_conversion_action name=Sarah biz=Canary Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=21 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_API] schema_type=object schema_props=4 body_len=3378
+  (log) [GEMINI_API_RESPONSE] parts=1 raw_len=101 ms=2108
+  (log) [GEMINI_PARSING] raw_parsed={"intent_signal":"uncertain","objection_detected":false,"sentiment":"neutral","urgency":"low"}
+  (log) [GEMINI_EXTRACT] stage=wow schema=wow_4_conversion_action fields=4 keys=[intent_signal,objection_detected,sentiment,urgency] correction=false ms=2108
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=4 signals=yes
+  (log) [EXTRACT] stage=wow det=[] gemini=[intent_signal,objection_detected,sentiment,urgency] ms=2108 regex=[intent_signal,objection_detected,sentiment,urgency]
+  (log) [TRANSCRIPT] entries=4 role=user chars=21
+  (log) [TURN] turnId=4 stage=wow wowStep=wow_4_conversion_action extracted=[]
+  (log) [WOW4_RESOLVE] ts=2026-04-04T05:25:40.734Z branch=GENERIC cta="none" secondaryCTAs=0 conversionNarrative=false agentTrainingLine=false
+  (log) [WOW_SENTIMENT] step=wow_4_conversion_action sentiment=positive transcript="Yeah that makes sense"
+  (log) [WOW4_CTA] confirmedCTA=true (sentiment=positive affirm=true)
+  (log) [WOW] → wow_5_alignment_bridge
+  (log) [WOW5_RESOLVE] ts=2026-04-04T05:25:40.734Z adaptive=false branch=GENERIC icpRef=false
+  (log) [WOW5_RESOLVE] ts=2026-04-04T05:25:40.734Z trialReOffer=true
+  (log) [WOW5_RESOLVE] ts=2026-04-04T05:25:40.734Z adaptive=false branch=GENERIC icpRef=false
+  (log) [DIRECTIVE] ts=2026-04-04T05:25:40.734Z stage=wow wowStep=wow_5_alignment_bridge ask=false canSkip=false waitForUser=false speak="Perfect. So now I've got a clear picture of who you want more of, what they come to you for, and the"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 5s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:41 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:41 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_5_alignment_bridge name=Sarah biz=Canary Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=21 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_API] schema_type=object schema_props=4 body_len=3378
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6230_20260404 captured=yes roi=no_calcs
+  (log) [GEMINI_API_RESPONSE] parts=1 raw_len=101 ms=2362
+  (log) [GEMINI_PARSING] raw_parsed={"intent_signal":"uncertain","objection_detected":false,"sentiment":"neutral","urgency":"low"}
+  (log) [GEMINI_EXTRACT] stage=wow schema=wow_5_alignment_bridge fields=4 keys=[intent_signal,objection_detected,sentiment,urgency] correction=false ms=2362
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=4 signals=yes
+  (log) [EXTRACT] stage=wow det=[] gemini=[intent_signal,objection_detected,sentiment,urgency] ms=2362 regex=[intent_signal,objection_detected,sentiment,urgency]
+  (log) [TRANSCRIPT] entries=5 role=user chars=21
+  (log) [TURN] turnId=5 stage=wow wowStep=wow_5_alignment_bridge extracted=[]
+  (log) [WOW5_RESOLVE] ts=2026-04-04T05:25:43.780Z adaptive=false branch=GENERIC icpRef=false
+  (log) [WOW_SPOKEN_GATE] step=wow_5_alignment_bridge moveId=v2_wow_wow_5_alignment_bridge NOT in spoken.moveIds — advancing anyway (delivery tracked separately)
+  (log) [WOW] → wow_6_scraped_observation
+  (log) [WOW6_RESOLVE] ts=2026-04-04T05:25:43.780Z source=GENERIC deepInsight=false scrapedSummary=false googlePresence=false mostImpressive="" hooks=0 topHiringWedge=false hiringMatches=0 speak_preview="One more thing I noticed — the way your site is set up, there are specific conve"
+  (log) [WOW6_RESOLVE] ts=2026-04-04T05:25:43.780Z source=GENERIC deepInsight=false scrapedSummary=false googlePresence=false mostImpressive="" hooks=0 topHiringWedge=false hiringMatches=0 speak_preview="One more thing I noticed — the way your site is set up, there are specific conve"
+  (log) [DIRECTIVE] ts=2026-04-04T05:25:43.780Z stage=wow wowStep=wow_6_scraped_observation ask=false canSkip=false waitForUser=false speak="One more thing I noticed — the way your site is set up, there are specific conversion points your ag"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 5s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6230_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:44 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:44 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_6_scraped_observation name=Sarah biz=Canary Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=65 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_API] schema_type=object schema_props=4 body_len=3422
+  (log) [GEMINI_API_RESPONSE] parts=1 raw_len=101 ms=2158
+  (log) [GEMINI_PARSING] raw_parsed={"intent_signal":"uncertain","objection_detected":false,"sentiment":"neutral","urgency":"low"}
+  (log) [GEMINI_EXTRACT] stage=wow schema=wow_6_scraped_observation fields=4 keys=[intent_signal,objection_detected,sentiment,urgency] correction=false ms=2158
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=4 signals=yes
+  (log) [EXTRACT] stage=wow det=[] gemini=[intent_signal,objection_detected,sentiment,urgency] ms=2158 regex=[intent_signal,objection_detected,sentiment,urgency]
+  (log) [TRANSCRIPT] entries=6 role=user chars=65
+  (log) [TURN] turnId=6 stage=wow wowStep=wow_6_scraped_observation extracted=[]
+  (log) [WOW6_RESOLVE] ts=2026-04-04T05:25:46.686Z source=GENERIC deepInsight=false scrapedSummary=false googlePresence=false mostImpressive="" hooks=0 topHiringWedge=false hiringMatches=0 speak_preview="One more thing I noticed — the way your site is set up, there are specific conve"
+  (log) [WOW_SPOKEN_GATE] step=wow_6_scraped_observation moveId=v2_wow_wow_6_scraped_observation NOT in spoken.moveIds — advancing anyway (delivery tracked separately)
+  (log) [WOW] → wow_7_explore_or_recommend
+  (log) [WOW7_RESOLVE] ts=2026-04-04T05:25:46.686Z biz=Canary
+  (log) [WOW7_RESOLVE] ts=2026-04-04T05:25:46.686Z biz=Canary
+  (log) [DIRECTIVE] ts=2026-04-04T05:25:46.686Z stage=wow wowStep=wow_7_explore_or_recommend ask=true canSkip=false waitForUser=true speak="I can either keep exploring with you for a minute, or I can just show you the setup I'd recommend ba"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6230_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:48 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:47 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_7_explore_or_recommend name=Sarah biz=Canary Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=54 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_API] schema_type=object schema_props=33 body_len=11284
+  (log) [GEMINI_API_RESPONSE] parts=1 raw_len=63 ms=2014
+  (log) [GEMINI_PARSING] raw_parsed={"inboundConversions":25,"inboundConversions_unit":"weekly"}
+  (log) [GEMINI_EXTRACT] stage=wow schema=wow_7_explore_or_recommend fields=2 keys=[inboundConversions,inboundConversions_unit] correction=true ms=2014
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=2 signals=yes
+  (log) [SLOT_FALLBACK] stage=ch_alex slot=inboundConversions source=regex_context val=25
+  (log) [SLOT_FALLBACK] stage=ch_chris slot=webConversions source=regex_context val=25
+  (log) [SLOT_FALLBACK] stage=ch_maddie slot=missedCalls source=regex_context val=25
+  (log) [EXTRACT] stage=wow det=[] gemini=[inboundConversions,inboundConversions_unit] ms=2014 regex=[inboundConversions,webConversions,missedCalls,inboundConversions_unit]
+  (log) [EXTRACT_CORRECT] field=missedCalls old=80 new=25
+  (log) [TRANSCRIPT] entries=7 role=user chars=54
+  (log) [TURN] turnId=7 stage=wow wowStep=wow_7_explore_or_recommend extracted=[inboundConversions,webConversions,missedCalls]
+  (log) [WOW7_RESOLVE] ts=2026-04-04T05:25:50.045Z biz=Canary
+  (log) [WOW] → wow_8_source_check
+  (log) [WOW8_RESOLVE] ts=2026-04-04T05:25:50.045Z branch=NO_ADS routingQ=false
+  (log) [WOW8_RESOLVE] ts=2026-04-04T05:25:50.045Z branch=NO_ADS routingQ=false
+  (log) [DIRECTIVE] ts=2026-04-04T05:25:50.045Z stage=wow wowStep=wow_8_source_check ask=true canSkip=false waitForUser=true speak="Apart from referrals, where is most new business coming from right now — your website, paid ads, pho"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6230_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:51 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:25:50 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_8_source_check name=Sarah biz=Canary Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=39 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=0 signals=no
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=8 role=user chars=39
+  (log) [TURN] turnId=8 stage=wow wowStep=wow_8_source_check extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_8_source_check elapsed=1342ms < min=2000ms — holding delivery
+  (log) [WOW8_RESOLVE] ts=2026-04-04T05:25:51.387Z branch=NO_ADS routingQ=false
+  (log) [DIRECTIVE] ts=2026-04-04T05:25:51.387Z stage=wow wowStep=wow_8_source_check ask=true canSkip=false waitForUser=true speak="Apart from referrals, where is most new business coming from right now — your website, paid ads, pho"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6230_20260404 captured=yes roi=no_calcs
+Alarm @ 04/04/2026, 4:26:01 pm - Ok
+  (log) [ALARM] Deep intel missing — escalation flagged callId=16923f7dfff8685c379a4cab508af088620b2fdbde4c551fbf94d127b8b2bc37
+  (log) [ALARM_SCHED] next in 5s
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/debug?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:26:01 pm
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/debug?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:26:06 pm
+Alarm @ 04/04/2026, 4:26:06 pm - Ok
+  (log) [ALARM_SCHED] next in 4s
+Alarm @ 04/04/2026, 4:26:10 pm - Ok
+  (log) [DELIVERY_TIMEOUT] reissue attempts=2 deliveryId=v2_wow_wow_8_source_check_14
+  (log) [ALARM_SCHED] next in 11s
+Alarm @ 04/04/2026, 4:26:21 pm - Ok
+  (log) [ALARM_SCHED] next in 9s
+Alarm @ 04/04/2026, 4:26:30 pm - Ok
+  (log) [DELIVERY_TIMEOUT] reissue attempts=3 deliveryId=v2_wow_wow_8_source_check_14
+  (log) [ALARM_SCHED] next in 20s
+Alarm @ 04/04/2026, 4:26:50 pm - Ok
+  (log) [DELIVERY_TIMEOUT] force-clear deliveryId=v2_wow_wow_8_source_check_14 attempts=3
+  (log) [CALL_DEGRADED] 3 consecutive timeouts
+  (log) [ALARM_SCHED] next in 61s
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/debug?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:27:47 pm
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/debug?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:26:50 pm
+Alarm @ 04/04/2026, 4:27:51 pm - Ok
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/debug?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:27:52 pm
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/debug?callId=anon_canary_v6230_20260404 - Ok @ 04/04/2026, 4:27:56 pm
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/health - Ok @ 04/04/2026, 4:33:00 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:04 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:04 pm
+  (log) [KV_HYDRATE] lid=anon_canary_v6240_20260404_revalidate no intel in KV yet
+  (log) [ALARM_SCHED] next in 20s
+  (log) [INIT] callId=02d34abfedf6013c1bca80d6a0c4f76e06c02b3bb86546f3cf20471a8edbfb99 leadId=anon_canary_v6240_20260404_revalidate stage=greeting ts=2026-04-04T05:34:05.625Z name=none biz=none industry=none
+  (log) [INIT_INTEL] callId=02d34abfedf6013c1bca80d6a0c4f76e06c02b3bb86546f3cf20471a8edbfb99 fast=false consultant=false deep=false mergedVersion=0 kvSources=empty
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=8 stage=greeting
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=0 signals=no
+  (log) [EXTRACT] stage=greeting det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=1 role=user chars=8
+  (log) [TURN] turnId=1 stage=greeting wowStep=null extracted=[]
+  (log) [ADVANCE] greeting → wow (wow_1_research_intro)
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:34:05.627Z source=GENERIC name=Test biz=Test industry=business
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:34:05.627Z source=GENERIC name=Test biz=Test industry=business
+  (log) [DIRECTIVE] ts=2026-04-04T05:34:05.627Z stage=wow wowStep=wow_1_research_intro ask=true canSkip=false waitForUser=true speak="The idea is simple. So Test, your agents will engage with you in real time. They'll answer questions"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6240_20260404_revalidate captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:07 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:06 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_1_research_intro name=Test biz=Test Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=67 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_API] schema_type=object schema_props=33 body_len=11297
+  (log) [GEMINI_API_RESPONSE] parts=0 raw_len=0 ms=2408
+  (error) [GEMINI_EXTRACT_ERR] no text in response parts=0 thought=false ms=2408
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=0 signals=no
+  (log) [SLOT_FALLBACK] stage=ch_maddie slot=missedCalls source=regex_context val=100
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[inboundLeads,webLeads,missedCalls]
+  (log) [UNIFIED_STATE] inbound_volume_weekly=100 (first write)
+  (log) [UNIFIED_STATE] inbound_volume_weekly corrected: 100 → 100
+  (log) [TRANSCRIPT] entries=2 role=user chars=67
+  (log) [TURN] turnId=2 stage=wow wowStep=wow_1_research_intro extracted=[inboundLeads,webLeads,missedCalls]
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:34:09.435Z source=GENERIC name=Test biz=Test industry=business
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:34:09.435Z source=GENERIC name=Test biz=Test industry=business
+  (log) [CORRECTION_GATE] stage=wow wowStep=wow_1_research_intro correction_detected=true → holding stage for reconfirmation
+  (log) [DIRECTIVE] ts=2026-04-04T05:34:09.435Z stage=wow wowStep=wow_1_research_intro ask=true canSkip=false waitForUser=true speak="The idea is simple. So Test, your agents will engage with you in real time. They'll answer questions"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6240_20260404_revalidate captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:10 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:10 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_1_research_intro name=Test biz=Test Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=4 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_API] schema_type=object schema_props=4 body_len=3361
+  (log) [GEMINI_API_RESPONSE] parts=1 raw_len=101 ms=2009
+  (log) [GEMINI_PARSING] raw_parsed={"intent_signal":"uncertain","objection_detected":false,"sentiment":"neutral","urgency":"low"}
+  (log) [GEMINI_EXTRACT] stage=wow schema=wow_1_research_intro fields=4 keys=[intent_signal,objection_detected,sentiment,urgency] correction=false ms=2009
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=4 signals=yes
+  (log) [EXTRACT] stage=wow det=[] gemini=[intent_signal,objection_detected,sentiment,urgency] ms=2009 regex=[intent_signal,objection_detected,sentiment,urgency]
+  (log) [QUALITATIVE] objection=false intent=uncertain urgency=low sentiment=neutral
+  (log) [TRANSCRIPT] entries=3 role=user chars=4
+  (log) [TURN] turnId=3 stage=wow wowStep=wow_1_research_intro extracted=[]
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:34:12.662Z source=GENERIC name=Test biz=Test industry=business
+  (log) [WOW_FILLER_OK] step=wow_1_research_intro — filler accepted as affirmative
+  (log) [WOW] → wow_2_reputation_trial
+  (log) [WOW2_RESOLVE] ts=2026-04-04T05:34:12.662Z branch=SKIP rating=null reviews=0 biz=Test
+  (log) [WOW_CHAIN_SKIP] wow_2_reputation_trial (canSkip + no waitForUser)
+  (log) [WOW] → wow_3_icp_problem_solution
+  (log) [WOW3_RESOLVE] ts=2026-04-04T05:34:12.662Z branch=GENERIC raw_icp="" cleaned_icp="" problems=0 solutions=0 refOffer=false icpNarrative=false bellaCheckLine=false
+  (log) [WOW3_RESOLVE] ts=2026-04-04T05:34:12.662Z branch=GENERIC raw_icp="" cleaned_icp="" problems=0 solutions=0 refOffer=false icpNarrative=false bellaCheckLine=false
+  (log) [DIRECTIVE] ts=2026-04-04T05:34:12.662Z stage=wow wowStep=wow_3_icp_problem_solution ask=true canSkip=false waitForUser=true speak="The site does a strong job of positioning what Test does. Does that sound right? You can just say ye"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6240_20260404_revalidate captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:13 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:13 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_3_icp_problem_solution name=Test biz=Test Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=4 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_API] schema_type=object schema_props=4 body_len=3361
+  (log) [GEMINI_API_RESPONSE] parts=1 raw_len=101 ms=1954
+  (log) [GEMINI_PARSING] raw_parsed={"intent_signal":"uncertain","objection_detected":false,"sentiment":"neutral","urgency":"low"}
+  (log) [GEMINI_EXTRACT] stage=wow schema=wow_3_icp_problem_solution fields=4 keys=[intent_signal,objection_detected,sentiment,urgency] correction=false ms=1954
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=4 signals=yes
+  (log) [EXTRACT] stage=wow det=[] gemini=[intent_signal,objection_detected,sentiment,urgency] ms=1954 regex=[intent_signal,objection_detected,sentiment,urgency]
+  (log) [QUALITATIVE] objection=false intent=uncertain urgency=low sentiment=neutral
+  (log) [TRANSCRIPT] entries=4 role=user chars=4
+  (log) [TURN] turnId=4 stage=wow wowStep=wow_3_icp_problem_solution extracted=[]
+  (log) [WOW3_RESOLVE] ts=2026-04-04T05:34:15.467Z branch=GENERIC raw_icp="" cleaned_icp="" problems=0 solutions=0 refOffer=false icpNarrative=false bellaCheckLine=false
+  (log) [WOW_FILLER_OK] step=wow_3_icp_problem_solution — filler accepted as affirmative
+  (log) [WOW_SENTIMENT] step=wow_3_icp_problem_solution sentiment=positive transcript="Yeah"
+  (log) [WOW3_ICP] confirmedICP=true (sentiment=positive affirm=true)
+  (log) [WOW] → wow_4_conversion_action
+  (log) [WOW4_RESOLVE] ts=2026-04-04T05:34:15.467Z branch=GENERIC cta="none" secondaryCTAs=0 conversionNarrative=false agentTrainingLine=false
+  (log) [WOW4_RESOLVE] ts=2026-04-04T05:34:15.467Z branch=GENERIC cta="none" secondaryCTAs=0 conversionNarrative=false agentTrainingLine=false
+  (log) [DIRECTIVE] ts=2026-04-04T05:34:15.467Z stage=wow wowStep=wow_4_conversion_action ask=true canSkip=false waitForUser=true speak="And looking at how your site converts visitors, these exact actions and resource titles are what you"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:16 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:15 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_4_conversion_action name=Test biz=Test Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=4 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_API] schema_type=object schema_props=4 body_len=3361
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6240_20260404_revalidate captured=yes roi=no_calcs
+  (log) [GEMINI_API_RESPONSE] parts=1 raw_len=101 ms=1407
+  (log) [GEMINI_PARSING] raw_parsed={"intent_signal":"uncertain","objection_detected":false,"sentiment":"neutral","urgency":"low"}
+  (log) [GEMINI_EXTRACT] stage=wow schema=wow_4_conversion_action fields=4 keys=[intent_signal,objection_detected,sentiment,urgency] correction=false ms=1407
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=4 signals=yes
+  (log) [EXTRACT] stage=wow det=[] gemini=[intent_signal,objection_detected,sentiment,urgency] ms=1407 regex=[intent_signal,objection_detected,sentiment,urgency]
+  (log) [QUALITATIVE] objection=false intent=uncertain urgency=low sentiment=neutral
+  (log) [TRANSCRIPT] entries=5 role=user chars=4
+  (log) [TURN] turnId=5 stage=wow wowStep=wow_4_conversion_action extracted=[]
+  (log) [WOW4_RESOLVE] ts=2026-04-04T05:34:17.602Z branch=GENERIC cta="none" secondaryCTAs=0 conversionNarrative=false agentTrainingLine=false
+  (log) [WOW_FILLER_OK] step=wow_4_conversion_action — filler accepted as affirmative
+  (log) [WOW_SENTIMENT] step=wow_4_conversion_action sentiment=positive transcript="Yeah"
+  (log) [WOW4_CTA] confirmedCTA=true (sentiment=positive affirm=true)
+  (log) [WOW] → wow_5_alignment_bridge
+  (log) [WOW5_RESOLVE] ts=2026-04-04T05:34:17.602Z adaptive=false branch=GENERIC icpRef=false
+  (log) [WOW5_RESOLVE] ts=2026-04-04T05:34:17.602Z trialReOffer=true
+  (log) [WOW5_RESOLVE] ts=2026-04-04T05:34:17.602Z adaptive=false branch=GENERIC icpRef=false
+  (log) [DIRECTIVE] ts=2026-04-04T05:34:17.602Z stage=wow wowStep=wow_5_alignment_bridge ask=false canSkip=false waitForUser=false speak="Perfect. So now I've got a clear picture of who you want more of, what they come to you for, and the"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 5s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6240_20260404_revalidate captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:18 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:18 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_5_alignment_bridge name=Test biz=Test Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=39 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_API] schema_type=object schema_props=4 body_len=3396
+  (log) [GEMINI_API_RESPONSE] parts=1 raw_len=101 ms=1659
+  (log) [GEMINI_PARSING] raw_parsed={"intent_signal":"uncertain","objection_detected":false,"sentiment":"neutral","urgency":"low"}
+  (log) [GEMINI_EXTRACT] stage=wow schema=wow_5_alignment_bridge fields=4 keys=[intent_signal,objection_detected,sentiment,urgency] correction=false ms=1659
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=4 signals=yes
+  (log) [EXTRACT] stage=wow det=[] gemini=[intent_signal,objection_detected,sentiment,urgency] ms=1659 regex=[intent_signal,objection_detected,sentiment,urgency]
+  (log) [QUALITATIVE] objection=false intent=uncertain urgency=low sentiment=neutral
+  (log) [TRANSCRIPT] entries=6 role=user chars=39
+  (log) [TURN] turnId=6 stage=wow wowStep=wow_5_alignment_bridge extracted=[]
+  (log) [WOW5_RESOLVE] ts=2026-04-04T05:34:19.999Z adaptive=false branch=GENERIC icpRef=false
+  (log) [WOW_SPOKEN_GATE] step=wow_5_alignment_bridge moveId=v2_wow_wow_5_alignment_bridge NOT in spoken.moveIds — advancing anyway (delivery tracked separately)
+  (log) [WOW] → wow_6_scraped_observation
+  (log) [WOW6_RESOLVE] ts=2026-04-04T05:34:19.999Z source=GENERIC deepInsight=false scrapedSummary=false googlePresence=false mostImpressive="" hooks=0 topHiringWedge=false hiringMatches=0 speak_preview="One more thing I noticed — the way your site is set up, there are specific conve"
+  (log) [WOW6_RESOLVE] ts=2026-04-04T05:34:19.999Z source=GENERIC deepInsight=false scrapedSummary=false googlePresence=false mostImpressive="" hooks=0 topHiringWedge=false hiringMatches=0 speak_preview="One more thing I noticed — the way your site is set up, there are specific conve"
+  (log) [DIRECTIVE] ts=2026-04-04T05:34:19.999Z stage=wow wowStep=wow_6_scraped_observation ask=false canSkip=false waitForUser=false speak="One more thing I noticed — the way your site is set up, there are specific conversion points your ag"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 5s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6240_20260404_revalidate captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:21 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:20 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_6_scraped_observation name=Test biz=Test Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=41 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_API] schema_type=object schema_props=33 body_len=11271
+  (log) [GEMINI_API_RESPONSE] parts=1 raw_len=73 ms=1676
+  (log) [GEMINI_PARSING] raw_parsed={"inboundConversions":20,"objection_detected":true,"sentiment":"neutral"}
+  (log) [GEMINI_EXTRACT] stage=wow schema=wow_6_scraped_observation fields=3 keys=[inboundConversions,objection_detected,sentiment] correction=true ms=1676
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=3 signals=yes
+  (log) [SLOT_FALLBACK] stage=ch_alex slot=inboundConversions source=regex_context val=20
+  (log) [SLOT_FALLBACK] stage=ch_maddie slot=missedCalls source=regex_context val=20
+  (log) [EXTRACT] stage=wow det=[] gemini=[inboundConversions,objection_detected,sentiment] ms=1676 regex=[inboundConversions,webLeads,missedCalls,objection_detected,sentiment]
+  (log) [EXTRACT_CORRECT] field=webLeads old=100 new=20
+  (log) [EXTRACT_CORRECT] field=missedCalls old=100 new=20
+  (log) [UNIFIED_STATE] inbound_volume_weekly corrected: 100 → 20
+  (log) [QUALITATIVE] objection=true intent=undefined urgency=undefined sentiment=neutral
+  (log) [TRANSCRIPT] entries=7 role=user chars=41
+  (log) [TURN] turnId=7 stage=wow wowStep=wow_6_scraped_observation extracted=[inboundConversions,webLeads,missedCalls]
+  (log) [WOW6_RESOLVE] ts=2026-04-04T05:34:22.933Z source=GENERIC deepInsight=false scrapedSummary=false googlePresence=false mostImpressive="" hooks=0 topHiringWedge=false hiringMatches=0 speak_preview="One more thing I noticed — the way your site is set up, there are specific conve"
+  (log) [WOW6_RESOLVE] ts=2026-04-04T05:34:22.933Z source=GENERIC deepInsight=false scrapedSummary=false googlePresence=false mostImpressive="" hooks=0 topHiringWedge=false hiringMatches=0 speak_preview="One more thing I noticed — the way your site is set up, there are specific conve"
+  (log) [CORRECTION_GATE] stage=wow wowStep=wow_6_scraped_observation correction_detected=true → holding stage for reconfirmation
+  (log) [DIRECTIVE] ts=2026-04-04T05:34:22.933Z stage=wow wowStep=wow_6_scraped_observation ask=false canSkip=false waitForUser=false speak="I hear your concern — let me address that. One more thing I noticed — the way your site is set up, t"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6240_20260404_revalidate captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:24 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:23 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_6_scraped_observation name=Test biz=Test Corp fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=18 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_API] schema_type=object schema_props=4 body_len=3375
+  (log) [GEMINI_API_RESPONSE] parts=1 raw_len=101 ms=5861
+  (log) [GEMINI_PARSING] raw_parsed={"intent_signal":"uncertain","objection_detected":false,"sentiment":"neutral","urgency":"low"}
+  (log) [GEMINI_EXTRACT] stage=wow schema=wow_6_scraped_observation fields=4 keys=[intent_signal,objection_detected,sentiment,urgency] correction=false ms=5861
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=4 signals=yes
+  (log) [EXTRACT] stage=wow det=[] gemini=[intent_signal,objection_detected,sentiment,urgency] ms=5861 regex=[intent_signal,objection_detected,sentiment,urgency]
+  (log) [QUALITATIVE] objection=false intent=uncertain urgency=low sentiment=neutral
+  (log) [TRANSCRIPT] entries=8 role=user chars=18
+  (log) [TURN] turnId=8 stage=wow wowStep=wow_6_scraped_observation extracted=[]
+  (log) [WOW6_RESOLVE] ts=2026-04-04T05:34:30.046Z source=GENERIC deepInsight=false scrapedSummary=false googlePresence=false mostImpressive="" hooks=0 topHiringWedge=false hiringMatches=0 speak_preview="One more thing I noticed — the way your site is set up, there are specific conve"
+  (log) [WOW_SPOKEN_GATE] step=wow_6_scraped_observation moveId=v2_wow_wow_6_scraped_observation NOT in spoken.moveIds — advancing anyway (delivery tracked separately)
+  (log) [WOW] → wow_7_explore_or_recommend
+  (log) [WOW7_RESOLVE] ts=2026-04-04T05:34:30.046Z biz=Test
+  (log) [WOW7_RESOLVE] ts=2026-04-04T05:34:30.046Z biz=Test
+  (log) [DIRECTIVE] ts=2026-04-04T05:34:30.046Z stage=wow wowStep=wow_7_explore_or_recommend ask=true canSkip=false waitForUser=true speak="I can either keep exploring with you for a minute, or I can just show you the setup I'd recommend ba"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6240_20260404_revalidate captured=yes roi=no_calcs
+Alarm @ 04/04/2026, 4:34:40 pm - Ok
+  (log) [ALARM] Deep intel missing — escalation flagged callId=02d34abfedf6013c1bca80d6a0c4f76e06c02b3bb86546f3cf20471a8edbfb99
+  (log) [ALARM_SCHED] next in 5s
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/debug?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:40 pm
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/debug?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:42 pm
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/state?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:42 pm
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/state?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:42 pm
+Alarm @ 04/04/2026, 4:34:45 pm - Ok
+  (log) [ALARM_SCHED] next in 5s
+Alarm @ 04/04/2026, 4:34:50 pm - Ok
+  (log) [DELIVERY_TIMEOUT] reissue attempts=2 deliveryId=v2_wow_wow_7_explore_or_recommend_12
+  (log) [ALARM_SCHED] next in 10s
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/debug?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:50 pm
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/debug?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:34:51 pm
+Alarm @ 04/04/2026, 4:35:00 pm - Ok
+  (log) [ALARM_SCHED] next in 10s
+Alarm @ 04/04/2026, 4:35:10 pm - Ok
+  (log) [DELIVERY_TIMEOUT] reissue attempts=3 deliveryId=v2_wow_wow_7_explore_or_recommend_12
+  (log) [ALARM_SCHED] next in 20s
+Alarm @ 04/04/2026, 4:35:30 pm - Ok
+  (log) [DELIVERY_TIMEOUT] force-clear deliveryId=v2_wow_wow_7_explore_or_recommend_12 attempts=3
+  (log) [CALL_DEGRADED] 3 consecutive timeouts
+  (log) [ALARM_SCHED] next in 60s
+Alarm @ 04/04/2026, 4:36:30 pm - Ok
+  (log) [ALARM] Call stale — no turn for 120s callId=02d34abfedf6013c1bca80d6a0c4f76e06c02b3bb86546f3cf20471a8edbfb99
+  (log) [ALARM_CALC] Running alex calculator (acv=null)
+  (log) [ALARM_CALC] Running chris calculator (acv=null)
+  (log) [ALARM_CALC] Running maddie calculator (acv=null)
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/event?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:38:15 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/event?callId=anon_canary_v6240_20260404_revalidate - Ok @ 04/04/2026, 4:38:15 pm
+  (log) [CACHE_CLEANUP] cleared 0 cached turns at call_end
+  (log) [MEMORY_EXPORT] leadId=anon_canary_v6240_20260404_revalidate notes=0 (key deleted)
+  (log) [CONV_MEMORY_COMPAT] leadId=anon_canary_v6240_20260404_revalidate chars=0
+  (log) [MEMORY_V2_EXPORT] leadId=anon_canary_v6240_20260404_revalidate qualitative=5 confirmed=0 corrections=0
+  (log) [COMPAT_EXPORT] lid=anon_canary_v6240_20260404_revalidate captured=yes roi=no_calcs
+  (log) [CALL_END] reason=undefined stage=wow totalROI=$0/wk
+POST https://do-internal/event?callId=anon_canary_v625 - Ok @ 04/04/2026, 6:34:00 pm
+  (log) [KV_HYDRATE] lid=e4d074692313ad638827ddc1adfe858efd996746751fbf6b1310bf3d9c6f3af9 no intel in KV yet
+  (log) [ALARM_SCHED] next in 20s
+  (log) [INIT] callId=e4d074692313ad638827ddc1adfe858efd996746751fbf6b1310bf3d9c6f3af9 leadId=e4d074692313ad638827ddc1adfe858efd996746751fbf6b1310bf3d9c6f3af9 stage=greeting ts=2026-04-04T07:34:01.185Z name=none biz=none industry=none
+  (log) [INIT_INTEL] callId=e4d074692313ad638827ddc1adfe858efd996746751fbf6b1310bf3d9c6f3af9 fast=false consultant=false deep=false mergedVersion=0 kvSources=empty
+  (log) [INDUSTRY] resolved="accounting" source="keyword:account" raw="accounting and advisory"
+  (log) [TOP_AGENTS] no consultant priority — Alex-first default result=[alex,chris,maddie]
+  (log) [TOP_AGENTS] no consultant priority — Alex-first default result=[alex,chris,maddie]
+  (log) [PLACES_SEED] lid=e4d074692313ad638827ddc1adfe858efd996746751fbf6b1310bf3d9c6f3af9 ts=2026-04-04T07:34:01.185Z action=SEEDED rating=4.2 reviews=84 name=KPMG
+  (log) [INTEL_RECV] eventId=ec597928-57bb-4d18-8238-9aef1420db2c type=fast_intel_ready version=1 mergedVersion=1 source=fast-intel sentAt=2026-04-04T07:34:00.035Z receivedAt=2026-04-04T07:34:01.185Z
+  (log) [WOW_FIELDS] lid=e4d074692313ad638827ddc1adfe858efd996746751fbf6b1310bf3d9c6f3af9 ts=2026-04-04T07:34:01.185Z type=fast_intel_ready googleMaps=true rating=4.2 consultant=false icp_guess=false scrapedDataSummary=false mostImpressive=0
+  (log) [ALARM_SCHED] next in 20s
+POST https://do-internal/event?callId=anon_canary_v625 - Ok @ 04/04/2026, 6:34:01 pm
+  (log) [ENSURE] existing session — stage=greeting wowStep=null name=Trent biz=KPMG fast=true consultant=false deep=false mergedV=1
+  (log) [INDUSTRY] resolved="accounting" source="keyword:account" raw="accounting and advisory"
+  (log) [TOP_AGENTS] consultant_priority=[Alex,Chris,Maddie] result=[alex,chris,maddie]
+  (log) [TOP_AGENTS] consultant_priority=[Alex,Chris,Maddie] result=[alex,chris,maddie]
+  (log) [INTEL_RECV] eventId=d1524b05-af76-4b80-b840-49de9b4e6313 type=consultant_ready version=1 mergedVersion=2 source=fast-intel sentAt=2026-04-04T07:34:01.219Z receivedAt=2026-04-04T07:34:01.217Z
+  (log) [WOW_FIELDS] lid=e4d074692313ad638827ddc1adfe858efd996746751fbf6b1310bf3d9c6f3af9 ts=2026-04-04T07:34:01.217Z type=consultant_ready googleMaps=true rating=4.2 consultant=true icp_guess=true scrapedDataSummary=false mostImpressive=2
+  (log) [ALARM_SCHED] next in 20s
+POST https://do-internal/event?callId=anon_canary_v625 - Canceled @ 04/04/2026, 6:34:01 pm
+POST https://do-internal/event?callId=anon_canary_v625 - Canceled @ 04/04/2026, 6:34:00 pm
+POST https://do-internal/event?callId=anon_canary_v625_test1 - Ok @ 04/04/2026, 6:34:02 pm
+  (log) [KV_HYDRATE] lid=1f91fe3b0caa07cecad00441be1ff39de0ee7a8e64470aa7f1bc09ee8d951053 no intel in KV yet
+  (log) [ALARM_SCHED] next in 20s
+  (log) [INIT] callId=1f91fe3b0caa07cecad00441be1ff39de0ee7a8e64470aa7f1bc09ee8d951053 leadId=1f91fe3b0caa07cecad00441be1ff39de0ee7a8e64470aa7f1bc09ee8d951053 stage=greeting ts=2026-04-04T07:34:03.141Z name=none biz=none industry=none
+  (log) [INIT_INTEL] callId=1f91fe3b0caa07cecad00441be1ff39de0ee7a8e64470aa7f1bc09ee8d951053 fast=false consultant=false deep=false mergedVersion=0 kvSources=empty
+  (log) [INDUSTRY] resolved="accounting" source="keyword:account" raw="accounting and advisory"
+  (log) [TOP_AGENTS] no consultant priority — Alex-first default result=[alex,chris,maddie]
+  (log) [TOP_AGENTS] no consultant priority — Alex-first default result=[alex,chris,maddie]
+  (log) [PLACES_SEED] lid=1f91fe3b0caa07cecad00441be1ff39de0ee7a8e64470aa7f1bc09ee8d951053 ts=2026-04-04T07:34:03.141Z action=SEEDED rating=4.2 reviews=84 name=KPMG
+  (log) [INTEL_RECV] eventId=3610e245-b424-4090-9d0d-646475c225a4 type=fast_intel_ready version=1 mergedVersion=1 source=fast-intel sentAt=2026-04-04T07:34:01.954Z receivedAt=2026-04-04T07:34:03.141Z
+  (log) [WOW_FIELDS] lid=1f91fe3b0caa07cecad00441be1ff39de0ee7a8e64470aa7f1bc09ee8d951053 ts=2026-04-04T07:34:03.141Z type=fast_intel_ready googleMaps=true rating=4.2 consultant=false icp_guess=false scrapedDataSummary=false mostImpressive=0
+  (log) [ALARM_SCHED] next in 20s
+POST https://do-internal/event?callId=anon_canary_v625_test1 - Ok @ 04/04/2026, 6:34:03 pm
+  (log) [ENSURE] existing session — stage=greeting wowStep=null name=Trent biz=KPMG fast=true consultant=false deep=false mergedV=1
+  (log) [INDUSTRY] resolved="accounting" source="keyword:account" raw="accounting and advisory"
+  (log) [TOP_AGENTS] consultant_priority=[Alex,Chris,Maddie] result=[alex,chris,maddie]
+  (log) [TOP_AGENTS] consultant_priority=[Alex,Chris,Maddie] result=[alex,chris,maddie]
+  (log) [INTEL_RECV] eventId=ac16f9cd-1c09-400f-b904-ae344d3f0b16 type=consultant_ready version=1 mergedVersion=2 source=fast-intel sentAt=2026-04-04T07:34:03.191Z receivedAt=2026-04-04T07:34:03.191Z
+  (log) [WOW_FIELDS] lid=1f91fe3b0caa07cecad00441be1ff39de0ee7a8e64470aa7f1bc09ee8d951053 ts=2026-04-04T07:34:03.191Z type=consultant_ready googleMaps=true rating=4.2 consultant=true icp_guess=true scrapedDataSummary=false mostImpressive=2
+  (log) [ALARM_SCHED] next in 20s
+POST https://do-internal/event?callId=anon_canary_v625_test1 - Canceled @ 04/04/2026, 6:34:01 pm
+POST https://do-internal/event?callId=anon_canary_v625_test1 - Canceled @ 04/04/2026, 6:34:03 pm
+Alarm @ 04/04/2026, 6:34:21 pm - Ok
+  (log) [ALARM] Deep intel missing — escalation flagged callId=e4d074692313ad638827ddc1adfe858efd996746751fbf6b1310bf3d9c6f3af9
+Alarm @ 04/04/2026, 6:34:23 pm - Ok
+  (log) [ALARM] Deep intel missing — escalation flagged callId=1f91fe3b0caa07cecad00441be1ff39de0ee7a8e64470aa7f1bc09ee8d951053
+POST https://do-internal/event?callId=anon_y3kd4zqa - Canceled @ 04/04/2026, 6:41:52 pm
+POST https://do-internal/event?callId=anon_y3kd4zqa - Canceled @ 04/04/2026, 6:41:51 pm
+POST https://do-internal/event?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:41:51 pm
+  (log) [KV_HYDRATE] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 no intel in KV yet
+  (log) [ALARM_SCHED] next in 20s
+  (log) [INIT] callId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 stage=greeting ts=2026-04-04T07:41:52.747Z name=none biz=none industry=none
+  (log) [INIT_INTEL] callId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 fast=false consultant=false deep=false mergedVersion=0 kvSources=empty
+  (log) [INDUSTRY] resolved="accounting" source="keyword:account" raw="accounting and advisory"
+  (log) [TOP_AGENTS] no consultant priority — Alex-first default result=[alex,chris,maddie]
+  (log) [TOP_AGENTS] no consultant priority — Alex-first default result=[alex,chris,maddie]
+  (log) [PLACES_SEED] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 ts=2026-04-04T07:41:52.747Z action=SEEDED rating=5 reviews=29 name=Pitcher Partners Sydney
+  (log) [INTEL_RECV] eventId=c938b471-7d3b-49e4-9862-9d92f016dbb3 type=fast_intel_ready version=1 mergedVersion=1 source=fast-intel sentAt=2026-04-04T07:41:51.577Z receivedAt=2026-04-04T07:41:52.747Z
+  (log) [WOW_FIELDS] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 ts=2026-04-04T07:41:52.747Z type=fast_intel_ready googleMaps=true rating=5 consultant=false icp_guess=false scrapedDataSummary=false mostImpressive=0
+  (log) [ALARM_SCHED] next in 20s
+POST https://do-internal/event?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:41:52 pm
+  (log) [ENSURE] existing session — stage=greeting wowStep=null name=Trent biz=Pitcher Partners Sydney fast=true consultant=false deep=false mergedV=1
+  (log) [INDUSTRY] resolved="accounting" source="keyword:account" raw="accounting and advisory"
+  (log) [TOP_AGENTS] consultant_priority=[Alex,Maddie,Chris] result=[alex,chris,maddie]
+  (log) [TOP_AGENTS] consultant_priority=[Alex,Maddie,Chris] result=[alex,chris,maddie]
+  (log) [INTEL_RECV] eventId=97acdc90-fb3e-4e47-b6dc-0aad5a910560 type=consultant_ready version=1 mergedVersion=2 source=fast-intel sentAt=2026-04-04T07:41:52.787Z receivedAt=2026-04-04T07:41:52.793Z
+  (log) [WOW_FIELDS] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 ts=2026-04-04T07:41:52.793Z type=consultant_ready googleMaps=true rating=5 consultant=true icp_guess=true scrapedDataSummary=false mostImpressive=2
+  (log) [ALARM_SCHED] next in 20s
+Alarm @ 04/04/2026, 6:42:12 pm - Ok
+  (log) [ALARM] Deep intel missing — escalation flagged callId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:42:12 pm
+  (log) [ENSURE] existing session — stage=greeting wowStep=null name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=false mergedV=2
+  (log) [INDUSTRY] resolved="accounting" source="keyword:account" raw="accounting and advisory"
+  (log) [TOP_AGENTS] consultant_priority=[Alex,Maddie,Chris] result=[alex,chris,maddie]
+  (log) [TOP_AGENTS] consultant_priority=[Alex,Maddie,Chris] result=[alex,chris,maddie]
+  (log) [SUPPLEMENT_SEED] deep_intel seeded googleMaps=true hiring=true source=bridge
+  (log) [EXTRACT] stage=greeting det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=1 role=user chars=14
+  (log) [TURN] turnId=3_73db63c63259ef66 stage=greeting wowStep=null extracted=[]
+  (log) [ADVANCE] greeting → wow (wow_1_research_intro)
+  (log) [WOW1_RESOLVE] ts=2026-04-04T07:42:18.299Z source=WEBSITE_POSITIVE_COMMENT name=Trent biz=Pitcher Partners industry=accounting and advisory
+  (log) [WOW1_RESOLVE] ts=2026-04-04T07:42:18.299Z source=WEBSITE_POSITIVE_COMMENT name=Trent biz=Pitcher Partners industry=accounting and advisory
+  (log) [DIRECTIVE] ts=2026-04-04T07:42:18.299Z stage=wow wowStep=wow_1_research_intro ask=true canSkip=false waitForUser=true speak="The idea is simple. So Trent, your agents will engage with you in real time. They'll answer question"
+  (log) [CRITICAL_FACTS] count=4 keys=marketPosition,strongestBenefit,businessModel,serviceArea
+  (log) [CONTEXT_NOTES] stage=wow count=2 keys=redFlag,strongestLine
+  (log) [ALARM_SCHED] next in 20s
+  (log) [COMPAT_EXPORT] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 captured=yes roi=no_calcs
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:42:17 pm
+POST https://do-internal/event?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:42:19 pm
+  (log) [DELIVERY] completed deliveryId=v2_wow_wow_1_research_intro_1 moveId=v2_wow_wow_1_research_intro
+  (log) [TRANSCRIPT] entries=2 role=bella chars=547
+  (log) [ALARM_SCHED] next in 119s
+  (log) [MEMORY_EXPORT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 notes=0 (key deleted)
+  (log) [CONV_MEMORY_COMPAT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 chars=0
+POST https://do-internal/event?callId=anon_y3kd4zqa - Canceled @ 04/04/2026, 6:42:19 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:42:50 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:42:21 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_1_research_intro name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=true mergedV=3
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=3 role=user chars=11
+  (log) [TURN] turnId=5_1b3f2561fbb426a9 stage=wow wowStep=wow_1_research_intro extracted=[]
+  (log) [WOW1_RESOLVE] ts=2026-04-04T07:42:50.231Z source=WEBSITE_POSITIVE_COMMENT name=Trent biz=Pitcher Partners industry=accounting and advisory
+  (log) [WOW_FILLER_OK] step=wow_1_research_intro — filler accepted as affirmative
+  (log) [WOW] → wow_2_reputation_trial
+  (log) [WOW2_RESOLVE] ts=2026-04-04T07:42:50.231Z branch=FIRE rating=5 reviews=0 biz=Pitcher Partners
+  (log) [WOW2_RESOLVE] ts=2026-04-04T07:42:50.231Z branch=FIRE rating=5 reviews=0 biz=Pitcher Partners
+  (log) [DIRECTIVE] ts=2026-04-04T07:42:50.231Z stage=wow wowStep=wow_2_reputation_trial ask=false canSkip=false waitForUser=false speak="And just before we get into it, I noticed Pitcher Partners is sitting on 5 stars from 0 reviews, whi"
+  (log) [CRITICAL_FACTS] count=4 keys=marketPosition,strongestBenefit,businessModel,serviceArea
+  (log) [CONTEXT_NOTES] stage=wow count=2 keys=redFlag,strongestLine
+  (log) [ALARM_SCHED] next in 5s
+  (log) [COMPAT_EXPORT] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 captured=yes roi=no_calcs
+Alarm @ 04/04/2026, 6:42:55 pm - Ok
+  (log) [DELIVERY_TIMEOUT] reissue attempts=2 deliveryId=v2_wow_wow_2_reputation_trial_4
+  (log) [ALARM_SCHED] next in 5s
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:42:58 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:42:55 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_2_reputation_trial name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=true mergedV=3
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=4 role=user chars=16
+  (log) [TURN] turnId=5_fd6d16af6bee5dce stage=wow wowStep=wow_2_reputation_trial extracted=[]
+  (log) [WOW2_RESOLVE] ts=2026-04-04T07:42:58.457Z branch=FIRE rating=5 reviews=0 biz=Pitcher Partners
+  (log) [WOW_SPOKEN_GATE] step=wow_2_reputation_trial moveId=v2_wow_wow_2_reputation_trial NOT in spoken.moveIds — advancing anyway (delivery tracked separately)
+  (log) [WOW] → wow_3_icp_problem_solution
+  (log) [WOW3_RESOLVE] ts=2026-04-04T07:42:58.457Z branch=ICP_NARRATIVE raw_icp="it looks like you mainly work with businesses seeking compre" cleaned_icp="businesses seeking comprehensive financi" problems=2 solutions=2 refOffer=true icpNarrative=true bellaCheckLine=true
+  (log) [WOW3_RESOLVE] ts=2026-04-04T07:42:58.457Z branch=ICP_NARRATIVE raw_icp="it looks like you mainly work with businesses seeking compre" cleaned_icp="businesses seeking comprehensive financi" problems=2 solutions=2 refOffer=true icpNarrative=true bellaCheckLine=true
+  (log) [DIRECTIVE] ts=2026-04-04T07:42:58.457Z stage=wow wowStep=wow_3_icp_problem_solution ask=true canSkip=false waitForUser=true speak="It looks like you work with businesses and private clients who are looking for more than just standa"
+  (log) [CRITICAL_FACTS] count=4 keys=marketPosition,strongestBenefit,businessModel,serviceArea
+  (log) [CONTEXT_NOTES] stage=wow count=2 keys=redFlag,strongestLine
+  (log) [ALARM_SCHED] next in 20s
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:42:58 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:42:58 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_3_icp_problem_solution name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=true mergedV=3
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=5 role=user chars=23
+  (log) [TURN] turnId=5_41267a2bdf4ecdd4 stage=wow wowStep=wow_3_icp_problem_solution extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_3_icp_problem_solution elapsed=307ms < min=2000ms — holding delivery
+  (log) [WOW3_RESOLVE] ts=2026-04-04T07:42:58.764Z branch=ICP_NARRATIVE raw_icp="it looks like you mainly work with businesses seeking compre" cleaned_icp="businesses seeking comprehensive financi" problems=2 solutions=2 refOffer=true icpNarrative=true bellaCheckLine=true
+  (log) [DIRECTIVE] ts=2026-04-04T07:42:58.764Z stage=wow wowStep=wow_3_icp_problem_solution ask=true canSkip=false waitForUser=true speak="It looks like you work with businesses and private clients who are looking for more than just standa"
+  (log) [CRITICAL_FACTS] count=4 keys=marketPosition,strongestBenefit,businessModel,serviceArea
+  (log) [CONTEXT_NOTES] stage=wow count=2 keys=redFlag,strongestLine
+  (log) [ALARM_SCHED] next in 20s
+  (log) [COMPAT_EXPORT] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 captured=yes roi=no_calcs
+POST https://do-internal/event?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:42:59 pm
+  (log) [DELIVERY] completed deliveryId=v2_wow_wow_3_icp_problem_solution_7 moveId=v2_wow_wow_3_icp_problem_solution
+  (log) [TRANSCRIPT] entries=6 role=bella chars=471
+  (log) [ALARM_SCHED] next in 119s
+  (log) [MEMORY_EXPORT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 notes=0 (key deleted)
+  (log) [CONV_MEMORY_COMPAT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 chars=0
+POST https://do-internal/event?callId=anon_y3kd4zqa - Canceled @ 04/04/2026, 6:42:59 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:43:21 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:43:01 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_3_icp_problem_solution name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=true mergedV=3
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=7 role=user chars=4
+  (log) [TURN] turnId=7_9a432b8eafa79613 stage=wow wowStep=wow_3_icp_problem_solution extracted=[]
+  (log) [WOW3_RESOLVE] ts=2026-04-04T07:43:21.506Z branch=ICP_NARRATIVE raw_icp="it looks like you mainly work with businesses seeking compre" cleaned_icp="businesses seeking comprehensive financi" problems=2 solutions=2 refOffer=true icpNarrative=true bellaCheckLine=true
+  (log) [WOW_FILLER_OK] step=wow_3_icp_problem_solution — filler accepted as affirmative
+  (log) [WOW_SENTIMENT] step=wow_3_icp_problem_solution sentiment=positive transcript="Yes."
+  (log) [WOW3_ICP] confirmedICP=true (sentiment=positive affirm=true)
+  (log) [WOW] → wow_4_conversion_action
+  (log) [WOW4_RESOLVE] ts=2026-04-04T07:43:21.506Z branch=CONVERSION_NARRATIVE cta="Get in touch" secondaryCTAs=4 conversionNarrative=true agentTrainingLine=true
+  (log) [WOW4_RESOLVE] ts=2026-04-04T07:43:21.506Z branch=CONVERSION_NARRATIVE cta="Get in touch" secondaryCTAs=4 conversionNarrative=true agentTrainingLine=true
+  (log) [DIRECTIVE] ts=2026-04-04T07:43:21.506Z stage=wow wowStep=wow_4_conversion_action ask=true canSkip=false waitForUser=true speak="Your website primarily drives conversions through your 'Get in touch' form, which is crucial for new"
+  (log) [CRITICAL_FACTS] count=4 keys=marketPosition,strongestBenefit,businessModel,serviceArea
+  (log) [CONTEXT_NOTES] stage=wow count=2 keys=redFlag,strongestLine
+  (log) [ALARM_SCHED] next in 20s
+  (log) [COMPAT_EXPORT] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 captured=yes roi=no_calcs
+POST https://do-internal/event?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:43:22 pm
+  (log) [DELIVERY] completed deliveryId=v2_wow_wow_4_conversion_action_10 moveId=v2_wow_wow_4_conversion_action
+  (log) [WOW4_DELIVERY] confirmedCTA=true (provisional — delivery confirmed moveId=v2_wow_wow_4_conversion_action)
+  (log) [TRANSCRIPT] entries=8 role=bella chars=398
+  (log) [ALARM_SCHED] next in 119s
+  (log) [MEMORY_EXPORT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 notes=0 (key deleted)
+  (log) [CONV_MEMORY_COMPAT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 chars=0
+POST https://do-internal/event?callId=anon_y3kd4zqa - Canceled @ 04/04/2026, 6:43:22 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:43:48 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:43:24 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_4_conversion_action name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=true mergedV=3
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=9 role=user chars=47
+  (log) [TURN] turnId=9_f9aa322f7ee61a41 stage=wow wowStep=wow_4_conversion_action extracted=[]
+  (log) [WOW4_RESOLVE] ts=2026-04-04T07:43:48.677Z branch=CONVERSION_NARRATIVE cta="Get in touch" secondaryCTAs=4 conversionNarrative=true agentTrainingLine=true
+  (log) [WOW_SENTIMENT] step=wow_4_conversion_action sentiment=neutral transcript="Uh, well, you missed out on our contact button."
+  (log) [WOW4_CTA] overriddenCTA=true (long non-negative response 47 chars)
+  (log) [WOW] → wow_5_alignment_bridge
+  (log) [WOW5_RESOLVE] ts=2026-04-04T07:43:48.677Z adaptive=false branch=TRAINING_BRIDGE
+  (log) [WOW5_RESOLVE] ts=2026-04-04T07:43:48.677Z adaptive=false branch=TRAINING_BRIDGE
+  (log) [DIRECTIVE] ts=2026-04-04T07:43:48.677Z stage=wow wowStep=wow_5_alignment_bridge ask=false canSkip=false waitForUser=false speak="We'll train your AI agents to understand your diverse client base, the integrated financial problems"
+  (log) [CRITICAL_FACTS] count=4 keys=marketPosition,strongestBenefit,businessModel,serviceArea
+  (log) [CONTEXT_NOTES] stage=wow count=2 keys=redFlag,strongestLine
+  (log) [ALARM_SCHED] next in 5s
+  (log) [COMPAT_EXPORT] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 captured=yes roi=no_calcs
+POST https://do-internal/notes?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:43:49 pm
+POST https://do-internal/notes?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:43:49 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_5_alignment_bridge name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=true mergedV=3
+  (log) [SCRIBE_ACCEPT] turnIndex=9 id=scribe-business_context-9-0 cat=business_context tags=[]
+  (log) [MEMORY_EXPORT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 notes=0 (key deleted)
+  (log) [CONV_MEMORY_COMPAT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 chars=0
+POST https://do-internal/event?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:43:49 pm
+  (log) [DELIVERY] completed deliveryId=v2_wow_wow_5_alignment_bridge_13 moveId=v2_wow_wow_5_alignment_bridge
+  (log) [TRANSCRIPT] entries=10 role=bella chars=339
+  (log) [ALARM_SCHED] next in 119s
+POST https://do-internal/event?callId=anon_y3kd4zqa - Canceled @ 04/04/2026, 6:43:49 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:12 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:43:51 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_5_alignment_bridge name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=true mergedV=3
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=11 role=user chars=19
+  (log) [TURN] turnId=11_0026e4dc6dbeab43 stage=wow wowStep=wow_5_alignment_bridge extracted=[]
+  (log) [WOW5_RESOLVE] ts=2026-04-04T07:44:12.978Z adaptive=false branch=TRAINING_BRIDGE
+  (log) [WOW] → wow_6_scraped_observation
+  (log) [WOW6_RESOLVE] ts=2026-04-04T07:44:12.978Z source=MOST_IMPRESSIVE deepInsight=false scrapedSummary=false googlePresence=true mostImpressive="You have a strong, recognisable brand as Pitcher Partners. H" hooks=3 topHiringWedge=false hiringMatches=0 speak_preview="One more thing I noticed — You have a strong, recognisable brand as Pitcher Part"
+  (log) [WOW6_RESOLVE] ts=2026-04-04T07:44:12.978Z source=MOST_IMPRESSIVE deepInsight=false scrapedSummary=false googlePresence=true mostImpressive="You have a strong, recognisable brand as Pitcher Partners. H" hooks=3 topHiringWedge=false hiringMatches=0 speak_preview="One more thing I noticed — You have a strong, recognisable brand as Pitcher Part"
+  (log) [DIRECTIVE] ts=2026-04-04T07:44:12.978Z stage=wow wowStep=wow_6_scraped_observation ask=false canSkip=false waitForUser=false speak="One more thing I noticed — You have a strong, recognisable brand as Pitcher Partners. How are you le"
+  (log) [CRITICAL_FACTS] count=4 keys=marketPosition,strongestBenefit,businessModel,serviceArea
+  (log) [CONTEXT_NOTES] stage=wow count=2 keys=redFlag,strongestLine
+  (log) [ACTIVE_MEMORY] stage=wow commits=0 stated=0 inferred=1
+  (log) [ALARM_SCHED] next in 5s
+  (log) [COMPAT_EXPORT] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 captured=yes roi=no_calcs
+POST https://do-internal/event?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:13 pm
+  (log) [DELIVERY] completed deliveryId=v2_wow_wow_6_scraped_observation_16 moveId=v2_wow_wow_6_scraped_observation
+  (log) [TRANSCRIPT] entries=12 role=bella chars=250
+  (log) [ALARM_SCHED] next in 119s
+  (log) [MEMORY_EXPORT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 notes=1
+  (log) [CONV_MEMORY_COMPAT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 chars=66
+POST https://do-internal/event?callId=anon_y3kd4zqa - Canceled @ 04/04/2026, 6:44:13 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:29 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:15 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_6_scraped_observation name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=true mergedV=3
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=13 role=user chars=5
+  (log) [TURN] turnId=13_146c6e1f89ccc019 stage=wow wowStep=wow_6_scraped_observation extracted=[]
+  (log) [WOW6_RESOLVE] ts=2026-04-04T07:44:29.794Z source=MOST_IMPRESSIVE deepInsight=false scrapedSummary=false googlePresence=true mostImpressive="You have a strong, recognisable brand as Pitcher Partners. H" hooks=3 topHiringWedge=false hiringMatches=0 speak_preview="One more thing I noticed — You have a strong, recognisable brand as Pitcher Part"
+  (log) [WOW] → wow_7_explore_or_recommend
+  (log) [WOW7_RESOLVE] ts=2026-04-04T07:44:29.794Z biz=Pitcher Partners
+  (log) [WOW7_RESOLVE] ts=2026-04-04T07:44:29.794Z biz=Pitcher Partners
+  (log) [DIRECTIVE] ts=2026-04-04T07:44:29.794Z stage=wow wowStep=wow_7_explore_or_recommend ask=true canSkip=false waitForUser=true speak="I can either keep exploring with you for a minute, or I can just show you the setup I'd recommend ba"
+  (log) [CRITICAL_FACTS] count=4 keys=marketPosition,strongestBenefit,businessModel,serviceArea
+  (log) [CONTEXT_NOTES] stage=wow count=2 keys=redFlag,strongestLine
+  (log) [ACTIVE_MEMORY] stage=wow commits=0 stated=0 inferred=1
+  (log) [ALARM_SCHED] next in 20s
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:30 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:30 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_7_explore_or_recommend name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=true mergedV=3
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=15 role=user chars=23
+  (log) [TURN] turnId=13_9f646a51fa95ea33 stage=wow wowStep=wow_7_explore_or_recommend extracted=[]
+  (log) [WOW7_RESOLVE] ts=2026-04-04T07:44:30.905Z biz=Pitcher Partners
+  (log) [WOW] → wow_8_source_check
+  (log) [WOW8_RESOLVE] ts=2026-04-04T07:44:30.905Z branch=ROUTING_Q routingQ=true
+  (log) [WOW8_RESOLVE] ts=2026-04-04T07:44:30.905Z branch=ROUTING_Q routingQ=true
+  (log) [DIRECTIVE] ts=2026-04-04T07:44:30.905Z stage=wow wowStep=wow_8_source_check ask=true canSkip=false waitForUser=true speak="What is your current process for following up on 'Get in touch' form submissions? Whatever's doing t"
+  (log) [CRITICAL_FACTS] count=4 keys=marketPosition,strongestBenefit,businessModel,serviceArea
+  (log) [CONTEXT_NOTES] stage=wow count=2 keys=redFlag,strongestLine
+  (log) [ACTIVE_MEMORY] stage=wow commits=0 stated=0 inferred=1
+  (log) [ALARM_SCHED] next in 20s
+POST https://do-internal/event?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:29 pm
+  (log) [DELIVERY] completed deliveryId=v2_wow_wow_7_explore_or_recommend_19 moveId=v2_wow_wow_7_explore_or_recommend
+  (log) [TRANSCRIPT] entries=14 role=bella chars=160
+  (log) [ALARM_SCHED] next in 120s
+  (log) [COMPAT_EXPORT] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 captured=yes roi=no_calcs
+  (log) [MEMORY_EXPORT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 notes=1
+POST https://do-internal/event?callId=anon_y3kd4zqa - Canceled @ 04/04/2026, 6:44:29 pm
+POST https://do-internal/event?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:30 pm
+  (log) [DELIVERY] completed deliveryId=v2_wow_wow_8_source_check_22 moveId=v2_wow_wow_8_source_check
+  (log) [TRANSCRIPT] entries=16 role=bella chars=174
+  (log) [ALARM_SCHED] next in 120s
+  (log) [CONV_MEMORY_COMPAT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 chars=66
+  (log) [COMPAT_EXPORT] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 captured=yes roi=no_calcs
+  (log) [MEMORY_EXPORT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 notes=1
+  (log) [CONV_MEMORY_COMPAT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 chars=66
+POST https://do-internal/event?callId=anon_y3kd4zqa - Canceled @ 04/04/2026, 6:44:31 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:47 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:33 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_8_source_check name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=true mergedV=3
+  (log) [GEMINI_EXTRACT] stage=wow schema=wow_source fields=2 keys=[leadSourceDominant,websiteRelevant] correction=false ms=2340
+  (log) [EXTRACT_SOURCE] dominant=website website=true phone=false ads=false
+  (log) [EXTRACT] stage=wow det=[] gemini=[leadSourceDominant,websiteRelevant] ms=2340 regex=[leadSourceDominant,websiteRelevant]
+  (log) [TRANSCRIPT] entries=17 role=user chars=59
+  (log) [TURN] turnId=15_badee14b3acd78aa stage=wow wowStep=wow_8_source_check extracted=[leadSourceDominant,websiteRelevant]
+  (log) [WOW8_RESOLVE] ts=2026-04-04T07:44:49.802Z branch=ROUTING_Q routingQ=true
+  (log) [ADVANCE] wow → recommendation
+  (log) [REC_V1] variant=all3 source=your website cta="Get in touch" deepInsight=false
+  (log) [REC_RESOLVE] ts=2026-04-04T07:44:49.802Z alex=true chris=true maddie=true speak="So based on what you've told me, Pitcher Partners is getting most of its new bus"
+  (log) [REC_V1] variant=all3 source=your website cta="Get in touch" deepInsight=false
+  (log) [REC_RESOLVE] ts=2026-04-04T07:44:49.802Z alex=true chris=true maddie=true speak="So based on what you've told me, Pitcher Partners is getting most of its new bus"
+  (log) [DIRECTIVE] ts=2026-04-04T07:44:49.802Z stage=recommendation wowStep=none ask=true canSkip=false waitForUser=true speak="So based on what you've told me, Pitcher Partners is getting most of its new business through your w"
+  (log) [CRITICAL_FACTS] count=4 keys=marketPosition,strongestBenefit,businessModel,serviceArea
+  (log) [CONTEXT_NOTES] stage=recommendation count=4 keys=routing_alex,ctaAgentMapping,redFlag,strongestLine
+  (log) [ACTIVE_MEMORY] stage=recommendation commits=0 stated=0 inferred=1
+  (log) [ALARM_SCHED] next in 15s
+  (log) [COMPAT_EXPORT] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 captured=yes roi=no_calcs
+POST https://do-internal/notes?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:50 pm
+  (log) [ENSURE] existing session — stage=recommendation wowStep=null name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=true mergedV=3
+  (log) [SCRIBE_ACCEPT] turnIndex=17 id=scribe-business_context-17-0 cat=business_context tags=[manual_process]
+POST https://do-internal/notes?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:50 pm
+POST https://do-internal/event?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:51 pm
+  (log) [DELIVERY] completed deliveryId=v2_recommendation_26 moveId=v2_recommendation
+  (log) [COMPLIANCE_INPUT] stage=recommendation status=pass score=1.00 missed=0 critical=true
+  (log) [COMPLIANCE_PASS] stage=recommendation score=1.00
+  (log) [TRANSCRIPT] entries=18 role=bella chars=1510
+  (log) [ALARM_SCHED] next in 118s
+  (log) [MEMORY_EXPORT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 notes=2
+  (log) [CONV_MEMORY_COMPAT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 chars=166
+POST https://do-internal/event?callId=anon_y3kd4zqa - Canceled @ 04/04/2026, 6:44:51 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:44:53 pm
+  (log) [ENSURE] existing session — stage=recommendation wowStep=null name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=true mergedV=3
+  (log) [EXTRACT] stage=recommendation det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=19 role=user chars=40
+  (log) [TURN] turnId=17_4f846b804ffd60d0 stage=recommendation wowStep=null extracted=[]
+  (log) [TOP_AGENTS] consultant_priority=[Alex,Maddie,Chris] result=[alex,chris,maddie]
+  (log) [ADVANCE] recommendation → close (recommendation spoken)
+  (log) [CLOSE_OFFER] delivering two-path close question
+  (log) [CLOSE_OFFER] delivering two-path close question
+  (log) [DIRECTIVE] ts=2026-04-04T07:46:14.317Z stage=close wowStep=none ask=true canSkip=false waitForUser=true speak="So Trent, what would you like to do — shall I activate your free trial now, or would you like me to "
+  (log) [CRITICAL_FACTS] count=4 keys=marketPosition,strongestBenefit,businessModel,serviceArea
+  (log) [CONTEXT_NOTES] stage=close count=3 keys=ctaAgentMapping,redFlag,strongestLine
+  (log) [ACTIVE_MEMORY] stage=close commits=0 stated=0 inferred=2
+  (log) [ALARM_SCHED] next in 15s
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:46:14 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:46:14 pm
+POST https://do-internal/turn?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:46:14 pm
+  (log) [ENSURE] existing session — stage=close wowStep=null name=Trent biz=Pitcher Partners Sydney fast=true consultant=true deep=true mergedV=3
+  (log) [EXTRACT] stage=close det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=20 role=user chars=51
+  (log) [TURN] turnId=17_2a5003d2b55512ff stage=close wowStep=null extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_close elapsed=183ms < min=2000ms — holding delivery
+  (log) [CLOSE_OFFER] delivering two-path close question
+  (log) [DIRECTIVE] ts=2026-04-04T07:46:14.500Z stage=close wowStep=none ask=true canSkip=false waitForUser=true speak="So Trent, what would you like to do — shall I activate your free trial now, or would you like me to "
+  (log) [CRITICAL_FACTS] count=4 keys=marketPosition,strongestBenefit,businessModel,serviceArea
+  (log) [CONTEXT_NOTES] stage=close count=3 keys=ctaAgentMapping,redFlag,strongestLine
+  (log) [ACTIVE_MEMORY] stage=close commits=0 stated=0 inferred=2
+  (log) [ALARM_SCHED] next in 15s
+  (log) [COMPAT_EXPORT] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 captured=yes roi=no_calcs
+POST https://do-internal/event?callId=anon_y3kd4zqa - Ok @ 04/04/2026, 6:46:15 pm
+  (log) [DELIVERY] completed deliveryId=v2_close_30 moveId=v2_close
+  (log) [COMPLIANCE_INPUT] stage=close status=pass score=1.00 missed=0 critical=true
+  (log) [COMPLIANCE_PASS] stage=close score=1.00
+  (log) [TRANSCRIPT] entries=21 role=bella chars=193
+  (log) [ALARM_SCHED] next in 119s
+  (log) [MEMORY_EXPORT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 notes=2
+  (log) [CONV_MEMORY_COMPAT] leadId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06 chars=166
+POST https://do-internal/event?callId=anon_y3kd4zqa - Canceled @ 04/04/2026, 6:46:15 pm
+Alarm @ 04/04/2026, 6:48:14 pm - Ok
+  (log) [ALARM] Call stale — no turn for 120s callId=7e7666d2c60ec443f6a822227e8647f4ec1bdf4a985d67684a8b0ba8b70c4f06
+FatalError: Tail disconnected, exiting.
+    at createFatalError (/Users/trentbelasco/Desktop/BELLA_V1.0_SANDBOX_COMPLETE_SYSTEM/brain-v2-rescript/node_modules/wrangler/wrangler-dist/cli.js:806:12)
+    at Timeout._onTimeout (/Users/trentbelasco/Desktop/BELLA_V1.0_SANDBOX_COMPLETE_SYSTEM/brain-v2-rescript/node_modules/wrangler/wrangler-dist/cli.js:283760:21)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7) {
+  telemetryMessage: 'Tail disconnected, exiting.',
+  code: 1
+}

@@ -1,0 +1,303 @@
+
+ ⛅️ wrangler 4.75.0 (update available 4.80.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-04-04T10:32:40Z
+Connected to call-brain-do-v2-rescript, waiting for logs...
+GET https://call-brain-do-v2-rescript.trentbelasco.workers.dev/health - Ok @ 04/04/2026, 3:56:40 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:46 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:48 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:47 pm
+  (log) [KV_HYDRATE] lid=anon_canary_phase2_retry_20260404 no intel in KV yet
+  (log) [ALARM_SCHED] next in 20s
+  (log) [INIT] callId=e2094cbb09d5e58dbc3d1d11dced9b145e0223d6476624d8562d74ca705d8b2c leadId=anon_canary_phase2_retry_20260404 stage=greeting ts=2026-04-04T04:56:47.915Z name=none biz=none industry=none
+  (log) [INIT_INTEL] callId=e2094cbb09d5e58dbc3d1d11dced9b145e0223d6476624d8562d74ca705d8b2c fast=false consultant=false deep=false mergedVersion=0 kvSources=empty
+  (log) [EXTRACT] stage=greeting det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=1 role=user chars=2
+  (log) [TURN] turnId=1 stage=greeting wowStep=null extracted=[]
+  (log) [ADVANCE] greeting → wow (wow_1_research_intro)
+  (log) [WOW1_RESOLVE] ts=2026-04-04T04:56:47.919Z source=GENERIC name=Test biz=KPMG industry=business
+  (log) [WOW1_RESOLVE] ts=2026-04-04T04:56:47.919Z source=GENERIC name=Test biz=KPMG industry=business
+  (log) [DIRECTIVE] ts=2026-04-04T04:56:47.919Z stage=wow wowStep=wow_1_research_intro ask=true canSkip=false waitForUser=true speak="The idea is simple. So Test, your agents will engage with you in real time. They'll answer questions"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:47 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_1_research_intro name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=2 role=user chars=9
+  (log) [TURN] turnId=2 stage=wow wowStep=wow_1_research_intro extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_1_research_intro elapsed=226ms < min=2000ms — holding delivery
+  (log) [WOW1_RESOLVE] ts=2026-04-04T04:56:48.145Z source=GENERIC name=Test biz=KPMG industry=business
+  (log) [DIRECTIVE] ts=2026-04-04T04:56:48.145Z stage=wow wowStep=wow_1_research_intro ask=true canSkip=false waitForUser=true speak="The idea is simple. So Test, your agents will engage with you in real time. They'll answer questions"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:48 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:48 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_1_research_intro name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=3 role=user chars=75
+  (log) [TURN] turnId=3 stage=wow wowStep=wow_1_research_intro extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_1_research_intro elapsed=472ms < min=2000ms — holding delivery
+  (log) [WOW1_RESOLVE] ts=2026-04-04T04:56:48.391Z source=GENERIC name=Test biz=KPMG industry=business
+  (log) [DIRECTIVE] ts=2026-04-04T04:56:48.391Z stage=wow wowStep=wow_1_research_intro ask=true canSkip=false waitForUser=true speak="The idea is simple. So Test, your agents will engage with you in real time. They'll answer questions"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:53 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:49 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_1_research_intro name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=4 role=user chars=28
+  (log) [TURN] turnId=4 stage=wow wowStep=wow_1_research_intro extracted=[]
+  (log) [WOW1_RESOLVE] ts=2026-04-04T04:56:53.598Z source=GENERIC name=Test biz=KPMG industry=business
+  (log) [WOW] → wow_2_reputation_trial
+  (log) [WOW2_RESOLVE] ts=2026-04-04T04:56:53.598Z branch=SKIP rating=null reviews=0 biz=KPMG
+  (log) [WOW_CHAIN_SKIP] wow_2_reputation_trial (canSkip + no waitForUser)
+  (log) [WOW] → wow_3_icp_problem_solution
+  (log) [WOW3_RESOLVE] ts=2026-04-04T04:56:53.598Z branch=GENERIC raw_icp="" cleaned_icp="" problems=0 solutions=0 refOffer=false icpNarrative=false bellaCheckLine=false
+  (log) [WOW3_RESOLVE] ts=2026-04-04T04:56:53.598Z branch=GENERIC raw_icp="" cleaned_icp="" problems=0 solutions=0 refOffer=false icpNarrative=false bellaCheckLine=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:56:53.598Z stage=wow wowStep=wow_3_icp_problem_solution ask=true canSkip=false waitForUser=true speak="The site does a strong job of positioning what KPMG does. Does that sound right? You can just say ye"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:53 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:53 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_3_icp_problem_solution name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=5 role=user chars=28
+  (log) [TURN] turnId=5 stage=wow wowStep=wow_3_icp_problem_solution extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_3_icp_problem_solution elapsed=217ms < min=2000ms — holding delivery
+  (log) [WOW3_RESOLVE] ts=2026-04-04T04:56:53.815Z branch=GENERIC raw_icp="" cleaned_icp="" problems=0 solutions=0 refOffer=false icpNarrative=false bellaCheckLine=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:56:53.815Z stage=wow wowStep=wow_3_icp_problem_solution ask=true canSkip=false waitForUser=true speak="The site does a strong job of positioning what KPMG does. Does that sound right? You can just say ye"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:54 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:53 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_3_icp_problem_solution name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=6 role=user chars=28
+  (log) [TURN] turnId=6 stage=wow wowStep=wow_3_icp_problem_solution extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_3_icp_problem_solution elapsed=434ms < min=2000ms — holding delivery
+  (log) [WOW3_RESOLVE] ts=2026-04-04T04:56:54.032Z branch=GENERIC raw_icp="" cleaned_icp="" problems=0 solutions=0 refOffer=false icpNarrative=false bellaCheckLine=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:56:54.032Z stage=wow wowStep=wow_3_icp_problem_solution ask=true canSkip=false waitForUser=true speak="The site does a strong job of positioning what KPMG does. Does that sound right? You can just say ye"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:54 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:54 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_3_icp_problem_solution name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=7 role=user chars=28
+  (log) [TURN] turnId=7 stage=wow wowStep=wow_3_icp_problem_solution extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_3_icp_problem_solution elapsed=691ms < min=2000ms — holding delivery
+  (log) [WOW3_RESOLVE] ts=2026-04-04T04:56:54.289Z branch=GENERIC raw_icp="" cleaned_icp="" problems=0 solutions=0 refOffer=false icpNarrative=false bellaCheckLine=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:56:54.289Z stage=wow wowStep=wow_3_icp_problem_solution ask=true canSkip=false waitForUser=true speak="The site does a strong job of positioning what KPMG does. Does that sound right? You can just say ye"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:54 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:54 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_3_icp_problem_solution name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=8 role=user chars=30
+  (log) [TURN] turnId=8 stage=wow wowStep=wow_3_icp_problem_solution extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_3_icp_problem_solution elapsed=902ms < min=2000ms — holding delivery
+  (log) [WOW3_RESOLVE] ts=2026-04-04T04:56:54.500Z branch=GENERIC raw_icp="" cleaned_icp="" problems=0 solutions=0 refOffer=false icpNarrative=false bellaCheckLine=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:56:54.500Z stage=wow wowStep=wow_3_icp_problem_solution ask=true canSkip=false waitForUser=true speak="The site does a strong job of positioning what KPMG does. Does that sound right? You can just say ye"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:01 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:56:55 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_3_icp_problem_solution name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=9 role=user chars=15
+  (log) [TURN] turnId=9 stage=wow wowStep=wow_3_icp_problem_solution extracted=[]
+  (log) [WOW3_RESOLVE] ts=2026-04-04T04:57:01.883Z branch=GENERIC raw_icp="" cleaned_icp="" problems=0 solutions=0 refOffer=false icpNarrative=false bellaCheckLine=false
+  (log) [WOW_SENTIMENT] step=wow_3_icp_problem_solution sentiment=positive transcript="yeah that works"
+  (log) [WOW3_ICP] confirmedICP=true (sentiment=positive affirm=true)
+  (log) [WOW] → wow_4_conversion_action
+  (log) [WOW4_RESOLVE] ts=2026-04-04T04:57:01.883Z branch=GENERIC cta="none" secondaryCTAs=0 conversionNarrative=false agentTrainingLine=false
+  (log) [WOW4_RESOLVE] ts=2026-04-04T04:57:01.883Z branch=GENERIC cta="none" secondaryCTAs=0 conversionNarrative=false agentTrainingLine=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:57:01.883Z stage=wow wowStep=wow_4_conversion_action ask=true canSkip=false waitForUser=true speak="And looking at how your site converts visitors, these exact actions and resource titles are what you"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:02 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:01 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_4_conversion_action name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=10 role=user chars=15
+  (log) [TURN] turnId=10 stage=wow wowStep=wow_4_conversion_action extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_4_conversion_action elapsed=242ms < min=2000ms — holding delivery
+  (log) [WOW4_RESOLVE] ts=2026-04-04T04:57:02.125Z branch=GENERIC cta="none" secondaryCTAs=0 conversionNarrative=false agentTrainingLine=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:57:02.125Z stage=wow wowStep=wow_4_conversion_action ask=true canSkip=false waitForUser=true speak="And looking at how your site converts visitors, these exact actions and resource titles are what you"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:02 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:02 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_4_conversion_action name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=11 role=user chars=15
+  (log) [TURN] turnId=11 stage=wow wowStep=wow_4_conversion_action extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_4_conversion_action elapsed=450ms < min=2000ms — holding delivery
+  (log) [WOW4_RESOLVE] ts=2026-04-04T04:57:02.333Z branch=GENERIC cta="none" secondaryCTAs=0 conversionNarrative=false agentTrainingLine=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:57:02.333Z stage=wow wowStep=wow_4_conversion_action ask=true canSkip=false waitForUser=true speak="And looking at how your site converts visitors, these exact actions and resource titles are what you"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:02 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:02 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_4_conversion_action name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [SLOT_FALLBACK] stage=ch_chris slot=webConversions source=regex_context val=150
+  (log) [SLOT_FALLBACK] stage=ch_maddie slot=missedCalls source=regex_context val=150
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[inboundLeads,webConversions,missedCalls]
+  (log) [UNIFIED_STATE] inbound_volume_weekly=150 (first write)
+  (log) [TRANSCRIPT] entries=12 role=user chars=50
+  (log) [TURN] turnId=12 stage=wow wowStep=wow_4_conversion_action extracted=[inboundLeads,webConversions,missedCalls]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_4_conversion_action elapsed=717ms < min=2000ms — holding delivery
+  (log) [WOW4_RESOLVE] ts=2026-04-04T04:57:02.600Z branch=GENERIC cta="none" secondaryCTAs=0 conversionNarrative=false agentTrainingLine=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:57:02.600Z stage=wow wowStep=wow_4_conversion_action ask=true canSkip=false waitForUser=true speak="And looking at how your site converts visitors, these exact actions and resource titles are what you"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:09 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:03 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_4_conversion_action name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=13 role=user chars=27
+  (log) [TURN] turnId=13 stage=wow wowStep=wow_4_conversion_action extracted=[]
+  (log) [WOW4_RESOLVE] ts=2026-04-04T04:57:09.327Z branch=GENERIC cta="none" secondaryCTAs=0 conversionNarrative=false agentTrainingLine=false
+  (log) [WOW_SENTIMENT] step=wow_4_conversion_action sentiment=neutral transcript="continue with next question"
+  (log) [WOW] → wow_5_alignment_bridge
+  (log) [WOW5_RESOLVE] ts=2026-04-04T04:57:09.327Z adaptive=false branch=GENERIC icpRef=false
+  (log) [WOW5_RESOLVE] ts=2026-04-04T04:57:09.327Z trialReOffer=true
+  (log) [WOW5_RESOLVE] ts=2026-04-04T04:57:09.327Z adaptive=false branch=GENERIC icpRef=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:57:09.327Z stage=wow wowStep=wow_5_alignment_bridge ask=false canSkip=false waitForUser=false speak="Perfect. So now I've got a clear picture of who you want more of, what they come to you for, and the"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 5s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:09 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:09 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_5_alignment_bridge name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=14 role=user chars=27
+  (log) [TURN] turnId=14 stage=wow wowStep=wow_5_alignment_bridge extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_5_alignment_bridge elapsed=232ms < min=2000ms — holding delivery
+  (log) [WOW5_RESOLVE] ts=2026-04-04T04:57:09.559Z adaptive=false branch=GENERIC icpRef=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:57:09.559Z stage=wow wowStep=wow_5_alignment_bridge ask=false canSkip=false waitForUser=false speak="Perfect. So now I've got a clear picture of who you want more of, what they come to you for, and the"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 5s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:09 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:09 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_5_alignment_bridge name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=15 role=user chars=27
+  (log) [TURN] turnId=15 stage=wow wowStep=wow_5_alignment_bridge extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_5_alignment_bridge elapsed=472ms < min=2000ms — holding delivery
+  (log) [WOW5_RESOLVE] ts=2026-04-04T04:57:09.799Z adaptive=false branch=GENERIC icpRef=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:57:09.799Z stage=wow wowStep=wow_5_alignment_bridge ask=false canSkip=false waitForUser=false speak="Perfect. So now I've got a clear picture of who you want more of, what they come to you for, and the"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 5s
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:10 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:10 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_5_alignment_bridge name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=16 role=user chars=27
+  (log) [TURN] turnId=16 stage=wow wowStep=wow_5_alignment_bridge extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_5_alignment_bridge elapsed=712ms < min=2000ms — holding delivery
+  (log) [WOW5_RESOLVE] ts=2026-04-04T04:57:10.039Z adaptive=false branch=GENERIC icpRef=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:57:10.039Z stage=wow wowStep=wow_5_alignment_bridge ask=false canSkip=false waitForUser=false speak="Perfect. So now I've got a clear picture of who you want more of, what they come to you for, and the"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 4s
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:10 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:10 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_5_alignment_bridge name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=17 role=user chars=27
+  (log) [TURN] turnId=17 stage=wow wowStep=wow_5_alignment_bridge extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_5_alignment_bridge elapsed=926ms < min=2000ms — holding delivery
+  (log) [WOW5_RESOLVE] ts=2026-04-04T04:57:10.253Z adaptive=false branch=GENERIC icpRef=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:57:10.253Z stage=wow wowStep=wow_5_alignment_bridge ask=false canSkip=false waitForUser=false speak="Perfect. So now I've got a clear picture of who you want more of, what they come to you for, and the"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 4s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:10 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:10 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_5_alignment_bridge name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=18 role=user chars=27
+  (log) [TURN] turnId=18 stage=wow wowStep=wow_5_alignment_bridge extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_5_alignment_bridge elapsed=1131ms < min=2000ms — holding delivery
+  (log) [WOW5_RESOLVE] ts=2026-04-04T04:57:10.458Z adaptive=false branch=GENERIC icpRef=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:57:10.458Z stage=wow wowStep=wow_5_alignment_bridge ask=false canSkip=false waitForUser=false speak="Perfect. So now I've got a clear picture of who you want more of, what they come to you for, and the"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 4s
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:10 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:10 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_5_alignment_bridge name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=19 role=user chars=27
+  (log) [TURN] turnId=19 stage=wow wowStep=wow_5_alignment_bridge extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_5_alignment_bridge elapsed=1411ms < min=2000ms — holding delivery
+  (log) [WOW5_RESOLVE] ts=2026-04-04T04:57:10.738Z adaptive=false branch=GENERIC icpRef=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:57:10.738Z stage=wow wowStep=wow_5_alignment_bridge ask=false canSkip=false waitForUser=false speak="Perfect. So now I've got a clear picture of who you want more of, what they come to you for, and the"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 4s
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:11 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=anon_canary_phase2_retry_20260404 - Ok @ 04/04/2026, 3:57:10 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_5_alignment_bridge name=Test biz=KPMG fast=false consultant=false deep=false mergedV=0
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=20 role=user chars=27
+  (log) [TURN] turnId=20 stage=wow wowStep=wow_5_alignment_bridge extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_5_alignment_bridge elapsed=1668ms < min=2000ms — holding delivery
+  (log) [WOW5_RESOLVE] ts=2026-04-04T04:57:10.995Z adaptive=false branch=GENERIC icpRef=false
+  (log) [DIRECTIVE] ts=2026-04-04T04:57:10.995Z stage=wow wowStep=wow_5_alignment_bridge ask=false canSkip=false waitForUser=false speak="Perfect. So now I've got a clear picture of who you want more of, what they come to you for, and the"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 3s
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=anon_canary_phase2_retry_20260404 captured=yes roi=no_calcs
+Alarm @ 04/04/2026, 3:57:14 pm - Ok
+  (log) [DELIVERY_TIMEOUT] reissue attempts=2 deliveryId=v2_wow_wow_5_alignment_bridge_8
+  (log) [ALARM_SCHED] next in 5s
+Alarm @ 04/04/2026, 3:57:19 pm - Ok
+  (log) [DELIVERY_TIMEOUT] reissue attempts=3 deliveryId=v2_wow_wow_5_alignment_bridge_8
+  (log) [ALARM_SCHED] next in 2s
+Alarm @ 04/04/2026, 3:57:20 pm - Ok
+  (log) [ALARM] Deep intel missing — escalation flagged callId=e2094cbb09d5e58dbc3d1d11dced9b145e0223d6476624d8562d74ca705d8b2c
+  (log) [ALARM_SCHED] next in 3s
+Alarm @ 04/04/2026, 3:57:24 pm - Ok
+  (log) [DELIVERY_TIMEOUT] force-clear deliveryId=v2_wow_wow_5_alignment_bridge_8 attempts=3
+  (log) [CALL_DEGRADED] 3 consecutive timeouts
+  (log) [ALARM_SCHED] next in 2s
+Alarm @ 04/04/2026, 3:57:25 pm - Ok
+  (log) [ALARM_SCHED] next in 15s
+Alarm @ 04/04/2026, 3:57:40 pm - Ok
+  (log) [ALARM_SCHED] next in 90s

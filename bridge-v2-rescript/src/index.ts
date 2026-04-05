@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "9.44.0"; // P0: FIX-5 Gemini API key header to brain
+const VERSION = "v6.28.0"; // FIX-15,16: Deep intel merge + SQ2 trimHistory
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -223,13 +223,17 @@ async function retrieveFromVector(
 // NOTE: Also reads old `lead:{lid}:intel` for backwards compat with sandbox workers
 // NOTE: Reads both :deepIntel (old Apify pipeline) AND :deep_flags (workflow pipeline)
 async function loadMergedIntel(lid: string, env: Env): Promise<Record<string, any>> {
-  const [stubRaw, fastRaw, deepRaw, deepFlagsRaw, oldIntelRaw, deepScriptFillsRaw] = await Promise.all([
+  const [stubRaw, fastRaw, deepRaw, deepFlagsRaw, oldIntelRaw, deepScriptFillsRaw, deepStatusV2Raw] = await Promise.all([
     env.LEADS_KV.get(`lead:${lid}:stub`),             // big-scraper fallback (v8)
     env.LEADS_KV.get(`lead:${lid}:fast-intel`),       // fast-intel enriched data (v8)
     env.LEADS_KV.get(`lead:${lid}:deepIntel`),        // deep-scrape Apify data (old pipeline)
     env.LEADS_KV.get(`lead:${lid}:deep_flags`),       // workflow Apify data (bella-scrape-workflow)
     env.LEADS_KV.get(`lead:${lid}:intel`),            // OLD: backwards compat with sandbox workers
     env.LEADS_KV.get(`lead:${lid}:deep_scriptFills`), // AI-generated persona/insight fills (bella-scrape-workflow)
+    Promise.race([
+      env.LEADS_KV.get(`lead:${lid}:deep-status:v2`, 'json'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+    ]).catch(() => null), // v2 deep-scrape completion status (2s timeout to prevent hang)
   ]);
 
   let stub: Record<string, any> = {};
@@ -238,6 +242,7 @@ async function loadMergedIntel(lid: string, env: Env): Promise<Record<string, an
   let deepFlags: Record<string, any> = {};
   let oldIntel: Record<string, any> = {};
   let deepScriptFills: Record<string, any> | null = null;
+  let deepStatusV2: Record<string, any> = {};
 
   try { if (stubRaw) stub = JSON.parse(stubRaw); } catch {}
   try { if (fastRaw) fast = JSON.parse(fastRaw); } catch {}
@@ -245,6 +250,7 @@ async function loadMergedIntel(lid: string, env: Env): Promise<Record<string, an
   try { if (deepFlagsRaw) deepFlags = JSON.parse(deepFlagsRaw); } catch {}
   try { if (oldIntelRaw) oldIntel = JSON.parse(oldIntelRaw); } catch {}
   try { if (deepScriptFillsRaw) deepScriptFills = JSON.parse(deepScriptFillsRaw); } catch {}
+  try { if (deepStatusV2Raw) deepStatusV2 = typeof deepStatusV2Raw === 'string' ? JSON.parse(deepStatusV2Raw) : deepStatusV2Raw; } catch {}
 
   // Strip fast-intel placeholder deep field — it must not overwrite real deep data
   if (fast.deep && Object.keys(fast.deep).length === 1 && fast.deep.status === "processing") {
@@ -311,6 +317,13 @@ async function loadMergedIntel(lid: string, env: Env): Promise<Record<string, an
     if (!intel.deep) intel.deep = { status: "done" };
     intel.deep.deep_scriptFills = deepScriptFills;
     log("SCRIPTFILLS_INJECT", `lid=${lid} deepInsights=${deepScriptFills.deepInsights?.length ?? 0} heroReview=${!!(deepScriptFills.heroReview?.available)}`);
+  }
+
+  // Merge deep-status:v2 if complete (v2-rescript pipeline writes separate status key)
+  if (deepStatusV2?.status === "done") {
+    if (!intel.deep) intel.deep = { status: "done" };
+    intel.deep.status = "done";
+    log("DEEP_STATUS_V2", `lid=${lid} status=done merged`);
   }
 
   const sources = [
@@ -1425,10 +1438,13 @@ const KEEP_RAW = 6;
 
 function trimHistory(messages: Msg[]): Msg[] {
   const history = messages.filter(m => m.role !== "system");
+  // Multi-turn: keep only recent USER turns (strip prior Bella utterances to prevent remix)
+  if (history.length > 2) {
+    const userOnly = history.filter(m => m.role === "user");
+    return userOnly.slice(-2); // Last 2 user turns only
+  }
   if (history.length <= KEEP_RAW) return history;
-
   const fresh = history.slice(history.length - KEEP_RAW);
-  // Ensure starts with user role for U-A-U-A sequence
   return fresh[0]?.role === "assistant" ? fresh.slice(1) : fresh;
 }
 
@@ -2612,6 +2628,7 @@ async function callDOTurn(
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-call-id': lid, 'x-gemini-key': env.GEMINI_API_KEY || '' },
         body: JSON.stringify({ leadId: lid, transcript, turnId, identity }),
+        signal: AbortSignal.timeout(8000),
       }),
     );
     if (!res.ok) {

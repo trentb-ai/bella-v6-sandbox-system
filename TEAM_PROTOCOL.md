@@ -98,6 +98,20 @@ Each agent MUST do these things immediately on launch, restart, or context compr
 
 ---
 
+## DIRECT DELIVERY LAW (non-negotiable)
+
+**Results go DIRECTLY to the requester.** T1 is NOT a bottleneck.
+
+- When T2 requests something from T3/T4, they deliver **directly back to T2**
+- When T2 requests something from T5, T5 delivers **directly back to T2**
+- T1 gets CC'd on **verdicts and major status changes only** — not every intermediate result
+- Task assignment still flows through hierarchy (T1→T2→T3/T4), but results flow directly requester→executor→requester
+- T6 responds directly to whoever sent the QUERY:
+
+**Why:** T1 was a bottleneck relaying results between agents. Every relay adds latency and wastes context.
+
+---
+
 ## STANDARD EXECUTION FLOW
 
 All implementation work follows this pipeline. No exceptions.
