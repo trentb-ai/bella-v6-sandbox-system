@@ -1,0 +1,22 @@
+name = "realtime-agent-v3"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+
+[vars]
+VERSION = "1.0.0"
+
+[[durable_objects.bindings]]
+name = "REALTIME_AGENT"
+class_name = "RealtimeAgent"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["RealtimeAgent"]
+
+[[services]]
+binding = "BRAIN"
+service = "bella-brain-v3"
+
+[[services]]
+binding = "PROMPT_WORKER"
+service = "bella-prompt-v3"

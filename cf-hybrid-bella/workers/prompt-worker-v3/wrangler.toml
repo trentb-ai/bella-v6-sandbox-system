@@ -1,0 +1,6 @@
+name = "bella-prompt-v3"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+
+[vars]
+VERSION = "1.0.1"

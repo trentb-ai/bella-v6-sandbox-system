@@ -1,0 +1,14 @@
+{
+  "name": "@bella/prompt-worker-v3",
+  "version": "0.2.0",
+  "private": true,
+  "dependencies": {
+    "@bella/contracts": "*",
+    "@bella/telemetry": "*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "typescript": "^5.3.0",
+    "wrangler": "^3.28.0"
+  }
+}

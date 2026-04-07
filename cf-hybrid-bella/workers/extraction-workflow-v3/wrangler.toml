@@ -1,0 +1,15 @@
+name = "bella-extraction-workflow-v3"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+
+[vars]
+VERSION = "1.0.0"
+
+[[workflows]]
+name = "extraction-workflow"
+binding = "EXTRACTION_WORKFLOW"
+class_name = "ExtractionWorkflow"
+
+[[services]]
+binding = "BRAIN"
+service = "bella-brain-v3"

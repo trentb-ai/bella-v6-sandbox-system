@@ -1,0 +1,25 @@
+name = "bella-compliance-workflow-v3"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+
+[vars]
+VERSION = "1.0.1"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bella-data-v3"
+database_id = "d39aedef-e3bc-4145-b0be-c18cf17b2ddd"
+
+[[r2_buckets]]
+binding = "AUDIT_BUCKET"
+bucket_name = "bella-audit-v3"
+
+[[workflows]]
+name = "compliance-workflow"
+binding = "COMPLIANCE_WORKFLOW"
+class_name = "ComplianceWorkflow"
+
+[[workflows]]
+name = "nightly-replay-workflow"
+binding = "NIGHTLY_WORKFLOW"
+class_name = "NightlyReplayWorkflow"

@@ -1,0 +1,19 @@
+name = "bella-fast-intel-v3"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+account_id = "9488d0601315a70cac36f9bd87aa4e82"
+
+[[services]]
+binding = "CONSULTANT"
+service = "consultant-v10"
+
+[[services]]
+binding = "BRAIN"
+service = "bella-brain-v3"
+
+[[services]]
+binding = "DEEP_SCRAPE"
+service = "bella-scrape-workflow-v10-rescript"
+
+[vars]
+VERSION = "0.2.0"

@@ -1,0 +1,23 @@
+name = "bella-brain-v3"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+
+[vars]
+VERSION = "1.3.0"
+
+[[durable_objects.bindings]]
+name = "BRAIN_DO"
+class_name = "BrainDO"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["BrainDO"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bella-data-v3"
+database_id = "d39aedef-e3bc-4145-b0be-c18cf17b2ddd"
+
+[[vectorize]]
+binding = "BRAIN_VECTORS"
+index_name = "bella-brain-vectors"
