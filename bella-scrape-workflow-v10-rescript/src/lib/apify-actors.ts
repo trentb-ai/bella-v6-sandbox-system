@@ -34,13 +34,13 @@ export interface ActorWithPayload {
 // Priority order matches DATA_ENRICHMENT_MASTER_PLAN.md actor priority table
 
 export const APIFY_ACTORS: ActorConfig[] = [
-  { key: "google_maps",             actor: "compass~google-maps-reviews-scraper",               memory: 1024, priority: 1, condition: () => true },
-  { key: "indeed",                  actor: "misceres~indeed-scraper",                           memory: 4096, priority: 2, condition: () => true },  // PROMOTED — hiring signals = agent replacement wedge
-  { key: "facebook_ads",            actor: "apify~facebook-ads-scraper",                        memory: 1024, priority: 3, condition: () => true },
-  { key: "google_ads_transparency", actor: "alkausari_mujahid~google-ads-transparency-scraper", memory: 4096, priority: 4, condition: () => true },
-  { key: "google_search",           actor: "apify~google-search-scraper",                       memory: 1024, priority: 5, condition: () => true },
-  { key: "seek_jobs",               actor: "websift~seek-job-scraper-pay-per-row",              memory: 256,  priority: 6, condition: (ctx) => isAustralianBusiness(ctx) },
-  { key: "instagram",               actor: "apify~instagram-post-scraper",                      memory: 1024, priority: 7, condition: (ctx) => hasInstagramLink(ctx) },
+  { key: "google_maps",             actor: "compass~google-maps-reviews-scraper",               memory: 1024, priority: 1, condition: () => false },  // DISABLED — all actors off until script rewrite complete
+  { key: "indeed",                  actor: "misceres~indeed-scraper",                           memory: 4096, priority: 2, condition: () => false },  // DISABLED — all actors off until script rewrite complete
+  { key: "facebook_ads",            actor: "apify~facebook-ads-scraper",                        memory: 1024, priority: 3, condition: () => false },  // DISABLED — all actors off until script rewrite complete
+  { key: "google_ads_transparency", actor: "alkausari_mujahid~google-ads-transparency-scraper", memory: 4096, priority: 4, condition: () => false },  // DISABLED — all actors off until script rewrite complete
+  { key: "google_search",           actor: "apify~google-search-scraper",                       memory: 1024, priority: 5, condition: () => false },  // DISABLED — low value, saving credits
+  { key: "seek_jobs",               actor: "websift~seek-job-scraper-pay-per-row",              memory: 256,  priority: 6, condition: () => false },  // DISABLED — all actors off until script rewrite complete
+  { key: "instagram",               actor: "apify~instagram-post-scraper",                      memory: 1024, priority: 7, condition: () => false },  // DISABLED — low value, saving credits
   { key: "linkedin",                actor: "curious_coder~linkedin-company-scraper",            memory: 512,  priority: 8, condition: () => false },  // DISABLED — trial expired
 ];
 
@@ -71,7 +71,7 @@ export function buildPayload(key: string, ctx: ActorContext): any {
       return { searchStringsArray: [ctx.mapsSearch], maxCrawledPlacesPerSearch: 1, language: "en", maxReviews: 5 };
     }
     case "facebook_ads":
-      return { startUrls: [{ url: "https://www.facebook.com/ads/library/?search_term=" + encodeURIComponent(ctx.bizName) }], maxAds: 5 };
+      return { startUrls: [{ url: "https://www.facebook.com/ads/library/?search_term=" + encodeURIComponent(ctx.bizName) }], maxAds: 3 };
     case "google_ads_transparency":
       return { domains: [ctx.domainName || ctx.bizName] };
     case "google_search":

@@ -1,0 +1,4 @@
+#!/bin/zsh
+printf '\e]0;T2 Code Lead\a'
+cd "/Users/trentbelasco/Desktop/BELLA_V1.0_SANDBOX_COMPLETE_SYSTEM"
+exec claude --model claude-sonnet-4-6 --dangerously-skip-permissions --dangerously-load-development-channels server:claude-peers --append-system-prompt "$(cat '/Users/trentbelasco/Desktop/BELLA_V1.0_SANDBOX_COMPLETE_SYSTEM/prompts/boot/t2-prompt.txt')" --name 'T2 Code Lead'

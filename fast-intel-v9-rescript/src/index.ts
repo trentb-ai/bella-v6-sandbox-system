@@ -36,7 +36,7 @@ import { Env, FastIntelResult, ConsultantPayload } from "./types";
 
 export { Env };
 
-const VERSION = "1.18.0"; // fix: unconditional deep scrape trigger — was gated on fast consultant success
+const VERSION = "1.19.0"; // fix: belt-and-suspenders stage_plan write if consultant failed silently
 // KV_TTL removed — data persists permanently
 
 const CORS = {
@@ -1467,6 +1467,37 @@ async function writeFastIntelToKV(
     const consultantStr = JSON.stringify(fastIntel.consultant);
     await env.LEADS_KV.put(`lead:${lid}:consultant:pass1:v2`, consultantStr, { expirationTtl: 86400 });
     log("PASS1_WRITE", `lid=${lid} key=consultant:pass1:v2 keys=${Object.keys(fastIntel.consultant).length}`);
+
+    // ── BELT-AND-SUSPENDERS: ensure stage_plan exists ──
+    // Consultant should write this, but if it failed silently, fast-intel fills the gap
+    const AGENT_TO_CHANNEL: Record<string, string> = {
+      chris: "ch_website", alex: "ch_ads", maddie: "ch_phone",
+      sarah: "ch_old_leads", james: "ch_reviews",
+    };
+    const DEFAULT_AGENTS_FALLBACK = ["alex", "chris", "maddie"];
+
+    const existingPlan = await env.LEADS_KV.get(`lead:${lid}:stage_plan`);
+    if (!existingPlan) {
+      const routing = fastIntel.consultant?.routing ?? {};
+      const rawAgents = (routing.priority_agents ?? []).map((a: string) => a.toLowerCase());
+      const priorityAgents = rawAgents.length > 0 ? rawAgents : DEFAULT_AGENTS_FALLBACK;
+
+      const stages = priorityAgents
+        .map((agent: string, i: number) => {
+          const ch = AGENT_TO_CHANNEL[agent];
+          return ch ? { key: ch, active: true, priority: i, source: "fast" } : null;
+        })
+        .filter(Boolean);
+
+      const activeChannels = stages.filter((s: any) => s.active);
+      const teaseStage = activeChannels.length >= 3 ? activeChannels[2].key : null;
+
+      const stagePlan = { version: 2, tease_stage: teaseStage, stages };
+      await env.LEADS_KV.put(`lead:${lid}:stage_plan`, JSON.stringify(stagePlan), { expirationTtl: 86400 });
+      log("STAGE_PLAN_FALLBACK", `lid=${lid} stages=${stages.length} tease=${teaseStage ?? "none"} agents=[${priorityAgents.join(",")}]`);
+    } else {
+      log("STAGE_PLAN_OK", `lid=${lid} consultant already wrote stage_plan`);
+    }
   }
 }
 

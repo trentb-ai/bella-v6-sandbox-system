@@ -63,7 +63,7 @@ import { DELIVERY_TIMEOUT_MS } from './flow-constants';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VERSION = 'v6.29.0'; // FIX-15: Extract normalization for bridge
+const VERSION = 'v6.30.0'; // channel stage machine: recommendation→firstChannel, ch_alex/ch_chris/ch_maddie cases
 
 // ─── WOW step ordering ─────────────────────────────────────────────────────
 

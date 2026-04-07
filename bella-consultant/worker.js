@@ -78,10 +78,17 @@ const AGENT_TO_CHANNEL = {
   sarah: "ch_old_leads", james: "ch_reviews",
 };
 
+const DEFAULT_AGENTS = ["alex", "chris", "maddie"];
+
 async function writeStagePlan(lid, payload, consultantResult, env) {
   const routing = consultantResult?.routing ?? {};
-  const priorityAgents = (routing.priority_agents ?? []).map(a => a.toLowerCase());
+  const rawAgents = (routing.priority_agents ?? []).map(a => a.toLowerCase());
+  const priorityAgents = rawAgents.length > 0 ? rawAgents : DEFAULT_AGENTS;
   const skipAgents = (routing.skip_agents ?? []).map(a => a.toLowerCase());
+
+  if (rawAgents.length === 0) {
+    console.warn(`[Consultant] WARNING: routing.priority_agents empty — using default agent fallback lid=${lid}`);
+  }
 
   // Map agents → channel stages in priority order
   const stages = [];
@@ -811,6 +818,9 @@ async function runConsultant(payload, env) {
   ].join(' ');
 
   console.log(`[Consultant] micro-calls complete elapsed=${elapsed}ms ${sliceStatus}`);
+  if (!result.routing?.priority_agents?.length) {
+    console.warn(`[Consultant] WARNING: no routing.priority_agents after merge — conversion micro-call likely failed lid=${payload.lid ?? payload.leadId ?? "?"}`);
+  }
   return result;
 }
 

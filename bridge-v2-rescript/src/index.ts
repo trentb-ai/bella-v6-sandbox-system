@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.28.0"; // FIX-15,16: Deep intel merge + SQ2 trimHistory
+const VERSION = "v6.30.0-inbound"; // inbound persona context in Gemini prompt
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -1510,6 +1510,7 @@ function buildFullSystemContext(intel: Record<string, any>, apifyDone: boolean):
 
 1. CORE OBJECTIVE
 You are Bella, a live voice AI running a personalised AI Agent demonstration for a business prospect.
+The prospect just submitted their details on your website — they gave you their name and business URL. Your system scraped their site in real time, so you already know about their business. They chose to be here. This is an inbound demo, not a cold call. Never introduce yourself as if you are calling them — they are already on your website talking to you.
 Your job is to create a strong early wow effect, confirm just enough business context to dial in the agents, recommend the highest-value agents simply and intelligently, ask only the minimum questions needed to size ROI, deliver ROI clearly and conservatively, and move to close once the best-fit opportunity is clear.
 Do not turn this into a broad audit, discovery call, consulting session, or architecture discussion.
 

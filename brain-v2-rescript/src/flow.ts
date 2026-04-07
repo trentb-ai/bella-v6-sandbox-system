@@ -764,13 +764,39 @@ export function processFlow(
 
         if (recSpoken) {
           state.completedStages.push('recommendation');
-          state.currentStage = 'close';
+          const firstChannel = nextChannelFromQueue(state);
+          state.currentStage = firstChannel;
           advanced = true;
-          auditStageAdvanced(state, 'recommendation', 'close', 'v1_rescript', undefined, 'turn');
-          console.log(`[ADVANCE] recommendation → close (recommendation spoken)`);
+          auditStageAdvanced(state, 'recommendation', firstChannel, 'recommendation_spoken', undefined, 'turn');
+          console.log(`[ADVANCE] recommendation → ${firstChannel}`);
         } else {
           console.log(`[HOLD] recommendation not yet spoken — waiting for delivery before advancing`);
         }
+      }
+      break;
+    }
+
+    // ── CHANNEL STAGES ─────────────────────────────────────────────────────
+    case 'ch_alex':
+    case 'ch_chris':
+    case 'ch_maddie': {
+      if (cleanTranscript.length === 0) break;
+
+      const chStage = state.currentStage as 'ch_alex' | 'ch_chris' | 'ch_maddie';
+
+      // Increment question count for this channel
+      state.questionCounts[chStage] = (state.questionCounts[chStage] ?? 0) + 1;
+      console.log(`[CHANNEL] ${chStage} qCount=${state.questionCounts[chStage]}`);
+
+      // Advance if: minimum data collected OR question budget exhausted
+      if (shouldForceAdvance(chStage, state) || maxQuestionsReached(chStage, state)) {
+        const reason = shouldForceAdvance(chStage, state) ? 'minimum_data' : 'max_questions';
+        state.completedStages.push(chStage);
+        const nextStage = nextChannelFromQueue(state);
+        state.currentStage = nextStage;
+        advanced = true;
+        auditStageAdvanced(state, chStage, nextStage, reason, undefined, 'turn');
+        console.log(`[ADVANCE] ${chStage} → ${nextStage} (${reason})`);
       }
       break;
     }
