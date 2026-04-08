@@ -5,7 +5,7 @@
 
 import { type IntelReadyEvent, IntelReadyEventV1 } from '@bella/contracts';
 
-const VERSION = '0.4.0';
+const VERSION = '0.5.1';
 
 interface Env {
   CONSULTANT: Fetcher;
@@ -21,6 +21,22 @@ interface ScrapeResult {
   description: string;
   markdown: string;
   url: string;
+}
+
+// ─── KB Ingestion ─────────────────────────────────────────────────────────────
+
+export function buildClientKB(consultantResult: Record<string, unknown>, lid: string): { client_id: string; tier: number; content: string } {
+  const c = consultantResult as Record<string, Record<string, unknown>>;
+  const content = [
+    c.businessIdentity?.correctedName,
+    c.icpAnalysis?.marketPositionNarrative,
+    c.icpAnalysis?.icpNarrative,
+    c.conversionEventAnalysis?.conversionNarrative,
+    c.valuePropAnalysis?.strongestBenefit,
+    c.mostImpressive,
+    Array.isArray(c.conversationHooks) ? (c.conversationHooks as string[]).join(' ') : undefined,
+  ].filter(Boolean).join('\n\n').slice(0, 2000);
+  return { client_id: lid, tier: 3, content };
 }
 
 export default {
@@ -79,6 +95,20 @@ async function runPipeline(lid: string, websiteUrl: string, firstName: string, e
       })).catch((e: Error) => console.log(`[FAST_INTEL] deep-scrape trigger failed: ${e.message}`)),
     ]);
     console.log(`[FAST_INTEL] event posted to brain + deep-scrape triggered lid=${lid}`);
+
+    const kbDoc = buildClientKB(consultantResult, lid);
+    if (kbDoc.content.length > 0) {
+      try {
+        const res = await env.BRAIN.fetch(new Request('https://internal/event/kb-ingest', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ lid, doc: kbDoc }),
+        }));
+        if (!res.ok) console.error('[FAST_INTEL] kb-ingest rejected:', res.status);
+      } catch (e) {
+        console.error('[FAST_INTEL] kb-ingest failed:', e);
+      }
+    }
 
   } catch (e) {
     const err = e as Error;

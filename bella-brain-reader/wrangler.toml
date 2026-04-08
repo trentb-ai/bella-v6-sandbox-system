@@ -1,0 +1,8 @@
+name = "bella-brain-reader"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "BRAIN"
+database_name = "shared-brain"
+database_id = "2001aba8-d651-41c0-9bd0-8d98866b057c"

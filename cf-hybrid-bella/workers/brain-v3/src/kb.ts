@@ -20,7 +20,7 @@ export interface KBResult {
 export async function queryKB(
   query: string,
   env: { BRAIN_VECTORS?: unknown; AI?: unknown },
-  opts: { topK?: number; scoreThreshold?: number } = {},
+  opts: { topK?: number; scoreThreshold?: number; clientId?: string } = {},
 ): Promise<KBResult[]> {
   if (!env.BRAIN_VECTORS) return [];
 
@@ -32,12 +32,14 @@ export async function queryKB(
     const embResult = await (env.AI as Ai).run('@cf/baai/bge-base-en-v1.5', { text: [query] });
     const vector = new Float32Array(embResult.data[0] as number[]);
     const results = await vectorize.query(vector, {
-      topK,
+      topK: opts.clientId ? Math.max(opts.topK ?? 3, 10) : (opts.topK ?? 3),
       returnValues: true,
       returnMetadata: 'all',
+      filter: opts.clientId ? { client_id: opts.clientId } : undefined,
     });
     return results.matches
       .filter(m => m.score >= scoreThreshold)
+      .filter(m => !opts.clientId || (m.metadata?.client_id as string) === opts.clientId)
       .map(m => ({
         tier: (m.metadata?.tier as 1 | 2 | 3) ?? 1,
         content: (m.metadata?.content as string) ?? '',

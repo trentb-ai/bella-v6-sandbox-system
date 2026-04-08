@@ -11,9 +11,11 @@ interface Env {
   DB: D1Database;
   BRAIN_DO: DurableObjectNamespace;
   EXTRACTION_WORKFLOW?: Fetcher;
+  BRAIN_VECTORS?: VectorizeIndex;
+  AI?: Ai;
 }
 
-const VERSION = '1.19.6';
+const VERSION = '1.19.8';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -24,6 +26,25 @@ export default {
     }
 
     // ── /event/* — routed by lid in body, no callId query param required ─────
+
+    if (url.pathname === '/event/kb-ingest' && request.method === 'POST') {
+      if (!env.BRAIN_VECTORS || !env.AI) {
+        console.error('[BRAIN] kb-ingest: BRAIN_VECTORS/AI binding missing — check wrangler.toml');
+        return Response.json({ error: 'BRAIN_VECTORS/AI binding missing' }, { status: 500 });
+      }
+      const raw = await request.json().catch(() => null);
+      const { lid, doc } = (raw ?? {}) as { lid?: string; doc?: { content?: string } };
+      if (!lid || !doc?.content) return Response.json({ error: 'Missing lid or doc.content' }, { status: 400 });
+      const embResult = await env.AI.run('@cf/baai/bge-base-en-v1.5', { text: [doc.content] });
+      if (!embResult?.data?.[0]) return Response.json({ error: 'embedding failed' }, { status: 500 });
+      const vector = new Float32Array(embResult.data[0] as number[]);
+      await env.BRAIN_VECTORS.upsert([{
+        id: `kb-${lid}`,
+        values: Array.from(vector),
+        metadata: { tier: 3, client_id: lid, content: doc.content },
+      }]);
+      return Response.json({ ok: true });
+    }
 
     if (url.pathname === '/event/fast-intel' && request.method === 'POST') {
       const raw = await request.json().catch(() => null);

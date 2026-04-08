@@ -4,14 +4,14 @@
  * Callers write the packet to R2 — this module only builds it.
  */
 
-import type { BugPacketV1, TurnPlanV1 } from '@bella/contracts';
+import type { BugPacketV1, TurnPlan } from '@bella/contracts';
 
 export interface BugPacketContext {
   callId: string;
   turnId: string;
   stage: string;
   transcriptEntry: { speaker: 'prospect' | 'bella'; text: string; ts: string };
-  turnPlan?: TurnPlanV1;
+  turnPlan?: TurnPlan;
   promptSnapshot?: string;
   modelResponseRaw?: string;
   errorMessage?: string;

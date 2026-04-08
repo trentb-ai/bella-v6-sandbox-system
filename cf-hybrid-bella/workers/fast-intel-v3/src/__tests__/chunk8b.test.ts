@@ -4,7 +4,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
-import handler, { normaliseUrl, buildIntelPayload, callConsultant } from '../index';
+import handler, { normaliseUrl, buildIntelPayload, callConsultant, buildClientKB } from '../index';
 import { IntelReadyEventV1 } from '@bella/contracts';
 
 // ─── Mock helpers ────────────────────────────────────────────────────────────
@@ -162,10 +162,38 @@ describe('C8B-11', () => {
       'Trent',
       mockScraped,
       {
-        businessIdentity: { businessName: 'KPMG Australia', industry: 'Professional Services' },
+        businessIdentity: { correctedName: 'KPMG Australia', industry: 'Professional Services' },
       },
     );
     const result = IntelReadyEventV1.safeParse(payload);
     expect(result.success).toBe(true);
+  });
+});
+
+// ─── C8B-12: buildClientKB returns correct shape ──────────────────────────────
+
+describe('C8B-12', () => {
+  test('buildClientKB returns { client_id, tier: 3, content } with non-empty content', () => {
+    const consultant = {
+      businessIdentity: { correctedName: 'KPMG Australia' },
+      icpAnalysis: { marketPositionNarrative: 'Top professional services firm.' },
+    };
+    const result = buildClientKB(consultant, 'test-lid');
+    expect(result.client_id).toBe('test-lid');
+    expect(result.tier).toBe(3);
+    expect(typeof result.content).toBe('string');
+    expect(result.content.length).toBeGreaterThan(0);
+    expect(result.content).toContain('KPMG Australia');
+  });
+});
+
+// ─── C8B-13: buildClientKB empty content guard ───────────────────────────────
+
+describe('C8B-13', () => {
+  test('buildClientKB returns empty content string when all consultant fields are null/undefined', () => {
+    const result = buildClientKB({}, 'test-lid');
+    expect(result.client_id).toBe('test-lid');
+    expect(result.tier).toBe(3);
+    expect(result.content).toBe('');
   });
 });

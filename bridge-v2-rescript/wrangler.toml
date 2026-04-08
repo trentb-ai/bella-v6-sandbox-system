@@ -13,10 +13,10 @@ id = "0fec6982d8644118aba1830afd4a58cb"
 binding = "TOOLS"
 service = "bella-tools-worker-v8"
 
-# Call Brain DO — state machine authority (Phase C integration)
+# Call Brain DO — V3 brain (wired 2026-04-08)
 [[services]]
 binding = "CALL_BRAIN"
-service = "call-brain-do-v2-rescript"
+service = "bella-brain-v3"
 
 [vars]
 USE_DO_BRAIN = "true"

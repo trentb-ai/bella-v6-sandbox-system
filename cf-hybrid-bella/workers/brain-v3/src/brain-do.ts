@@ -166,7 +166,7 @@ export class BrainDO extends DurableObject {
 
     // §10B: KB query fired early (prospect turns only) — awaited just before TurnPlan
     const kbPromise = (turn.speakerFlag === 'prospect' && turn.utterance.trim().length > 0)
-      ? queryKB(`${state.currentStage}: ${turn.utterance}`, this.env, { topK: 3 })
+      ? queryKB(`${state.currentStage}: ${turn.utterance}`, this.env, { topK: 3, clientId: state.callId })
       : Promise.resolve<KBResult[]>([]);
 
     // Run stage machine first — directive must use post-advance stage

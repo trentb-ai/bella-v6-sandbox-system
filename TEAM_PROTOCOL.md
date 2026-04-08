@@ -102,9 +102,11 @@ Each agent MUST do these immediately on launch, restart, or context compression:
 3. **Read your individual prompt file** (`prompts/tN_*.md`)
 4. **Call `list_peers`** to see who is online
 5. **Call `check_messages`** to catch anything sent while offline
-6. **Send `STATUS: online`** to T1 with a one-line summary of your role
+6. **⚠️ LAW — Query shared brain D1 BEFORE ANY WORK** (`2001aba8-d651-41c0-9bd0-8d98866b057c`): `SELECT id, title FROM documents WHERE project_id='bella-v11' ORDER BY created_at DESC LIMIT 20`. Read session reports, bug register (`failure_patterns`), decisions log (`decisions`). This is NON-NEGOTIABLE. An agent who acts without reading D1 context is flying blind and will repeat mistakes already solved. No exceptions.
+7. **Send `STATUS: online`** to T1 with a one-line summary of your role
 
 ### Role-specific startup:
+- **T2:** Also query `failure_patterns` and `decisions` tables for today's bugs and architectural decisions before writing any spec
 - **T3 Codex Judge:** Check for pending CODEX_REVIEW_REQUEST messages
 - **T4/T5:** Check for pending TASK_REQUEST from T2
 
@@ -137,7 +139,7 @@ This is the quality engine. Clear separation:
 | | T2 Code Lead | T3 Codex Judge |
 |---|---|---|
 | **Writes** | Technical specs, before/after code, architecture plans | Nothing — reviews only |
-| **Reviews** | 6-gate manual review (correctness, safety, consistency, performance, completeness, deploy) | 3-pass Codex gate (adversarial-review → review → rescue) |
+| **Reviews** | 6-gate manual review (correctness, safety, consistency, performance, completeness, deploy) | 3-pass Codex gate (adversarial-review → review → rescue). Token budget: 500K max, medium reasoning, FAIL fast. |
 | **Can FAIL** | Yes — rejects code back to minions | Yes — rejects code back to T2 |
 | **Can PASS** | NO — only T3 can approve | YES — sole approval authority |
 | **Suggests skills** | Yes — advises T1/T3 on which skills apply | Uses skills — runs them during review |
@@ -153,6 +155,17 @@ This is the quality engine. Clear separation:
 
 ---
 
+## STALE JS PRE-FLIGHT — NON-NEGOTIABLE
+
+Before ANY implementation task, T4 MUST:
+1. `find src/ -name "*.js" | grep -v node_modules` in the target worker directory
+2. Delete every `.js` file that has a `.ts` counterpart in the same location
+3. Only then begin code changes
+
+**Why:** Module resolution picks `.js` over `.ts`. Stale compiled files silently shadow source edits. T4 updating them instead of deleting is a timebomb. Zero exceptions.
+
+---
+
 ## DEPLOY PROTOCOL — NON-NEGOTIABLE
 
 **T3 CODEX PASS = deploy authority. T1 relays to Trent when required.**
@@ -161,14 +174,16 @@ This is the quality engine. Clear separation:
 1. **Implement** — T4/T5 execute T2's specs
 2. **Manual review** — T2 runs 6-gate review
 3. **Codex review** — T3 runs 3-pass gate
-4. **DEPLOY_BROADCAST** — T2 sends to T1:
+4. **DEPLOY_BROADCAST** — T2 sends to T1 (awareness only):
    ```
    DEPLOY_BROADCAST: [worker] v[version]
    Approved by: T3 (Codex PASS) + T2 (6-gate PASS)
    Changes: [one-line summary]
    ```
-5. **T1 relays to Trent** — T3 PASS is authorization. T1 confirms to T4.
+5. **T3 sends DEPLOY_AUTH to T4 directly** — T3 PASS is the ONLY authorization needed. T2 and T1 are NOT in the deploy chain. T3 owns deploy authority end-to-end.
 6. **Deploy** — T4 runs `npx wrangler deploy`
+
+**T1 AUTHORISES ONE THING ONLY: xhigh Codex reasoning effort.** This requires Trent's explicit YES first. Nothing else goes through T1.
 7. **Verify** — T5 runs health check, confirms clean
 8. **DEPLOY_COMPLETE** — T2 sends to T1:
    ```
@@ -191,7 +206,7 @@ This is the quality engine. Clear separation:
 All implementation follows this pipeline:
 
 ```
-T1 chunk brief → T2 assigns READs to T5 → findings to T2 → T2 writes specs → [COMPLEX: T3 spec review] → T2 assigns implementation to T4 → T2 6-gate → T3 Codex gate → T2 DEPLOY_BROADCAST to T1 → T1 confirms to T4 → T4 deploys → T5 verifies
+Trent /ultraplan → T1 chunk brief → T2 assigns READs to T5 → findings to T2 → T2 writes specs → [COMPLEX: T3 spec review] → T2 assigns implementation to T4 → T2 6-gate → T3 Codex gate → T2 DEPLOY_BROADCAST to T1 → T1 confirms to T4 → T4 deploys → T5 verifies
 ```
 
 1. **T1 hands chunk to T2** — architecture-level brief with priorities
@@ -226,6 +241,31 @@ When agents have no implementation work:
 3. No speculative reading — agents read files when the task actually needs them
 
 **Read-ahead is eliminated.** Agents read files at task time, not speculatively.
+
+---
+
+## CODEX TOKEN BUDGET — NON-NEGOTIABLE
+
+**Context:** T3 burned 2 days of Codex credits in 2 hours using `xhigh` reasoning on every gate pass across multiple versions. These laws prevent recurrence.
+
+### Reasoning effort by gate:
+| Gate | Flag | Notes |
+|------|------|-------|
+| Gate 4A (adversarial) | `medium` | Default. No xhigh. |
+| Gate 4B (diff review) | none (standard) | No -c flag at all. |
+| Gate 4C (rescue) | `medium` | xhigh only with explicit T1 authorisation. |
+
+**`xhigh` is banned by default.** Only T1 can authorise it, for a specific gate on a specific version, in writing. Requires Trent YES before T1 can authorise.
+
+**`exec` mode is banned by default.** Never use `codex exec` without explicit written approval from T1 + Trent YES. Use `codex review` only. No exceptions, no workarounds.
+
+### Gate completion rule:
+- **Always run all 3 gates to completion. Never stop early.**
+- Report all findings from all 3 gates in one verdict.
+
+### Multi-version reviews:
+- When T2 retracts a version mid-gate, abort all in-flight Codex processes immediately.
+- Never run full 3-pass on a version that has already received a FAIL verdict.
 
 ---
 
@@ -272,6 +312,10 @@ Re-read `TEAM_PROTOCOL.md` and your prompt file only when:
 
 Agents must ONLY work on what is APPROVED, IMPORTANT, and ALIGNED with T1's current priorities. This OVERRIDES the engagement cycle. An agent doing unauthorized work is WORSE than an idle agent. If nothing aligned exists, report idle — do NOT invent busywork.
 
+## NO INTERRUPTIONS LAW — NON-NEGOTIABLE
+
+**NEVER send new work, prep material, or any task to an agent who is currently focused on an active task.** Wait until they report completion. One task at a time per agent. Prep work for the NEXT task is held by T1/T5 until the current task clears. Interrupting a focused agent breaks their context and costs more than the prep saves.
+
 ---
 
 ## ESCALATION
@@ -280,6 +324,147 @@ Agents must ONLY work on what is APPROVED, IMPORTANT, and ALIGNED with T1's curr
 - **T2 stuck on architecture** → escalate to T1
 - **Critical error detected** → ALERT to T1 + T2 simultaneously
 - **Trent gives direct instruction** → overrides all protocol. Execute immediately.
+
+---
+
+## SAVE ALL PLANS TO SHARED BRAIN — MANDATORY LAW (authorized 2026-04-08)
+
+Every plan written (sprint plan, chunk execution plan, architecture spec, fix sequence) MUST be saved to the shared brain D1 immediately after writing — before handing to T4 for execution.
+
+- **D1:** `2001aba8-d651-41c0-9bd0-8d98866b057c`, table `documents`
+- **Doc ID format:** `doc-[description]-[YYYYMMDD]`
+- **Also mirror** to `BRAIN_DOCS/` locally (per existing mirror law)
+- **If plan already exists in D1** from a prior session — DO NOT rewrite it. Read and use it.
+
+Plans in D1 survive agent restarts, context compression, and session boundaries. Local memory alone is not sufficient.
+
+---
+
+## STALE JS PRE-FLIGHT — MANDATORY LAW (authorized 2026-04-08)
+
+Before ANY implementation task, T4 MUST run in every target worker's src/ directory:
+```bash
+find cf-hybrid-bella/workers/[worker]/src -name "*.js" | grep -v node_modules | grep -v dist
+```
+**DELETE any .js file that has a matching .ts file.** Do NOT update them — delete them. Same applies to test directories (.test.js alongside .test.ts). T2 must include this check explicitly in every TASK_REQUEST. No exceptions.
+
+**Why:** .js files shadow .ts in module resolution. Stale compiled artifacts cause silent deployment of old code. Three instances found in one session (brain-do.js, moves.js, chunk9.test.js).
+
+---
+
+## SHARED BRAIN REPORTING — MANDATORY (authorized 2026-04-08)
+
+Every agent files a SHORT snapshot to shared brain D1 (ID: `2001aba8-d651-41c0-9bd0-8d98866b057c`) after EVERY action. NOT one big daily report — many small entries throughout the day. 100+ snapshots = full picture at end of day.
+
+**Format:** INSERT into `documents` table:
+- `id`: `report-[agent]-[YYYYMMDD]-[NNN]` — increment NNN each entry (001, 002, 003...)
+- `project_id`: `bella-v11`
+- `title`: one-line summary of what just happened
+- `doc_type`: `session_report`
+- `authored_by`: agent name
+- `content`: exactly these fields, every time. NO LINE CAP — write everything:
+  1. **ATTEMPTED**: version/task/spec/plan name
+  2. **RESULT**: PASS / FAIL / COMPLETE + one-line reason
+  3. **ROOT CAUSE** (if FAIL): specific — not "see findings", the actual bug
+  4. **FILES CHANGED**: exact paths
+  5. **BLOCKER/LESSON**: anything that would trip the next session
+  6. **NEXT**: who has the ball and what they're doing now
+
+**PLANS ALSO GET FILED.** Every T2 spec, architecture plan, sprint plan, or fix strategy gets its own report entry BEFORE implementation starts. Fields: PLAN NAME, WHAT IT DOES, WHY, FILES AFFECTED, RISKS, EXPECTED OUTCOME. This is how we know what was intended vs what was built.
+
+⚠️ THIS REPORTING SYSTEM IS SUPERCRITICAL. It is the only persistent record of what this team does each day. Agents who skip, batch, or file vague reports are undermining the entire operation. No exceptions.
+
+---
+
+## FOUR PERMANENT REGISTERS — ALL IN SHARED BRAIN D1
+
+### REGISTER 1: SESSION SNAPSHOTS (`documents`, doc_type: `session_report`)
+Already running. Every action, every plan, every verdict. See format above.
+
+### REGISTER 2: CODEX VERDICT LOG (`documents`, doc_type: `codex_verdict`)
+T3a/T3b file after EVERY verdict. Fields:
+- `id`: `verdict-t3[a/b]-[YYYYMMDD]-[NNN]`
+- `title`: "T3a FAIL v1.19.3 — VERSION mismatch + allowFreestyle"
+- `content`: VERSION gated, PASS/FAIL, EACH finding with severity (P0/P1/P2), fix assigned to who, who has the ball next
+
+### REGISTER 3: BUG REGISTER (`failure_patterns`)
+T2 files every confirmed bug. Same root cause appearing again → UPDATE occurrence_count, UPDATE last_seen. Every new session: T2 checks this register before speccing. Key fields:
+- `failure_type`: bug category (e.g. "schema-migration", "race-condition", "stale-artifact")
+- `title`: short name for the bug
+- `root_cause`: exact technical cause
+- `lesson`: what to check to avoid it
+- `prevention`: rule that prevents recurrence
+- `severity`: P0/P1/P2
+- `occurrence_count`: increment each time it reappears
+- `resolved`: 0 until confirmed fixed and gated
+
+### REGISTER 4: ARCHITECTURAL DECISIONS LOG (`decisions`)
+T1 or T2 files every architecture-level decision. Fields:
+- `title`: what was decided
+- `decision`: full decision text
+- `rationale`: why this, not something else
+- `alternatives_considered`: what was rejected and why
+- `decided_by`: Trent / T1 / T2
+- `status`: active / superseded
+
+**RISK & FRAGILITY REGISTER** — also uses `failure_patterns` with `failure_type: "fragility"`. Known fragile areas tracked here with `resolved: 0`. Checked before every related change.
+
+**T1 owns all 4 registers.** T1 backfills at end of each session. T2/T3/T4/T5 file to registers 1+2+3 in real time.
+
+---
+
+## ENGINEERING BEST PRACTICES — STANDING LAWS
+
+### PRE-IMPLEMENTATION CHECKLIST (T2 runs before every spec)
+1. Check bug register — has this root cause been seen before? If yes, apply known prevention.
+2. Check architectural decisions log — is there a prior decision that constrains this change?
+3. Check risk register — does this change touch a known fragile area?
+4. Read actual source files — never spec from memory or reports alone.
+
+### POST-DEPLOY VERIFICATION (T5 runs after every deploy)
+1. Health endpoint returns 200
+2. VERSION string matches what was deployed
+3. No error spikes in wrangler tail for 60s post-deploy
+4. File session snapshot to D1 confirming deploy + health result
+
+### REGRESSION GUARD (T3 checks on every gate)
+- Extraction dispatch: must be Cloudflare Workflow — never ctx.waitUntil, never await
+- callStartedEmitted: must be persisted before any non-storage awaits
+- VERSION: must match across source + wrangler.toml
+- No ?? true on boolean flags that should default off
+- No UNIQUE INDEX migration without preceding dedup DELETE
+
+### HANDOVER PROTOCOL (when an agent is replaced mid-task)
+Outgoing agent must send to T1 before going offline:
+1. What task was in flight
+2. Exact file + line number where work stopped
+3. What the next step is
+4. Any gotchas the incoming agent needs to know
+
+### BUG REGISTER DISCIPLINE
+- Same bug appears twice → occurrence_count incremented, `last_seen` updated
+- Same bug appears three times → ALERT to T1. Something structural is wrong.
+- Bug marked `resolved: 1` only after T3 PASS on the fix AND T5 health check confirms clean
+
+### DECISION HYGIENE
+- Never re-litigate a decision in the `decisions` table with `status: active`
+- To change a decision: file a new one with `supersedes` pointing to the old ID, set old to `status: superseded`
+- Trent's direct instructions always create a new decision entry
+
+**Trigger: after EVERY action, no batching:**
+- T2: every spec written, every 6-gate result, every DEPLOY_BROADCAST
+- T3a/T3b: every gate verdict (PASS or FAIL)
+- T1: every major decision or ruling
+
+**T4/T5 do NOT file snapshots.** Their work is captured in T2/T3 reports.
+
+**T1 is custodian** — owns the record, ensures T2/T3a/T3b are filing. T1 reports are provisional — quality reviewed by Trent.
+
+---
+
+## COMMIT AT CHUNK/SPRINT COMPLETION
+
+T4 commits the working tree at the end of every completed chunk or sprint. Never let working tree accumulate across multiple chunks — T3 gate scope must equal one chunk's diff, not the full working tree history.
 
 ---
 

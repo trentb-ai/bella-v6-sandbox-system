@@ -3,7 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2025-04-01"
 
 [vars]
-VERSION = "1.19.6"
+VERSION = "1.19.8"
 
 [[durable_objects.bindings]]
 name = "BRAIN_DO"

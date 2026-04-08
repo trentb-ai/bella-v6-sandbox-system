@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.30.0-inbound"; // inbound persona context in Gemini prompt
+const VERSION = "v6.30.1-inbound"; // V3 brain wired + inbound persona context in Gemini prompt
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
