@@ -29,7 +29,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.30.1-inbound"; // V3 brain wired + inbound persona context in Gemini prompt
+const VERSION = "v6.30.2-inbound"; // V3 brain wired + adapter layer + inbound persona context
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2625,7 +2625,7 @@ async function callDOTurn(
 ): Promise<DOTurnResponse | null> {
   try {
     const res = await env.CALL_BRAIN.fetch(
-      new Request(`https://do-internal/turn?callId=${encodeURIComponent(lid)}`, {
+      new Request(`https://do-internal/turn-v2-compat?callId=${encodeURIComponent(lid)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-call-id': lid, 'x-gemini-key': env.GEMINI_API_KEY || '' },
         body: JSON.stringify({ leadId: lid, transcript, turnId, identity }),

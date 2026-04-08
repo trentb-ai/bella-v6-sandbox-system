@@ -15,7 +15,7 @@ interface Env {
   AI?: Ai;
 }
 
-const VERSION = '1.19.8';
+const VERSION = '1.19.9';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -74,6 +74,51 @@ export default {
       const doId = env.BRAIN_DO.idFromName((raw as { lid: string }).lid);
       const stub = env.BRAIN_DO.get(doId);
       return stub.fetch(new Request(request.url, { method: 'POST', body: JSON.stringify(raw), headers: { 'Content-Type': 'application/json' } }));
+    }
+
+    // ── /turn-v2-compat — V2 TurnRequest translator ──────────────────────────
+
+    if (url.pathname === '/turn-v2-compat' && request.method === 'POST') {
+      const body = await request.json().catch(() => null);
+      if (!body) {
+        return Response.json({ error: 'Invalid JSON' }, { status: 400 });
+      }
+
+      const { leadId, transcript, turnId } = body as Record<string, unknown>;
+      if (!leadId || !transcript) {
+        return Response.json(
+          { error: 'Missing required fields: leadId, transcript' },
+          { status: 400 }
+        );
+      }
+
+      // Parse turnId to numeric turnIndex
+      let turnIndex = 0;
+      if (turnId && typeof turnId === 'string') {
+        const match = (turnId as string).match(/(\d+)/);
+        if (match) turnIndex = parseInt(match[1], 10);
+      }
+
+      // Build V3 TurnRequestV1 format
+      const v3Request = {
+        version: 1,
+        callId: leadId,
+        turnId: String(turnId) || `turn_${turnIndex}`,
+        utterance: transcript,
+        speakerFlag: 'prospect',
+        turnIndex,
+      };
+
+      // Forward to /turn handler via DO
+      const doId = env.BRAIN_DO.idFromName(String(leadId));
+      const stub = env.BRAIN_DO.get(doId);
+      return stub.fetch(
+        new Request(new URL('/turn?callId=' + encodeURIComponent(String(leadId)), request.url), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(v3Request),
+        })
+      );
     }
 
     // ── Standard routes — routed by callId query param ────────────────────────
