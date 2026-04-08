@@ -16,7 +16,7 @@
  */
 (function () {
 
-  const AGENT_BASE = 'wss://chris-voice-agent-v1.trentbelasco.workers.dev';
+  const AGENT_BASE = 'wss://bella-voice-agent-v2-rescript.trentbelasco.workers.dev';
   const TARGET_RATE = 16000;   // Must match Deepgram Settings audio.input.sample_rate
   const BARGE_IN_RMS = 0.09;       // RMS threshold for barge-in after echo window clears
   const BARGE_IN_RMS_INTRO = 0.18; // Higher threshold during first 600ms — blocks initial echo burst
