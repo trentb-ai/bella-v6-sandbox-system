@@ -37,7 +37,11 @@ export function mergeIntelEvent(state: ConversationState, payload: IntelReadyEve
     merged++;
   }
   if (payload.flags) {
-    state.intelFlags = { ...state.intelFlags, ...payload.flags };
+    const next: Record<string, boolean> = { ...(state.intelFlags ?? {}) } as Record<string, boolean>;
+    for (const [k, v] of Object.entries(payload.flags as Record<string, boolean>)) {
+      if (v) next[k] = true;
+    }
+    state.intelFlags = next;
     merged++;
   }
   if (payload.tech_stack) {
@@ -78,8 +82,8 @@ export function mergeConsultant(state: ConversationState, payload: unknown): num
     state.consultantData = { ...state.consultantData, conversationHooks: c.conversationHooks };
     merged++;
   }
-  state.consultantReady = true;
-  console.log(`[INTEL_MERGE] consultant merged=${merged} consultantReady=true`);
+  state.consultantReady = state.consultantReady || (merged > 0);
+  console.log(`[INTEL_MERGE] consultant merged=${merged} consultantReady=${merged > 0}`);
   return merged;
 }
 
@@ -101,7 +105,11 @@ export function mergeDeepScrape(state: ConversationState, deep: Record<string, u
     state.deepIntel = { ...state.deepIntel, hiringMatches: deep.hiring as string[] };
     merged++;
   }
-  if ((deep.googleMaps as Record<string, unknown> | undefined)?.rating != null) {
+  const gmaps = deep.googleMaps;
+  const hasRating = Array.isArray(gmaps)
+    ? (gmaps as Record<string, unknown>[]).some(g => g.rating != null)
+    : (gmaps as Record<string, unknown> | undefined)?.rating != null;
+  if (hasRating) {
     state.intelFlags = { ...state.intelFlags, review_signals: true };
   }
   console.log(`[INTEL_MERGE] deep-scrape merged=${merged}`);

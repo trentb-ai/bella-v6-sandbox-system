@@ -218,3 +218,25 @@ describe('C7-20', () => {
     expect(directive.activeListeningCue).toBeUndefined();
   });
 });
+
+// ─── C7-21: TurnPlan allowFreestyle=false for 'optional_side_agents' ──────────
+
+describe('C7-21', () => {
+  test('TurnPlan has allowFreestyle=false for optional_side_agents stage', () => {
+    const state = mockState({ currentStage: 'optional_side_agents' });
+    const directive = buildStageDirective('optional_side_agents', state);
+    const plan = buildTurnPlan(state, directive, 'turn-1');
+    expect(plan.allowFreestyle).toBe(false);
+  });
+});
+
+// ─── C7-22: TurnPlan allowFreestyle=false for 'close' ────────────────────────
+
+describe('C7-22', () => {
+  test('TurnPlan has allowFreestyle=false for close stage', () => {
+    const state = mockState({ currentStage: 'close' });
+    const directive = buildStageDirective('close', state);
+    const plan = buildTurnPlan(state, directive, 'turn-1');
+    expect(plan.allowFreestyle).toBe(false);
+  });
+});

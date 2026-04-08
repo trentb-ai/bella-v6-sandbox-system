@@ -88,6 +88,7 @@ export interface StageDirective {
   calculatorKey?: string;
   notes?: string[];
   activeListeningCue?: string;
+  allowFreestyle?: boolean;
 }
 
 // ─── ROI Types ──────────────────────────────────────────────────────────────
@@ -177,6 +178,9 @@ export interface ConversationState {
   // Layer 5: Active listening
   priorHotMemoryKeys: string[];
 
+  // §Sprint5: rolling buffer of last 12 prospect utterances for deterministic re-scan
+  recentUserTranscripts?: string[];
+
   // Layer 2 + 8: Hybrid freestyle / consultant readiness
   consultantReady: boolean;
 
@@ -187,4 +191,11 @@ export interface ConversationState {
   scriptFills: Record<string, string | null> | null;
   consultantData: Record<string, unknown> | null;
   deepIntel: { googlePresence?: Array<Record<string, unknown>>; ads?: unknown; hiringMatches?: string[]; } | null;
+
+  allowFreestyle?: boolean;
+  improvisationBand?: 'strict' | 'wide' | 'narrow';
+  intent?: string;
+
+  // §10B: guard against re-emitting call.started on DO eviction + reconnect
+  callStartedEmitted?: boolean;
 }

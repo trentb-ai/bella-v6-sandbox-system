@@ -44,3 +44,5 @@ CREATE TABLE IF NOT EXISTS quality_scores (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_quality_scores_call_turn ON quality_scores(call_id, turn_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_call_turns_unique ON call_turns(call_id, turn_id);

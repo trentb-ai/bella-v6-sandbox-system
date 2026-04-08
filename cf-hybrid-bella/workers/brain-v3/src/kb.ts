@@ -8,6 +8,7 @@
 
 interface Env {
   BRAIN_VECTORS: VectorizeIndex;
+  AI: Ai;
 }
 
 export interface KBResult {
@@ -18,7 +19,7 @@ export interface KBResult {
 
 export async function queryKB(
   query: string,
-  env: { BRAIN_VECTORS?: unknown },
+  env: { BRAIN_VECTORS?: unknown; AI?: unknown },
   opts: { topK?: number; scoreThreshold?: number } = {},
 ): Promise<KBResult[]> {
   if (!env.BRAIN_VECTORS) return [];
@@ -27,8 +28,10 @@ export async function queryKB(
 
   try {
     const vectorize = env.BRAIN_VECTORS as Env['BRAIN_VECTORS'];
-    // Chunk 10: replace zero-vector with real Workers AI embedding
-    const results = await vectorize.query(new Float32Array(768).fill(0), {
+    if (!env.AI) return [];
+    const embResult = await (env.AI as Ai).run('@cf/baai/bge-base-en-v1.5', { text: [query] });
+    const vector = new Float32Array(embResult.data[0] as number[]);
+    const results = await vectorize.query(vector, {
       topK,
       returnValues: true,
       returnMetadata: 'all',

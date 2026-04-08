@@ -3,7 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2025-04-01"
 
 [vars]
-VERSION = "1.3.0"
+VERSION = "1.19.5"
 
 [[durable_objects.bindings]]
 name = "BRAIN_DO"
@@ -17,7 +17,15 @@ new_classes = ["BrainDO"]
 binding = "DB"
 database_name = "bella-data-v3"
 database_id = "d39aedef-e3bc-4145-b0be-c18cf17b2ddd"
+migrations_dir = "migrations"
+
+[[services]]
+binding = "EXTRACTION_WORKFLOW"
+service = "bella-extraction-workflow-v3"
 
 [[vectorize]]
 binding = "BRAIN_VECTORS"
 index_name = "bella-brain-vectors"
+
+[ai]
+binding = "AI"

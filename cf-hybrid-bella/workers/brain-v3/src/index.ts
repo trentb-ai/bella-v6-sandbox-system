@@ -13,7 +13,7 @@ interface Env {
   EXTRACTION_WORKFLOW?: Fetcher;
 }
 
-const VERSION = '1.2.0';
+const VERSION = '1.19.5';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -37,22 +37,22 @@ export default {
 
     if (url.pathname === '/event/consultant-ready' && request.method === 'POST') {
       const raw = await request.json().catch(() => null);
-      if (!raw) return Response.json({ error: 'Invalid JSON' }, { status: 400 });
-      const parsed = IntelReadyEventV1.safeParse(raw);
-      if (!parsed.success) return Response.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 });
-      const doId = env.BRAIN_DO.idFromName(parsed.data.lid);
+      if (!raw || typeof (raw as Record<string, unknown>).lid !== 'string' || !(raw as { lid: string }).lid) {
+        return Response.json({ error: 'Missing required field: lid' }, { status: 400 });
+      }
+      const doId = env.BRAIN_DO.idFromName((raw as { lid: string }).lid);
       const stub = env.BRAIN_DO.get(doId);
-      return stub.fetch(new Request(request.url, { method: 'POST', body: JSON.stringify(parsed.data), headers: { 'Content-Type': 'application/json' } }));
+      return stub.fetch(new Request(request.url, { method: 'POST', body: JSON.stringify(raw), headers: { 'Content-Type': 'application/json' } }));
     }
 
     if (url.pathname === '/event/deep-scrape' && request.method === 'POST') {
       const raw = await request.json().catch(() => null);
-      if (!raw) return Response.json({ error: 'Invalid JSON' }, { status: 400 });
-      const parsed = IntelReadyEventV1.safeParse(raw);
-      if (!parsed.success) return Response.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 });
-      const doId = env.BRAIN_DO.idFromName(parsed.data.lid);
+      if (!raw || typeof (raw as Record<string, unknown>).lid !== 'string' || !(raw as { lid: string }).lid) {
+        return Response.json({ error: 'Missing required field: lid' }, { status: 400 });
+      }
+      const doId = env.BRAIN_DO.idFromName((raw as { lid: string }).lid);
       const stub = env.BRAIN_DO.get(doId);
-      return stub.fetch(new Request(request.url, { method: 'POST', body: JSON.stringify(parsed.data), headers: { 'Content-Type': 'application/json' } }));
+      return stub.fetch(new Request(request.url, { method: 'POST', body: JSON.stringify(raw), headers: { 'Content-Type': 'application/json' } }));
     }
 
     // ── Standard routes — routed by callId query param ────────────────────────

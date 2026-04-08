@@ -32,8 +32,8 @@ export const STAGE_POLICIES: Record<ChannelStageId, StagePolicy> = {
   },
   ch_chris: {
     stage: 'ch_chris',
-    requiredFields: ['acv', 'webLeads'],
-    eitherOrFields: [['webConversions', 'webConversionRate']],
+    requiredFields: ['acv'],
+    eitherOrFields: [['webLeads', 'inboundLeads'], ['webConversions', 'webConversionRate']],
     maxQuestions: 2,
     forceAdvanceWhenSatisfied: true,
     calculatorKey: 'chris_website_conversion',

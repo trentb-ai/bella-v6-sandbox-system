@@ -321,13 +321,13 @@ describe('WOW stall gate', () => {
     expect(state.currentStage).toBe('wow_4');
   });
 
-  test('wow_1 and wow_2 auto-advance on bella speak (no stall gate)', () => {
+  test('wow_1 and wow_2 auto-advance on prospect turn (no stall gate)', () => {
     const state = createTestState({
       currentStage: 'wow_1',
       wowStep: 1,
       stall: 0,
     });
-    const advanced = processFlow(state, 'Here is insight one...', 'bella');
+    const advanced = processFlow(state, 'That sounds interesting...', 'prospect');
     expect(advanced).toBe(true);
     expect(state.currentStage).toBe('wow_2');
   });

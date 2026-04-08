@@ -6,6 +6,7 @@ export default defineConfig({
     alias: {
       '@bella/contracts': path.resolve(__dirname, '../contracts/src'),
       '@bella/telemetry': path.resolve(__dirname, '../telemetry/src/index.ts'),
+      'cloudflare:workers': path.resolve(__dirname, './__mocks__/cloudflare-workers.ts'),
     },
   },
   test: {

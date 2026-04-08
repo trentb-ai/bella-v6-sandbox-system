@@ -83,6 +83,7 @@ function buildWowDirective(state: ConversationState): StageDirective {
       ...(observationNote ? [observationNote] : []),
     ],
     activeListeningCue,
+    allowFreestyle: true,
   };
 }
 
@@ -436,6 +437,7 @@ function buildRoiDeliveryDirective(state: ConversationState): StageDirective {
     waitForUser: true,
     canSkip: false,
     advanceOn: ['user_replied'],
+    allowFreestyle: false,
   };
 }
 
@@ -450,6 +452,7 @@ function buildOptionalSideAgentsDirective(): StageDirective {
     ask: false,
     waitForUser: false,
     canSkip: true,
+    allowFreestyle: false,
   };
 }
 
@@ -465,6 +468,7 @@ function buildCloseDirective(state: ConversationState): StageDirective {
     waitForUser: true,
     canSkip: false,
     advanceOn: ['user_replied'],
+    allowFreestyle: false,
   };
 }
 

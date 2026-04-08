@@ -9,8 +9,6 @@ import { getFact } from './facts';
 import { detectIntent } from './intent';
 import { needsRepair } from './repair';
 import { extractEngagementSignals, scoreEngagement, engagementLevel } from './engagement';
-// queryKB imported for Chunk 10 integration — Vectorize embedding wired in Chunk 10
-import { queryKB } from './kb'; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 // ─── Critical stage set — strict improv, no freestyle ────────────────────────
 
@@ -76,8 +74,10 @@ export function buildTurnPlan(
   directive: StageDirective,
   turnId: string,
   utterance = '',
+  stageSnapshot?: string,
 ): TurnPlan {
-  const isCritical = CRITICAL_STAGES.includes(state.currentStage);
+  const resolvedStage = stageSnapshot ?? state.currentStage;  // moveId only
+  const isCritical = CRITICAL_STAGES.includes(state.currentStage);  // post-advance always
 
   // Layer 3: Intent detection
   const intent = detectIntent(utterance);
@@ -91,7 +91,7 @@ export function buildTurnPlan(
     : (isCritical ? 'strict' : 'wide');
 
   // Layer 11: Critical facts → context notes
-  const criticalFacts = buildCriticalFacts(state.currentStage, state);
+  const criticalFacts = buildCriticalFacts(state.currentStage, state);  // post-advance always
   const contextNotes: string[] = [
     ...(directive.notes ?? []),
     ...criticalFacts.map(f => `FACT: ${f}`),
@@ -107,7 +107,7 @@ export function buildTurnPlan(
     callId: state.callId,
     turnId,
     stage: state.currentStage,
-    moveId: `${state.currentStage}_${state.turnIndex}`,
+    moveId: `${resolvedStage}_${state.turnIndex}`,
     directive: directive.objective,
     speakText: repair.needed ? repair.repairSpeak : (directive.speak || undefined),
     mandatory: !directive.canSkip,
@@ -116,7 +116,9 @@ export function buildTurnPlan(
     activeMemory: [],
     contextNotes,
     extractionTargets: directive.extract ?? [],
-    allowFreestyle: !isCritical,
+    // V3 hybrid freestyle: default true — all stages allow Gemini freestyle unless explicitly disabled.
+    // roi_delivery, optional_side_agents, and close set allowFreestyle=false (moves.ts). Critical stages use improvisationBand='strict' instead.
+    allowFreestyle: directive.allowFreestyle ?? true,
     improvisationBand,
     intent,
     consultantReady: state.consultantReady,

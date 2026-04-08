@@ -1,15 +1,18 @@
+import { z } from 'zod';
+
 // ─── BugPacketV1 ─────────────────────────────────────────────────────────────
 
-export interface BugPacketV1 {
-  version: 1;
-  callId: string;
-  turnId: string;
-  stage: string;
-  ts: string;
-  transcriptEntry: { speaker: 'prospect' | 'bella'; text: string; ts: string };
-  turnPlan?: unknown;         // TurnPlanV1 — kept unknown to avoid circular dep
-  promptSnapshot?: string;
-  modelResponseRaw?: string;
-  errorMessage?: string;
-  timings: Record<string, number>;
-}
+export const BugPacketV1 = z.object({
+  version: z.literal(1),
+  callId: z.string(),
+  turnId: z.string(),
+  stage: z.string(),
+  ts: z.string(),
+  transcriptEntry: z.object({ speaker: z.enum(['prospect', 'bella']), text: z.string(), ts: z.string() }),
+  turnPlan: z.unknown().optional(),
+  promptSnapshot: z.string().optional(),
+  modelResponseRaw: z.string().optional(),
+  errorMessage: z.string().optional(),
+  timings: z.record(z.number()),
+});
+export type BugPacketV1 = z.infer<typeof BugPacketV1>;

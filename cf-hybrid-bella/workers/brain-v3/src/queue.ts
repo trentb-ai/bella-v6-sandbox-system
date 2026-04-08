@@ -19,20 +19,23 @@ import type {
  * Alex-first rule applies when no consultant priority ordering available.
  */
 export function buildInitialQueue(topAgents: CoreAgent[]): QueueItem[] {
-  const queue: QueueItem[] = [];
+  const WHY: Record<CoreAgent, string> = {
+    alex: 'Alex leads whenever inbound demand likely exists.',
+    chris: 'Chris follows when website actions matter.',
+    maddie: 'Maddie is added when phone is commercially important.',
+  };
+  const STAGE: Record<CoreAgent, 'ch_alex' | 'ch_chris' | 'ch_maddie'> = {
+    alex: 'ch_alex',
+    chris: 'ch_chris',
+    maddie: 'ch_maddie',
+  };
 
-  if (topAgents.includes('alex')) {
-    queue.push({ stage: 'ch_alex', agent: 'alex', priority: 1, why: 'Alex leads whenever inbound demand likely exists.' });
-  }
-  if (topAgents.includes('chris')) {
-    queue.push({ stage: 'ch_chris', agent: 'chris', priority: 2, why: 'Chris follows when website actions matter.' });
-  }
-  if (topAgents.includes('maddie')) {
-    queue.push({ stage: 'ch_maddie', agent: 'maddie', priority: 3, why: 'Maddie is added when phone is commercially important.' });
-  }
-
-  queue.sort((a, b) => a.priority - b.priority);
-  return queue;
+  return topAgents.map((agent, index) => ({
+    stage: STAGE[agent],
+    agent,
+    priority: index + 1,
+    why: WHY[agent],
+  }));
 }
 
 // ─── Derive Top Agents ──────────────────────────────────────────────────────

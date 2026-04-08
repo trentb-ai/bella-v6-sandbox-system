@@ -4,6 +4,7 @@
  */
 
 import type { ConversationState } from './types';
+import { buildInitialQueue } from './queue';
 
 export function initialState(callId: string, leadId: string): ConversationState {
   return {
@@ -16,8 +17,8 @@ export function initialState(callId: string, leadId: string): ConversationState 
     wowStep: 0,
     turnIndex: 0,
 
-    currentQueue: [],
-    topAgents: [],
+    topAgents: ['alex'],
+    currentQueue: buildInitialQueue(['alex']),
 
     alexEligible: true,
     chrisEligible: false,
@@ -40,6 +41,7 @@ export function initialState(callId: string, leadId: string): ConversationState 
     engagementHistory: [],
 
     priorHotMemoryKeys: [],
+    recentUserTranscripts: [],
 
     consultantReady: false,
 
@@ -49,5 +51,7 @@ export function initialState(callId: string, leadId: string): ConversationState 
     scriptFills: null,
     consultantData: null,
     deepIntel: null,
+
+    callStartedEmitted: false,
   };
 }

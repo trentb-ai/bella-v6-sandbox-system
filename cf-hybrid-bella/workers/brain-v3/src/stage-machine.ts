@@ -52,10 +52,10 @@ export function processFlow(
     case 'wow_5': case 'wow_6': case 'wow_7': case 'wow_8': {
       const currentWow = state.wowStep;
 
-      // WOW 1-2: auto-advance after Bella speaks
+      // WOW 1-2: advance on prospect turn (Brain only receives prospect turns)
       // WOW 3+: advance after prospect reply, BUT gate requires stall >= 3
       const canAdvance = currentWow <= 2
-        ? speakerFlag === 'bella'
+        ? speakerFlag === 'prospect'
         : speakerFlag === 'prospect';
 
       if (!canAdvance) break;
