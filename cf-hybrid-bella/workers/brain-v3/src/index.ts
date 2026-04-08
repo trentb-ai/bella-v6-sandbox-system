@@ -13,7 +13,7 @@ interface Env {
   EXTRACTION_WORKFLOW?: Fetcher;
 }
 
-const VERSION = '1.19.5';
+const VERSION = '1.19.6';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {

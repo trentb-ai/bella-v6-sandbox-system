@@ -16,4 +16,4 @@ binding = "DEEP_SCRAPE"
 service = "bella-scrape-workflow-v10-rescript"
 
 [vars]
-VERSION = "0.2.0"
+VERSION = "0.4.0"

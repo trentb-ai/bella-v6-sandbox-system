@@ -43,6 +43,9 @@ export class RealtimeAgent extends DurableObject {
     activeTtsAbort: null,
   };
 
+  // ── Shutdown flag — prevents reconnect loops on intentional close ────────
+  private isShuttingDown = false;
+
   // ── Turn queue ───────────────────────────────────────────────────────────
   private turnBusy: boolean = false;
   private turnQueue: QueuedTurn[] = [];
@@ -65,7 +68,7 @@ export class RealtimeAgent extends DurableObject {
     const url = new URL(request.url);
 
     if (url.pathname === '/health') {
-      return Response.json({ version: '1.0.0', worker: 'realtime-agent-v3' });
+      return Response.json({ version: '1.2.0', worker: 'realtime-agent-v3' });
     }
 
     // WebSocket upgrade
@@ -78,6 +81,17 @@ export class RealtimeAgent extends DurableObject {
 
     const [client, server] = Object.values(new WebSocketPair()) as [WebSocket, WebSocket];
     this.ctx.acceptWebSocket(server);
+    this.isShuttingDown = false;
+    this.turnBusy = false;                    // prevent old in-flight finally from draining new session
+    this.turnQueue = [];
+    this.sttReconnectAttempted = false;       // reset one-shot reconnect guards
+    this.ttsReconnectAttempted = false;
+    this.agentState.isSpeaking = false;       // clear phantom barge-in state
+    this.agentState.pendingTurnId = null;
+    if (this.agentState.activeTtsAbort) {
+      this.agentState.activeTtsAbort.abort();
+      this.agentState.activeTtsAbort = null;
+    }
     this.browserWs = server;
 
     // Open Deepgram connections
@@ -98,6 +112,7 @@ export class RealtimeAgent extends DurableObject {
   // ─── WebSocket handlers ───────────────────────────────────────────────────
 
   webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): void {
+    if (ws !== this.browserWs) return;
     // Browser → Realtime Agent
     if (isAudioFrame(message)) {
       // Forward PCM audio to Deepgram STT untouched
@@ -117,11 +132,13 @@ export class RealtimeAgent extends DurableObject {
   }
 
   webSocketClose(ws: WebSocket, code: number, reason: string): void {
+    if (ws !== this.browserWs) return;
     console.log(`[RT] Browser WebSocket closed: ${code} ${reason}`);
     this.cleanup();
   }
 
   webSocketError(ws: WebSocket, error: unknown): void {
+    if (ws !== this.browserWs) return;
     console.error('[RT] Browser WebSocket error:', error);
     this.cleanup();
   }
@@ -159,9 +176,15 @@ export class RealtimeAgent extends DurableObject {
       this.sttWs = openDeepgramSTT(this.env.DEEPGRAM_API_KEY);
       this.attachSTTHandlers(this.sttWs);
 
-      // Open TTS WebSocket
+      // Open TTS WebSocket — attach handlers BEFORE awaiting open to avoid race on fast connections
       this.ttsWs = openDeepgramTTS(this.env.DEEPGRAM_API_KEY);
-      this.attachTTSHandlers(this.ttsWs);
+      this.attachTTSHandlers(this.ttsWs);  // attach BEFORE awaiting open
+      await new Promise<void>(resolve => {
+        if (this.ttsWs!.readyState === WebSocket.OPEN) { resolve(); return; }
+        this.ttsWs!.addEventListener('open', () => resolve(), { once: true });
+        this.ttsWs!.addEventListener('error', () => resolve(), { once: true });
+        setTimeout(resolve, 3000);
+      });
 
       // Start keepalive
       this.keepAliveTimer = startKeepAlive(this.sttWs);
@@ -177,6 +200,7 @@ export class RealtimeAgent extends DurableObject {
 
   private attachSTTHandlers(ws: WebSocket): void {
     ws.addEventListener('message', (event) => {
+      if (ws !== this.sttWs) return;
       try {
         const data = JSON.parse(event.data as string) as DeepgramSTTEvent;
         this.handleSTTEvent(data);
@@ -186,11 +210,13 @@ export class RealtimeAgent extends DurableObject {
     });
 
     ws.addEventListener('close', (event) => {
+      if (ws !== this.sttWs) return;
       console.log(`[RT] STT WebSocket closed: ${event.code}`);
       this.handleSTTDisconnect();
     });
 
     ws.addEventListener('error', (event) => {
+      if (ws !== this.sttWs) return;
       console.error('[RT] STT WebSocket error:', event);
     });
   }
@@ -216,6 +242,11 @@ export class RealtimeAgent extends DurableObject {
 
         // P1-4: Queue if busy, dispatch if free
         if (this.turnBusy) {
+          const TURN_QUEUE_MAX = 5;
+          if (this.turnQueue.length >= TURN_QUEUE_MAX) {
+            console.warn(`[RT] turnQueue full (${TURN_QUEUE_MAX}) — dropping oldest turn`);
+            this.turnQueue.shift();
+          }
           this.turnQueue.push({ utterance: transcript, speakerFlag: 'prospect' });
           console.log(`[RT] queued turn (queue=${this.turnQueue.length})`);
           return;
@@ -256,6 +287,7 @@ export class RealtimeAgent extends DurableObject {
   }
 
   private handleSTTDisconnect(): void {
+    if (this.isShuttingDown) return;
     if (this.sttReconnectAttempted) {
       this.safeSendToBrowser({ type: 'error', message: 'Audio connection lost' });
       return;
@@ -277,6 +309,7 @@ export class RealtimeAgent extends DurableObject {
 
   private attachTTSHandlers(ws: WebSocket): void {
     ws.addEventListener('message', (event) => {
+      if (ws !== this.ttsWs) return;
       // Binary audio → forward directly to browser
       if (event.data instanceof ArrayBuffer) {
         if (this.browserWs?.readyState === WebSocket.OPEN) {
@@ -295,11 +328,13 @@ export class RealtimeAgent extends DurableObject {
     });
 
     ws.addEventListener('close', (event) => {
+      if (ws !== this.ttsWs) return;
       console.log(`[RT] TTS WebSocket closed: ${event.code}`);
       this.handleTTSDisconnect();
     });
 
     ws.addEventListener('error', (event) => {
+      if (ws !== this.ttsWs) return;
       console.error('[RT] TTS WebSocket error:', event);
     });
   }
@@ -328,6 +363,7 @@ export class RealtimeAgent extends DurableObject {
   }
 
   private handleTTSDisconnect(): void {
+    if (this.isShuttingDown) return;
     if (this.ttsReconnectAttempted) {
       this.safeSendToBrowser({ type: 'error', message: 'Audio output lost' });
       return;
@@ -366,6 +402,7 @@ export class RealtimeAgent extends DurableObject {
       );
     } finally {
       this.turnBusy = false;
+      if (this.isShuttingDown) return;
       // Drain queue — process next turn if any queued during this one
       if (this.turnQueue.length > 0) {
         const next = this.turnQueue.shift()!;
@@ -378,6 +415,7 @@ export class RealtimeAgent extends DurableObject {
   // ─── Cleanup ──────────────────────────────────────────────────────────────
 
   private cleanup(): void {
+    this.isShuttingDown = true;
     this.stopKeepAlive();
 
     if (this.agentState.activeTtsAbort) {

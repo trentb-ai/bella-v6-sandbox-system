@@ -60,8 +60,14 @@ function buildSystemMessage(plan: TurnPlan): string {
 function buildUserMessage(plan: TurnPlan): string {
   const speakSection = buildSpeakSection(plan);
 
-  const paraphraseRule = plan.mandatory
+  const paraphraseRule = plan.mandatory && !!plan.speakText
     ? 'You MUST deliver the speak text verbatim — do not paraphrase'
+    : plan.allowFreestyle === false
+    ? 'DO NOT improvise — follow the directive and speak text closely, no deviation permitted'
+    : plan.improvisationBand === 'strict'
+    ? 'You MUST cover the required information exactly — no deviation from the script structure'
+    : plan.improvisationBand === 'narrow'
+    ? 'One natural sentence repair is permitted — do not deviate from the script structure'
     : 'Paraphrase naturally while keeping the objective';
 
   const parts: string[] = [];

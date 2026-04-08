@@ -16,7 +16,7 @@ import { streamGemini } from './gemini';
 import { buildDeterministicSSE, teeSSEStream } from './sse';
 import { fireComplianceCheck } from './compliance';
 
-const VERSION = '0.2.0';
+const VERSION = '1.0.4';
 
 // ─── Worker ──────────────────────────────────────────────────────────────────
 
@@ -123,7 +123,7 @@ async function handleGenerate(
         event: 'prompt.complete',
       });
       return fireComplianceCheck(plan, text, utterance, env);
-    })
+    }).catch(err => console.error('[PROMPT] compliance stream error:', err))
   );
 
   // Step 8: Return passthrough stream with stage/move headers

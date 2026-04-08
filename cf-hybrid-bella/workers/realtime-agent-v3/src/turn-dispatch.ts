@@ -110,8 +110,10 @@ export async function dispatchTurn(
     return;
   }
 
-  // 4. P1-2: Set isSpeaking BEFORE streaming TTS
-  state.isSpeaking = true;
+  // 4. P1-2: Set isSpeaking only when TTS WebSocket is confirmed open — prevents stuck=true on closed WS
+  if (ttsWs.readyState === WebSocket.OPEN) {
+    state.isSpeaking = true;
+  }
   state.pendingTurnId = turnId;
   safeSend(browserWs, { type: 'speaking', turnId });
 

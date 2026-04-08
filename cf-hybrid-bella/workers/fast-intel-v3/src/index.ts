@@ -5,7 +5,7 @@
 
 import { type IntelReadyEvent, IntelReadyEventV1 } from '@bella/contracts';
 
-const VERSION = '0.2.0';
+const VERSION = '0.4.0';
 
 interface Env {
   CONSULTANT: Fetcher;
@@ -64,18 +64,21 @@ async function runPipeline(lid: string, websiteUrl: string, firstName: string, e
     const consultantResult = await callConsultant(lid, websiteUrl, firstName, scraped, env);
     const payload = buildIntelPayload(lid, websiteUrl, firstName, scraped, consultantResult);
 
-    await env.BRAIN.fetch(new Request('https://brain-internal/event/fast-intel', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }));
-    console.log(`[FAST_INTEL] event posted to brain lid=${lid}`);
-
-    env.DEEP_SCRAPE.fetch(new Request('https://deep-scrape/trigger', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lid, websiteUrl, firstName }),
-    })).catch((e: Error) => console.log(`[FAST_INTEL] deep-scrape trigger failed: ${e.message}`));
+    await Promise.all([
+      env.BRAIN.fetch(new Request('https://brain-internal/event/fast-intel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })).then(res => {
+        if (!res.ok) console.error(`[FAST_INTEL] brain rejected intel lid=${lid} status=${res.status}`);
+      }),
+      env.DEEP_SCRAPE.fetch(new Request('https://deep-scrape/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lid, websiteUrl, firstName }),
+      })).catch((e: Error) => console.log(`[FAST_INTEL] deep-scrape trigger failed: ${e.message}`)),
+    ]);
+    console.log(`[FAST_INTEL] event posted to brain + deep-scrape triggered lid=${lid}`);
 
   } catch (e) {
     const err = e as Error;
@@ -142,7 +145,7 @@ export function buildIntelPayload(
   consultant: Record<string, unknown>,
 ): IntelReadyEvent {
   const bizId = consultant.businessIdentity as Record<string, string> | undefined;
-  const businessName = bizId?.businessName ?? scraped.title ?? lid;
+  const businessName = bizId?.correctedName ?? scraped.title ?? lid;
 
   const consultantPayload = Object.keys(consultant).length > 0 ? consultant : undefined;
   const flagsRaw = buildFlagsRaw(consultant);

@@ -35,7 +35,7 @@ export async function fireComplianceCheck(
   };
 
   await env.COMPLIANCE_WORKFLOW.fetch(
-    new Request('https://compliance/check', {
+    new Request('https://compliance/audit-turn', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

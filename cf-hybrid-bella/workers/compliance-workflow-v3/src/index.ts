@@ -8,7 +8,7 @@ import { CompliancePayloadV1 } from '@bella/contracts';
 import { inlineCheck } from './ring1';
 import { emit } from '@bella/telemetry';
 
-const VERSION = '0.2.0';
+const VERSION = '1.0.2';
 export { ComplianceWorkflow } from './ring2';
 export { NightlyReplayWorkflow } from './ring3';
 
