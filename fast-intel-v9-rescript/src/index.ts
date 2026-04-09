@@ -36,7 +36,7 @@ import { Env, FastIntelResult, ConsultantPayload } from "./types";
 
 export { Env };
 
-const VERSION = "1.19.0"; // fix: belt-and-suspenders stage_plan write if consultant failed silently
+const VERSION = "1.19.1"; // fix: belt-and-suspenders stage_plan write if consultant failed silently
 // KV_TTL removed — data persists permanently
 
 const CORS = {

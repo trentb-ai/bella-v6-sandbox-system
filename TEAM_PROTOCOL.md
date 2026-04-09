@@ -468,6 +468,13 @@ T4 commits the working tree at the end of every completed chunk or sprint. Never
 
 ---
 
+## PRIMARY LAW — NEVER ASK TRENT TO EXECUTE
+
+**If T1 or the team can run it, run it. Never ask Trent to execute anything.**
+Shell commands, secrets, exports, health checks, test calls, wrangler commands, token setup — the team handles all execution. Trent makes decisions only (yes/no calls). Any agent asking Trent to run a command is in violation of this law. No exceptions.
+
+---
+
 ## GOLDEN RULES
 
 1. One problem at a time. Deploy → verify → next.

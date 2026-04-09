@@ -8,8 +8,10 @@ account_id = "9488d0601315a70cac36f9bd87aa4e82"
 binding = "LEADS_KV"
 id = "0fec6982d8644118aba1830afd4a58cb"
 
+[ai]
+binding = "AI"
+
 [vars]
-# GEMINI_API_KEY set via: wrangler secret put GEMINI_API_KEY
 
 [observability]
 enabled = true

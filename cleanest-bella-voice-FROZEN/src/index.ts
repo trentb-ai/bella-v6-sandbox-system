@@ -707,7 +707,7 @@ VOICE CALL RULES:
               model: DG_LLM_MODEL,
             },
             endpoint: {
-              url: this.env.BRIDGE_URL,
+              url: `${this.env.BRIDGE_URL}?lid=${encodeURIComponent(this.lid)}`,
             },
             // Bridge replaces this system prompt on every turn with a lean
             // stage-specific prompt (~150 tokens). This is just a fallback

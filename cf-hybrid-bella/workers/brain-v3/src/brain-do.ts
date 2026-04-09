@@ -51,6 +51,7 @@ export class BrainDO extends DurableObject {
         case '/turn':                    return this.handleTurn(request);
         case '/intel':                   return this.handleIntel(request);
         case '/extraction-result':       return this.handleExtractionResult(request);
+        case '/event':                   return this.handleEventGeneric(request);
         case '/event/fast-intel':        return this.handleEventFastIntel(request);
         case '/event/consultant-ready':  return this.handleEventConsultantReady(request);
         case '/event/deep-scrape':       return this.handleEventDeepScrape(request);
@@ -118,7 +119,15 @@ export class BrainDO extends DurableObject {
     ]);
     const effectivePendingFast = pendingFast ?? pendingLegacy;
     const intelApplied = !!(effectivePendingFast || pendingConsultant || pendingDeep);
-    if (effectivePendingFast) mergeIntelEvent(state, effectivePendingFast);
+    if (effectivePendingFast) {
+      mergeIntelEvent(state, effectivePendingFast);
+      // Update businessName from pending fast-intel
+      const coreId = (effectivePendingFast as any)?.core_identity;
+      if (coreId?.business_name && !state.businessName) {
+        state.businessName = coreId.business_name;
+        console.log(`[BRAIN] handleTurn: updated businessName from pending to "${state.businessName}"`);
+      }
+    }
     if (pendingConsultant) {
       const p = pendingConsultant as import('@bella/contracts').IntelReadyEvent;
       const consultMerged = mergeConsultant(state, p.consultant);
@@ -289,7 +298,24 @@ export class BrainDO extends DurableObject {
       );
     }
 
-    return Response.json(plan);
+    // Extended response for bridge compatibility (V2 format via adapter)
+    const response = {
+      ...plan,
+      // State context for bridge's buildDOTurnPrompt
+      wowStall: state.wowStep ?? 0,
+      advanced: didAdvance,
+      extractedState: Object.fromEntries(
+        Object.entries(state.hotMemory).filter(([_, v]) => v != null)
+      ),
+      // Minimal packet structure for adapter conversion
+      _bridgeContext: {
+        businessName: state.businessName,
+        stall: state.stall ?? 0,
+        consultantReady: state.consultantReady,
+      }
+    };
+
+    return Response.json(response);
   }
 
   // ─── POST /intel ────────────────────────────────────────────────────
@@ -449,6 +475,30 @@ export class BrainDO extends DurableObject {
     });
   }
 
+  // ─── POST /event — generic event dispatcher ──────────────────────────
+
+  private async handleEventGeneric(request: Request): Promise<Response> {
+    const body = await request.json().catch(() => null);
+    if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 });
+
+    const eventType = (body as Record<string, unknown>).type;
+    if (!eventType) return Response.json({ error: 'Missing type field' }, { status: 400 });
+
+    // Dispatch to specific handler based on type
+    if (eventType === 'fast_intel_ready') {
+      const fakeRequest = new Request(request.url, { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
+      return this.handleEventFastIntel(fakeRequest);
+    } else if (eventType === 'consultant_ready') {
+      const fakeRequest = new Request(request.url, { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
+      return this.handleEventConsultantReady(fakeRequest);
+    } else if (eventType === 'deep_ready') {
+      const fakeRequest = new Request(request.url, { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
+      return this.handleEventDeepScrape(fakeRequest);
+    }
+
+    return Response.json({ error: `Unknown event type: ${eventType}` }, { status: 400 });
+  }
+
   // ─── POST /event/fast-intel ──────────────────────────────────────────
 
   private async handleEventFastIntel(request: Request): Promise<Response> {
@@ -465,6 +515,13 @@ export class BrainDO extends DurableObject {
     }
     const merged = mergeIntelEvent(state, payload);
     state.intelReceived = true;
+
+    // Update businessName from fast-intel core_identity
+    const coreId = (payload as any)?.core_identity;
+    if (coreId?.business_name && !state.businessName) {
+      state.businessName = coreId.business_name;
+      console.log(`[BRAIN] /event/fast-intel: updated businessName to "${state.businessName}"`);
+    }
 
     if (merged > 0) {
     // Derive eligibility and rebuild queue — MUST mirror pending_intel block in handleTurn

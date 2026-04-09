@@ -25,7 +25,7 @@ binding = "TOOLS"
 service = "bella-tools-worker-v8"
 
 [vars]
-BRIDGE_URL = "https://deepgram-bridge-v11.trentbelasco.workers.dev/v9/chat/completions"
+BRIDGE_URL = "https://deepgram-bridge-v2-rescript.trentbelasco.workers.dev/v9/chat/completions"
 MCP_WORKER_URL = "https://leads-mcp-worker-v9.trentbelasco.workers.dev"
 GHL_LOCATION_ID = "g7AY3bmahEzCyvglO9IG"
 CARTESIA_VOICE_ID = "8985388c-1332-4ce7-8d55-789628aa3df4"

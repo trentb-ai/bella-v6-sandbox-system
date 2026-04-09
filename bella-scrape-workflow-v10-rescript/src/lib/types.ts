@@ -44,7 +44,6 @@ export interface Env {
   APIFY_TOKEN?: string;
   APIFY_API_KEY?: string;
   FIRECRAWL_KEY?: string;
-  GEMINI_API_KEY?: string;
 }
 
 export interface StepFn {

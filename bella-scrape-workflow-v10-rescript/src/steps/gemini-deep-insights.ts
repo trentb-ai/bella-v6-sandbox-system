@@ -1,6 +1,13 @@
 import type { Env, WorkflowResults, WorkflowState, StepFn, WorkflowPayload } from '../lib/types';
 
-const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+function extractAIText(result: unknown): string {
+  if (!result) return '';
+  if (typeof result === 'string') return result;
+  if (typeof (result as any)?.response === 'string') return (result as any).response;
+  if (typeof (result as any)?.result?.response === 'string') return (result as any).result.response;
+  if (Array.isArray((result as any)?.result)) return (result as any).result.map((r: any) => r?.response || '').join('');
+  return '';
+}
 
 interface DeepInsight {
   source: string;
@@ -17,14 +24,16 @@ interface DeepScriptFills {
   generatedAt: string;
 }
 
-async function callGeminiMicro(
+async function callWorkersAIMicro(
   source: string,
-  rawData: Record<string, any>,
+  rawData: unknown,
   businessName: string,
   icpGuess: string,
-  apiKey: string
+  env2: Env
 ): Promise<{ deepInsights: DeepInsight[]; heroReview?: { summary: string | null; available: boolean } } | null> {
-  const prompt = `You are Bella Deep-Insight Micro-Analyst.
+  const t0 = Date.now();
+  try {
+    const prompt = `You are Bella Deep-Insight Micro-Analyst.
 You receive one source of async enrichment about a prospect business.
 Return strict JSON only. No markdown. No preamble.
 
@@ -67,44 +76,20 @@ Return ONLY this JSON:
     "available": true
   }
 }`;
-
-  try {
-    const resp = await fetch(GEMINI_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gemini-2.5-flash',
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-        max_tokens: 400,
-        temperature: 0.4,
-        reasoning_effort: 'none',
-      }),
+    const result = await env2.AI.run('@cf/qwen/qwen3-30b-a3b-fp8', {
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 400
     });
-
-    if (!resp.ok) {
-      console.log(`[DEEP_INSIGHTS] Gemini ${source} HTTP ${resp.status} — skipping`);
-      return null;
-    }
-
-    const data = await resp.json() as any;
-    const text = data?.choices?.[0]?.message?.content || '';
-    if (!text) return null;
-
-    let result: any;
-    try {
-      result = JSON.parse(text);
-    } catch {
+    const text = extractAIText(result);
+    let parsed: Record<string, unknown> | null = null;
+    try { parsed = JSON.parse(text); } catch {
       const match = text.match(/\{[\s\S]*\}/);
-      if (!match) return null;
-      try { result = JSON.parse(match[0]); } catch { return null; }
+      if (match) try { parsed = JSON.parse(match[0]); } catch {}
     }
-    return result;
-  } catch (e: any) {
-    console.log(`[DEEP_INSIGHTS] Gemini ${source} error: ${e.message} — skipping`);
+    console.log(`[DEEP_INSIGHTS] source=${source} elapsed=${Date.now()-t0}ms parsed=${!!parsed}`);
+    return parsed as any;
+  } catch (e: unknown) {
+    console.log(`[DEEP_INSIGHTS] source=${source} error=${(e as Error).message}`);
     return null;
   }
 }
@@ -121,9 +106,8 @@ export async function geminiDeepInsights(
     console.log("type:WF_NODE_START:nodeId:node-gemini-deep-insights:timestamp:" + Date.now() + ":instanceId:" + instanceId);
 
     await step.do("step_gemini_deep_insights", async () => {
-      const apiKey = env.GEMINI_API_KEY || '';
-      if (!apiKey) {
-        console.log('[DEEP_INSIGHTS] No GEMINI_API_KEY — skipping');
+      if (!env.AI) {
+        console.log('[DEEP_INSIGHTS] No AI binding — skipping');
         return { skipped: true };
       }
 
@@ -226,7 +210,7 @@ export async function geminiDeepInsights(
       const t0 = Date.now();
       const geminiResults = await Promise.all(
         sourceCalls.map(({ source, data }) =>
-          callGeminiMicro(source, data, businessName, icpGuess, apiKey)
+          callWorkersAIMicro(source, data, businessName, icpGuess, env)
             .catch(() => null)
         )
       );

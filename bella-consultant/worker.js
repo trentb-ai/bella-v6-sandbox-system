@@ -2,7 +2,7 @@
 // Bella's Intel Analyst — receives scraped data, returns script-ready analysis
 // Separate atomic worker, called via service binding from scraper Phase B
 
-const VERSION = '6.12.0-pass2';
+const VERSION = '6.13.1';
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -180,104 +180,39 @@ function buildFallback(p) {
 // ── Model config ─────────────────────────────────────────────────────────────
 // Switched to OpenAI-compatible endpoint for faster responses + clean JSON
 // reasoning_effort: 'low' gives bounded thinking for strategic insight
-// Dead gemini-2.0-flash fallback removed (returns 404 since Jan 2026)
-const OPENAI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const MODELS = [
-  {
-    name:     "gemini-2.5-pro",
-    endpoint: OPENAI_ENDPOINT,
-    temp:     0.7,
-    maxTokens: 16000,
-  },
-  {
-    name:     "gemini-2.5-flash",
-    endpoint: OPENAI_ENDPOINT,
-    temp:     0.7,
-    maxTokens: 16000,
-  },
-];
+function extractAIText(result) {
+  if (!result) return '';
+  if (typeof result === 'string') return result;
+  if (typeof result?.response === 'string') return result.response;
+  if (typeof result?.result?.response === 'string') return result.result.response;
+  if (Array.isArray(result?.result)) return result.result.map(r => r?.response || '').join('');
+  return '';
+}
 
-async function callMicro(name, prompt, apiKey) {
-  for (const model of MODELS) {
-    try {
-      const t0 = Date.now();
-      const resp = await fetch(model.endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: model.name,
-          messages: [{ role: "user", content: prompt }],
-          response_format: { type: "json_object" },
-          max_tokens: model.maxTokens,
-          temperature: model.temp,
-          reasoning_effort: "none",
-        }),
-      });
-
-      const elapsed = Date.now() - t0;
-
-      if (!resp.ok) {
-        console.log(`[Micro:${name}] ${model.name} HTTP ${resp.status} ${elapsed}ms — trying next`);
-        continue;
-      }
-
-      const data = await resp.json();
-      const text = data?.choices?.[0]?.message?.content || "";
-      if (!text) {
-        console.log(`[Micro:${name}] ${model.name} empty content — trying next`);
-        continue;
-      }
-
-      let result;
-      try {
-        result = JSON.parse(text);
-      } catch (e) {
-        // Repair 1: extract outermost {} and fix trailing commas
-        const match = text.match(/\{[\s\S]*\}/);
-        if (match) {
-          try {
-            result = JSON.parse(match[0].replace(/,\s*([\]}])/g, '$1'));
-            console.log(`[Micro:${name}] ${model.name} JSON repair 1 OK`);
-          } catch (_) {}
-        }
-        // Repair 2: close unclosed brackets (string-aware)
-        if (!result) {
-          try {
-            let s = text.substring(text.indexOf("{")).replace(/,\s*([\]}])/g, '$1');
-            let depth = 0, bd = 0, inStr = false, esc = false;
-            for (let i = 0; i < s.length; i++) {
-              const c = s[i];
-              if (esc) { esc = false; continue; }
-              if (c === "\\") { esc = true; continue; }
-              if (c === '"') { inStr = !inStr; continue; }
-              if (inStr) continue;
-              if (c === "{") depth++;
-              else if (c === "}") depth--;
-              if (c === "[") bd++;
-              else if (c === "]") bd--;
-            }
-            s += "]".repeat(Math.max(0, bd)) + "}".repeat(Math.max(0, depth));
-            result = JSON.parse(s);
-            console.log(`[Micro:${name}] ${model.name} JSON repair 2 OK`);
-          } catch (_) {}
-        }
-      }
-
-      if (result) {
-        console.log(`[Micro:${name}] ${model.name} OK elapsed=${elapsed}ms keys=${Object.keys(result).length}`);
-        return result;
-      }
-
-      console.log(`[Micro:${name}] ${model.name} parse failed after repair — trying next`);
-    } catch (e) {
-      console.log(`[Micro:${name}] ${model.name} exception: ${e.message} — trying next`);
+async function callMicro(name, prompt, env) {
+  try {
+    const t0 = Date.now();
+    const result = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 2000
+    });
+    const text = extractAIText(result);
+    if (!text) { console.log(`[Micro:${name}] empty response`); return {}; }
+    let parsed;
+    try { parsed = JSON.parse(text); } catch {
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) try { parsed = JSON.parse(match[0]); } catch {}
     }
+    if (parsed) {
+      console.log(`[Micro:${name}] Workers AI OK elapsed=${Date.now()-t0}ms`);
+      return parsed;
+    }
+    console.log(`[Micro:${name}] parse failed`);
+    return {};
+  } catch(e) {
+    console.log(`[Micro:${name}] error: ${e.message}`);
+    return {};
   }
-  console.warn(`[Micro:${name}] ALL models failed — returning empty slice`);
-  return {};
 }
 
 function buildPromptICP(p) {
@@ -686,9 +621,6 @@ FINAL CHECK — Before returning, scan every string value in your response for "
 // The output MUST demonstrate genuine understanding of the business.
 
 async function runFastConsultant(payload, env) {
-  const apiKey = env.GEMINI_API_KEY;
-  if (!apiKey) return { error: "No GEMINI_API_KEY", correctedName: payload.businessName, industry: "business" };
-
   const prompt = `You are a senior business analyst. Read this website content carefully. Your job is to demonstrate that you DEEPLY understand this business — their market, their positioning, and their strategy.
 
 CRITICAL: Generic observations are WORTHLESS. "Your tagline really captures what you do" is GARBAGE. We need insights that make a business owner think "wow, they actually get what we do."
@@ -722,51 +654,32 @@ INSTRUCTIONS:
 
   try {
     const t0 = Date.now();
-
-    const resp = await fetch(OPENAI_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        max_tokens: 800,
-        temperature: 0.5,
-        reasoning_effort: "none",
-      }),
+    const result = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 800
     });
-
     const elapsed = Date.now() - t0;
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => "");
-      console.error(`[Consultant /fast] HTTP ${resp.status} (${elapsed}ms) ${body.substring(0, 200)}`);
-      return { correctedName: payload.businessName, industry: "business", error: `HTTP ${resp.status}` };
-    }
-    const data = await resp.json();
-    const text = data?.choices?.[0]?.message?.content || "";
+    const text = extractAIText(result);
     if (!text) {
-      console.error(`[Consultant /fast] empty content (${elapsed}ms)`);
+      console.error(`[Consultant /fast] empty response (${elapsed}ms)`);
       return { correctedName: payload.businessName, industry: "business", error: "empty" };
     }
-    let result;
+    let parsed;
     try {
-      result = JSON.parse(text);
-    } catch (parseErr) {
+      parsed = JSON.parse(text);
+    } catch {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         console.error(`[Consultant /fast] no JSON (${text.length} chars, ${elapsed}ms)`);
         return { correctedName: payload.businessName, industry: "business", error: "no JSON" };
       }
-      result = JSON.parse(jsonMatch[0]);
+      parsed = JSON.parse(jsonMatch[0]);
     }
-    result._model = "gemini-2.5-flash";
-    result._fast = true;
-    result._latency = elapsed;
+    parsed._model = 'llama-3.1-8b';
+    parsed._fast = true;
+    parsed._latency = elapsed;
     console.log(`[Consultant /fast] done in ${elapsed}ms`);
-    return result;
+    return parsed;
   } catch (e) {
     console.error(`[Consultant /fast] error: ${e.message}`);
     return { correctedName: payload.businessName, industry: "business", error: e.message };
@@ -775,19 +688,16 @@ INSTRUCTIONS:
 
 // ── Main Consultant logic ────────────────────────────────────────────────────
 async function runConsultant(payload, env) {
-  const apiKey = env.GEMINI_API_KEY;
-  if (!apiKey) return { error: "No GEMINI_API_KEY", ...buildFallback(payload) };
-
   const t0 = Date.now();
   const p = payload;
 
   // Fire all 4 micro-calls in parallel — each owns an exclusive schema slice
   // No key overlap = no overwrite. Non-fatal individually.
   const [rICP, rConversion, rCopy, rResearch] = await Promise.all([
-    callMicro('icp', buildPromptICP(p), apiKey),
-    callMicro('conversion', buildPromptConversion(p), apiKey),
-    callMicro('copy', buildPromptCopy(p), apiKey),
-    callMicro('research', buildPromptResearch(p), apiKey),
+    callMicro('icp', buildPromptICP(p), env),
+    callMicro('conversion', buildPromptConversion(p), env),
+    callMicro('copy', buildPromptCopy(p), env),
+    callMicro('research', buildPromptResearch(p), env),
   ]);
 
   const elapsed = Date.now() - t0;
@@ -831,13 +741,10 @@ async function runConsultant(payload, env) {
 // narratives for WOW6+ and Recommendation stages.
 
 async function runPass2Consultant(payload, env) {
-  const apiKey = env.GEMINI_API_KEY;
-  if (!apiKey) return { error: "No GEMINI_API_KEY", _pass2: true, _fallback: true };
-
   const t0 = Date.now();
   const prompt = buildPromptPass2(payload);
 
-  const result = await callMicro('pass2', prompt, apiKey);
+  const result = await callMicro('pass2', prompt, env);
   const elapsed = Date.now() - t0;
 
   if (!result || !result.deepInsights) {

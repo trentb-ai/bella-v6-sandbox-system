@@ -15,7 +15,7 @@ interface Env {
   AI?: Ai;
 }
 
-const VERSION = '1.19.9';
+const VERSION = '1.19.13';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -44,6 +44,24 @@ export default {
         metadata: { tier: 3, client_id: lid, content: doc.content },
       }]);
       return Response.json({ ok: true });
+    }
+
+    // ── /event — generic event handler (dispatches by type field) ─────────────
+
+    if (url.pathname === '/event' && request.method === 'POST') {
+      const raw = await request.json().catch(() => null);
+      if (!raw) return Response.json({ error: 'Invalid JSON' }, { status: 400 });
+      const eventType = (raw as Record<string, unknown>).type;
+      const lid = (raw as Record<string, unknown>).lid;
+
+      if (!eventType || !lid) {
+        return Response.json({ error: 'Missing type or lid field' }, { status: 400 });
+      }
+
+      // Route to DO by lid
+      const doId = env.BRAIN_DO.idFromName(String(lid));
+      const stub = env.BRAIN_DO.get(doId);
+      return stub.fetch(new Request(request.url, { method: 'POST', body: JSON.stringify(raw), headers: { 'Content-Type': 'application/json' } }));
     }
 
     if (url.pathname === '/event/fast-intel' && request.method === 'POST') {
@@ -77,6 +95,7 @@ export default {
     }
 
     // ── /turn-v2-compat — V2 TurnRequest translator ──────────────────────────
+    // Converts V2 bridge request → V3 DO format, then V3 response → V2 bridge format
 
     if (url.pathname === '/turn-v2-compat' && request.method === 'POST') {
       const body = await request.json().catch(() => null);
@@ -112,13 +131,72 @@ export default {
       // Forward to /turn handler via DO
       const doId = env.BRAIN_DO.idFromName(String(leadId));
       const stub = env.BRAIN_DO.get(doId);
-      return stub.fetch(
+      const doRes = await stub.fetch(
         new Request(new URL('/turn?callId=' + encodeURIComponent(String(leadId)), request.url), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(v3Request),
         })
       );
+
+      if (!doRes.ok) return doRes;
+
+      const v3Response = await doRes.json() as Record<string, any>;
+
+      // Convert V3 TurnPlan + context → V2 DOTurnResponse for bridge compatibility
+      // TurnPlan: version, callId, turnId, stage, moveId, directive (string), speakText, mandatory,
+      //           confirmedFacts, activeMemory, contextNotes, extractionTargets, allowFreestyle, improvisationBand, intent, consultantReady
+      // Extended: wowStall, advanced, extractedState, _bridgeContext
+      const extractedState = v3Response.extractedState || {};
+      const confirmedFacts = v3Response.confirmedFacts || [];
+      const contextNotes = v3Response.contextNotes || [];
+
+      // Extract critical facts from contextNotes (prefixed with "FACT: ")
+      const criticalFacts = contextNotes
+        .filter((note: string) => typeof note === 'string' && note.startsWith('FACT: '))
+        .map((note: string) => note.slice(6)); // Remove "FACT: " prefix
+
+      // Bridge context includes ROI if stage is roi_delivery; otherwise null
+      const bridgeContext = v3Response._bridgeContext || {};
+
+      const v2Response = {
+        packet: {
+          stage: v3Response.stage || 'wow',
+          objective: v3Response.directive || '',
+          chosenMove: {
+            id: v3Response.moveId || '',
+            text: v3Response.speakText || '',
+            kind: 'default'
+          },
+          criticalFacts,  // Extracted from contextNotes by brain
+          roi: null,  // TODO: brain-v3 Chunk 10D — compute in handleTurn when stage === 'roi_delivery'
+          complianceChecks: { mustContainPhrases: [] },
+          mandatory: v3Response.mandatory ?? false,
+          activeMemory: v3Response.activeMemory || [],
+          contextNotes: contextNotes.filter((note: string) => !note.startsWith('FACT: ')),  // Remove fact prefixes, keep other notes
+          wowStall: v3Response.wowStall ?? 0,
+          style: {
+            tone: 'warm',
+            industryTerms: [],
+            maxSentences: 3
+          }
+        },
+        extraction: {
+          applied: v3Response.extractionTargets || [],
+          confidence: confirmedFacts.length > 0 ? 0.9 : 0.5,
+          normalized: extractedState,
+        },
+        extractedState,
+        advanced: v3Response.advanced ?? false,
+        stage: v3Response.stage || 'wow',
+        wowStall: v3Response.wowStall ?? 0,
+        // Pass through brain-computed fields
+        improvisationBand: v3Response.improvisationBand,
+        allowFreestyle: v3Response.allowFreestyle,
+        consultantReady: v3Response.consultantReady,
+      };
+
+      return Response.json(v2Response);
     }
 
     // ── Standard routes — routed by callId query param ────────────────────────

@@ -1,6 +1,15 @@
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
+function extractAIText(result) {
+  if (!result) return '';
+  if (typeof result === 'string') return result;
+  if (typeof result?.response === 'string') return result.response;
+  if (typeof result?.result?.response === 'string') return result.result.response;
+  if (Array.isArray(result?.result)) return result.result.map(r => r?.response || '').join('');
+  return '';
+}
+
 // ../../node_modules/unenv/dist/runtime/_internal/utils.mjs
 // @__NO_SIDE_EFFECTS__
 function createNotImplementedError(name) {
@@ -1980,22 +1989,23 @@ var BellaV9Orchestrator = class extends WorkflowEntrypoint {
             const rawSnippet = aiResp.response || aiResp.text || JSON.stringify(aiResp);
             console.log("[PARALLEL] Chain A: AI refine done, chars=" + rawSnippet.length);
 
-            // step_10: Gemini polish
+            // step_10: Workers AI polish
             let polished = rawSnippet;
             let geminiStatus = "skipped";
-            const geminiKey = this.env.GEMINI_API_KEY;
-            if (geminiKey && rawSnippet.length >= 10) {
+            if (this.env.AI && rawSnippet.length >= 10) {
               try {
-                const gResp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + geminiKey, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: `You are Bella, a confident, warm female strategic advisor. Polish this script so every single word sounds like natural spoken conversation. Contractions always (it is \u2192 it's, we have \u2192 we've, they are \u2192 they're). Natural rhythm and flow. Shorten any business name to how a human would actually say it aloud (KPMG Australia \u2192 KPMG, Smith & Sons Plumbing \u2192 Smith and Sons). Remove any stiff corporate language \u2014 no "your organization", "your firm", "leverage", "utilize". Keep the meaning and structure identical. Do not shorten or remove any sentences. Output ONLY the polished dialogue, nothing else:\n\n` + rawSnippet }] }], generationConfig: { temperature: 0.8, maxOutputTokens: 2048 } }) });
-                const gJson = await gResp.json();
-                polished = gJson?.candidates?.[0]?.content?.parts?.[0]?.text || rawSnippet;
-                geminiStatus = "" + gResp.status;
-              } catch (e) {
-                console.log("[PARALLEL] Chain A: Gemini error: " + e.message);
-                geminiStatus = "error";
+                const result = await this.env.AI.run('@cf/qwen/qwen3-30b-a3b-fp8', {
+                  messages: [{ role: 'user', content: `You are Bella, a confident, warm female strategic advisor. Polish this script so every single word sounds like natural spoken conversation. Contractions always (it is \u2192 it's, we have \u2192 we've, they are \u2192 they're). Natural rhythm and flow. Shorten any business name to how a human would actually say it aloud (KPMG Australia \u2192 KPMG, Smith & Sons Plumbing \u2192 Smith and Sons). Remove any stiff corporate language \u2014 no "your organization", "your firm", "leverage", "utilize". Keep the meaning and structure identical. Do not shorten or remove any sentences. Output ONLY the polished dialogue, nothing else:\n\n` + rawSnippet }],
+                  max_tokens: 2048
+                });
+                polished = extractAIText(result) || rawSnippet;
+                geminiStatus = "wai_ok";
+              } catch(e) {
+                console.log("[PARALLEL] Chain A: Workers AI error: " + e.message);
+                geminiStatus = "wai_error";
               }
             }
-            console.log("[PARALLEL] Chain A: Gemini done, status=" + geminiStatus);
+            console.log("[PARALLEL] Chain A: Workers AI polish done, status=" + geminiStatus);
 
             // step_11: Write snippet
             const snippetKey = `lead:${lid}:stage1_snippet`;
