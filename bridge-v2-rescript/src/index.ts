@@ -30,7 +30,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.32.4"; // Qwen3 thinking enabled — max_tokens:3000 + think-block strip — 2026-04-09
+const VERSION = "v6.32.5"; // DIAGNOSTIC: log raw Workers AI response shape — 2026-04-09
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2299,6 +2299,7 @@ async function streamToDeepgram(
       max_tokens: 3000,
     }) as any;
 
+    log("WORKERS_AI_RAW", `shape=${JSON.stringify(result).slice(0, 400)}`);
     responseText = extractAIText(result) || "Give me one moment.";
     const ttfb = Date.now() - t0;
     log("WORKERS_AI_TTFB", `${ttfb}ms success chars=${responseText.length}`);
