@@ -2367,7 +2367,7 @@ async function streamToDeepgram(
               if (delta) {
                 // Partial content survived filter — emit modified chunk
                 const cleaned = stripApologies(delta);
-                chunk.choices[0].delta.content = cleaned;
+                chunk.choices = [{ index: 0, delta: { content: cleaned }, finish_reason: null }];
                 outputLines.push("data: " + JSON.stringify(chunk));
                 responseText += cleaned;
                 if (cleaned !== rawDelta) modified = true;
