@@ -240,12 +240,8 @@ export async function callScribeWorkersAI(
   const start = Date.now();
 
   try {
-    // /no_think disables Qwen3 hybrid thinking phase — prevents it consuming max_tokens budget
-    const messagesWithNoThink = messages.map(m =>
-      m.role === 'system' ? { ...m, content: m.content + '\n\n/no_think' } : m
-    );
     const result = await Promise.race([
-      env.AI.run('@cf/qwen/qwen3-30b-a3b-fp8', { messages: messagesWithNoThink, max_tokens: 1024 }),
+      env.AI.run('@cf/qwen/qwen3-30b-a3b-fp8', { messages, max_tokens: 3000 }),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
     ]) as any;
 

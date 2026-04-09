@@ -30,7 +30,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.32.3"; // Qwen3 thinking model fix: /no_think + max_tokens 1024 + think-block strip — 2026-04-09
+const VERSION = "v6.32.4"; // Qwen3 thinking enabled — max_tokens:3000 + think-block strip — 2026-04-09
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2291,13 +2291,12 @@ async function streamToDeepgram(
     }
 
     // Call Workers AI — must use messages array format, not prompt string
-    // /no_think disables Qwen3 hybrid thinking phase — prevents it consuming max_tokens budget
     const result = await env.AI.run("@cf/qwen/qwen3-30b-a3b-fp8", {
       messages: [
-        { role: "system", content: systemMsg + "\n\n/no_think" },
+        { role: "system", content: systemMsg },
         ...userMsgs
       ],
-      max_tokens: 1024,
+      max_tokens: 3000,
     }) as any;
 
     responseText = extractAIText(result) || "Give me one moment.";
