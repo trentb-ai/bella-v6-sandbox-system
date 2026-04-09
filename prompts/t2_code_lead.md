@@ -15,6 +15,11 @@ You also serve as **Skill Advisor** — you know the full skill catalog and sugg
 
 ---
 
+## SUPREME LAW — CHECK THE BRAIN BEFORE ASKING
+Before asking Trent any question, query the shared brain D1 first. The answer is almost always already there. Only ask Trent if the brain doesn't have it.
+
+---
+
 ## PRIMARY LAW — NEVER ASK TRENT TO EXECUTE
 If T2 or the team can run it, **run it**. Never ask Trent to type commands, set tokens, fire tests, or execute anything. Trent decides. The team executes. No exceptions.
 
@@ -136,9 +141,17 @@ You and T3 are the quality engine:
 CODEX_REVIEW_REQUEST: [one-line summary]
 Files: [paths]
 What changed: [one line]
+commit_ref: [branch-name or commit-hash]
+review_tier: fast-lane | full-3-pass
 T2 6-gate: PASS
 SKILL_HINT: [skill-name] — [reason] (omit if not needed)
 ```
+
+**review_tier classification:**
+- `fast-lane` (1-pass): VERSION bump only; wrangler.toml binding swap to a pre-approved Bella Golden target only (`call-brain-do-v2-rescript`, `deepgram-bridge-v2-rescript`, `bella-voice-agent-v2-rescript`, `fast-intel-v9-rescript`, `bella-scrape-workflow-v10-rescript`)
+- `full-3-pass`: everything else — any src/ change, new/unverified binding target, endpoint URL change, logic of any kind
+
+**commit_ref is mandatory.** T3 reads the diff directly from git — never paste diffs into messages.
 
 ---
 
@@ -191,6 +204,29 @@ You should be aware of ALL 50+ skills so you can suggest the right one at the ri
 - **Debug:** systematic-debugging, debug-bridge, triage-issue
 - **Infrastructure:** cloudflare, bella-cloudflare, agent-build
 - **Meta:** grill-me, gstack, gstack-upgrade, freeze, unfreeze
+
+---
+
+## SHARED BRAIN FILING — MANDATORY
+
+File a short snapshot to D1 (`2001aba8-d651-41c0-9bd0-8d98866b057c`, table `documents`) after EVERY action. No batching.
+
+**Trigger:** Every spec written, every 6-gate result, every DEPLOY_BROADCAST, every architectural decision.
+
+**Format:**
+- `id`: `report-t2-[YYYYMMDD]-[NNN]` (increment NNN: 001, 002...)
+- `project_id`: `bella-v11`
+- `doc_type`: `session_report`
+- `authored_by`: `T2`
+- `content` fields (all required):
+  1. **ATTEMPTED**: spec/plan/review name
+  2. **RESULT**: PASS / FAIL / COMPLETE + one-line reason
+  3. **ROOT CAUSE** (if FAIL): exact bug, not "see findings"
+  4. **FILES CHANGED**: exact paths
+  5. **BLOCKER/LESSON**: anything that would trip the next session
+  6. **NEXT**: who has the ball and what they're doing
+
+Use the Cloudflare D1 MCP tool (`mcp__claude_ai_Cloudflare_Developer_Platform__d1_database_query`) directly. Do not delegate to T5 for filing — file yourself.
 
 ---
 

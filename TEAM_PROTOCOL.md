@@ -75,7 +75,7 @@ Everything else stays at the working level (T2/T3/T4/T5). Don't CC T1 on routine
 | `REVIEW_VERDICT:` | T2 → T4/T5 | Manual gate. PASS or FAIL + one line. T1 does NOT see this. |
 | `SPEC_REVIEW_REQUEST:` | T2 → T3 | Send spec for adversarial spec pass (complex chunks only). |
 | `SPEC_VERDICT:` | T3 → T2 | Spec gate result. PASS or REWORK + findings. |
-| `CODEX_REVIEW_REQUEST:` | T2 → T3 | Send code for 3-pass Codex gate. |
+| `CODEX_REVIEW_REQUEST:` | T2 → T3 | Send code for Codex gate. Must include `commit_ref:` + `review_tier: fast-lane\|full-3-pass`. |
 | `CODEX_VERDICT:` | T3 → T2 only | Gate result. PASS or FAIL + one line. T1 only sees at DEPLOY_BROADCAST. |
 | `ALERT:` | Any → T1+T2 | RED path only — critical issue. Include: error, impact, suggested action. |
 | `DEPLOY_BROADCAST:` | T2 → T1 | Pre-deploy: who approved, version, worker. T1 relays to Trent. |
@@ -146,12 +146,47 @@ This is the quality engine. Clear separation:
 | **When idle** | Reads ahead on next chunk/sprint, preps architecture notes | Plans review strategy, pre-reads upcoming code, refreshes skills |
 
 ### Flow:
-1. T4/T5 implement from T2's specs → send `REVIEW_REQUEST:` to T2
-2. T2 runs 6-gate manual review → if FAIL, returns to minion
-3. T2 sends `CODEX_REVIEW_REQUEST:` to T3
-4. T3 runs 3-pass Codex gate → sends `CODEX_VERDICT:` to T2 only
-5. If PASS → T2 sends DEPLOY_BROADCAST to T1 → T1 relays to Trent for YES
-6. If FAIL → T2 plans fix, sends back to minions
+1. T4 creates feature branch: `git checkout -b chunk/[name]-v[version]`
+2. T4/T5 implement from T2's specs → send `REVIEW_REQUEST:` to T2
+3. T2 runs 6-gate manual review → if FAIL, returns to minion
+4. T2 sends `CODEX_REVIEW_REQUEST:` to T3 with `commit_ref:` + `review_tier:` (fast-lane or full-3-pass)
+5. T3 reads diff directly from git — runs depth matching the tier
+6. T3 sends `CODEX_VERDICT:` to T2 only
+7. If PASS → T3 sends DEPLOY_AUTH to T4 directly. T2 sends DEPLOY_BROADCAST to T1.
+8. T4 merges branch + deploys. If FAIL → T2 plans fix, sends back to minions.
+
+---
+
+## FAST-LANE REVIEW TIER (authorized 2026-04-09)
+
+Config-only changes with zero logic impact = 1-pass Codex review instead of 3-pass.
+
+**QUALIFIES:** VERSION string bumps alone; wrangler.toml binding swaps to pre-approved targets only (`call-brain-do-v2-rescript`, `deepgram-bridge-v2-rescript`, `bella-voice-agent-v2-rescript`, `fast-intel-v9-rescript`, `bella-scrape-workflow-v10-rescript`)
+
+**DOES NOT QUALIFY:** Any src/ changes; bindings to new/unverified targets; endpoint URL changes.
+
+T2 labels request with `review_tier: fast-lane`. T3 runs 1-pass P1-focus only.
+
+---
+
+## BRANCH-PER-CHUNK WORKFLOW (authorized 2026-04-09)
+
+All implementation on a feature branch, never directly on main.
+
+1. T4 creates branch before any changes: `git checkout -b chunk/[name]-v[version]`
+2. Single clean commit per version. No back-and-forth on same version.
+3. T2 passes `commit_ref:` in CODEX_REVIEW_REQUEST. T3 reads via `git diff main...[branch]`.
+4. On DEPLOY_AUTH: `git checkout main && git merge --no-ff [branch] -m "deploy: [worker] [version]"`
+
+---
+
+## CODEX DIRECT GIT READ (authorized 2026-04-09)
+
+T3 reads diffs directly from git. T2 never transcribes diffs into messages.
+
+- T2 passes `commit_ref: [branch or hash]` in every CODEX_REVIEW_REQUEST
+- T3 runs `git diff main...[branch]` or `git show [hash]` directly
+- No relay through chat messages. Direct read only.
 
 ---
 
@@ -191,13 +226,14 @@ Before ANY implementation task, T4 MUST:
    ```
 
 ### Deploy checklist (T4):
-1. VERSION string bumped?
-2. T3 CODEX_VERDICT: PASS received?
-3. T1 DEPLOY_AUTH received?
+1. On feature branch? (`git branch` confirms)
+2. VERSION string bumped?
+3. T3 CODEX_VERDICT: PASS + DEPLOY_AUTH received?
 4. Correct worker folder? (`bridge-v2-rescript/` for live, `deepgram-bridge-v9/` for sandbox)
 5. `head -1 wrangler.toml` confirms correct worker name?
-6. `npx wrangler deploy`
-7. Report RESULT: to T2
+6. Merge to main: `git checkout main && git merge --no-ff [branch] -m "deploy: [worker] [version]"`
+7. `npx wrangler deploy`
+8. Report RESULT: to T2
 
 ---
 
@@ -465,6 +501,12 @@ Outgoing agent must send to T1 before going offline:
 ## COMMIT AT CHUNK/SPRINT COMPLETION
 
 T4 commits the working tree at the end of every completed chunk or sprint. Never let working tree accumulate across multiple chunks — T3 gate scope must equal one chunk's diff, not the full working tree history.
+
+---
+
+## SUPREME LAW — CHECK THE BRAIN BEFORE ASKING
+
+Before asking Trent any question, query the shared brain D1 first. The answer is almost always already there. Only ask Trent if the brain doesn't have it. Every agent. Every time.
 
 ---
 

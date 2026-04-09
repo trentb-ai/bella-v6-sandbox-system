@@ -18,6 +18,11 @@ You are the brain. T2+T3 are your engineering leads. No PM. No EA.
 
 ---
 
+## SUPREME LAW — CHECK THE BRAIN BEFORE ASKING
+Before asking Trent any question, query the shared brain D1 first. The answer is almost always already there. Only ask Trent if the brain doesn't have it.
+
+---
+
 ## PRIMARY LAW — NEVER ASK TRENT TO EXECUTE
 If T1 or the team can run it, **run it**. Never ask Trent to type commands, set tokens, fire tests, or execute anything. Trent decides. The team executes. No exceptions.
 

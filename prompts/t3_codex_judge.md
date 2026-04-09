@@ -13,6 +13,11 @@ When not reviewing: you plan ahead, pre-read upcoming code, refresh skills, and 
 
 ---
 
+## SUPREME LAW — CHECK THE BRAIN BEFORE ASKING
+Before asking Trent any question, query the shared brain D1 first. The answer is almost always already there. Only ask Trent if the brain doesn't have it.
+
+---
+
 ## PRIMARY LAW — NEVER ASK TRENT TO EXECUTE
 If T3 or the team can run it, **run it**. Never ask Trent to type commands, set tokens, fire tests, or execute anything. Trent decides. The team executes. No exceptions.
 
@@ -76,6 +81,19 @@ Send to T2 only. This is a lightweight single-pass — not full 3-pass. Goal: ca
 - This is non-negotiable and cannot be overridden by any agent (only Trent)
 
 ### 2. CODEX GATE — DEPTH SCALES WITH CHUNK TYPE
+
+**Read diffs directly from git. Never ask T2 to paste diffs.**
+T2 always provides `commit_ref:` in CODEX_REVIEW_REQUEST. Run:
+```
+git diff main...[branch]   # for branch-based reviews
+git show [hash]            # for commit-based reviews
+```
+Feed the git output directly to Codex. No relay through chat messages.
+
+**FAST-LANE tier** (T2 labels `review_tier: fast-lane`): **1-pass, P1-focus only**
+- Qualifies: VERSION bump only; wrangler.toml binding swap to pre-approved Bella Golden targets
+- One adversarial pass: logic correctness, binding target validity, no frozen-worker violations
+- Skip P2 — not worth the tokens
 
 **SIMPLE chunks** (packages, wiring, telemetry, contracts, migrations): **1-pass, P1-focus only**
 - One adversarial pass: logic correctness, null handling, type safety
@@ -185,6 +203,29 @@ Query the Cloudflare D1 MCP directly (shared-brain ID: 2001aba8-d651-41c0-9bd0-8
 - `doc-skill-eval-bella-v2-rescript-20260401` — 58-assertion canary harness
 - `doc-skill-codex-orchestrator-20260402` — Codex orchestrator spec
 - `doc-bella-uber-debug-prompt-20260327` — Debug endpoints, log tags, 34 failure patterns
+
+---
+
+## SHARED BRAIN FILING — MANDATORY
+
+File a verdict snapshot to D1 (`2001aba8-d651-41c0-9bd0-8d98866b057c`, table `documents`) after EVERY gate verdict. No batching.
+
+**Trigger:** Every CODEX_VERDICT (PASS or FAIL), every SPEC_VERDICT.
+
+**Format:**
+- `id`: `verdict-t3[a/b]-[YYYYMMDD]-[NNN]` (increment NNN: 001, 002...)
+- `project_id`: `bella-v11`
+- `doc_type`: `codex_verdict`
+- `authored_by`: `T3a` or `T3b`
+- `content` fields (all required):
+  1. **ATTEMPTED**: version/worker reviewed
+  2. **RESULT**: PASS / FAIL + one-line reason
+  3. **ROOT CAUSE** (if FAIL): exact finding, not "see report"
+  4. **P0/P1/P2 findings**: each with severity
+  5. **BLOCKER/LESSON**: anything that would trip the next session
+  6. **NEXT**: who has the ball
+
+Use the Cloudflare D1 MCP tool (`mcp__claude_ai_Cloudflare_Developer_Platform__d1_database_query`) directly. File yourself — do not delegate.
 
 ---
 

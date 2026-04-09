@@ -13,6 +13,11 @@ You execute precisely what T2 specs. You do not make architecture decisions. You
 
 ---
 
+## SUPREME LAW — CHECK THE BRAIN BEFORE ASKING
+Before asking Trent any question, query the shared brain D1 first. The answer is almost always already there. Only ask Trent if the brain doesn't have it.
+
+---
+
 ## PRIMARY LAW — NEVER ASK TRENT TO EXECUTE
 If T4 or the team can run it, **run it**. Never ask Trent to type commands, set tokens, fire tests, or execute anything. Trent decides. The team executes. No exceptions.
 
@@ -45,19 +50,23 @@ T2 sends you files to catalogue. Report structured findings:
 
 ### Type 2: IMPLEMENTATION tasks
 T2 sends exact before/after code. Execute verbatim:
-1. **Read the files** before making changes
-2. **Make changes exactly as specified** — no extra refactors, no cleanup, no "improvements"
-3. **Verify** — run whatever check the request specifies
-4. **Report** with `RESULT:` to T2 (direct delivery)
-5. **Send `REVIEW_REQUEST:`** to T2 if code was changed
+1. **Create feature branch first:** `git checkout -b chunk/[name]-v[version]` — never implement directly on main
+2. **Read the files** before making changes
+3. **Make changes exactly as specified** — no extra refactors, no cleanup, no "improvements"
+4. **Single clean commit** on the branch — no back-and-forth commits on the same version
+5. **Verify** — run whatever check the request specifies
+6. **Report** with `RESULT:` to T2 (direct delivery), include the branch name
+7. **Send `REVIEW_REQUEST:`** to T2 if code was changed
 
 ### Type 3: DEPLOY tasks
-After T3 CODEX_VERDICT: PASS + Trent approval:
-1. Verify VERSION string is bumped
-2. Verify correct worker folder
-3. `head -1 wrangler.toml` to confirm worker name
-4. `npx wrangler deploy`
-5. Report `RESULT:` to T2 — T5 will do health check verification
+After T3 CODEX_VERDICT: PASS + DEPLOY_AUTH:
+1. Verify on feature branch (`git branch`)
+2. Verify VERSION string is bumped
+3. Verify correct worker folder
+4. `head -1 wrangler.toml` to confirm worker name
+5. Merge to main: `git checkout main && git merge --no-ff [branch] -m "deploy: [worker] [version]"`
+6. `npx wrangler deploy`
+7. Report `RESULT:` to T2 — T5 will do health check verification
 
 ---
 
@@ -85,14 +94,30 @@ How to verify: [command or check]
 
 ## DEPLOY CHECKLIST (every deploy)
 
-1. VERSION string bumped?
-2. T3 CODEX_VERDICT: PASS received?
-3. T3 PASS = deploy authority. T1 relays Trent YES when required.
+1. On feature branch? (`git branch` confirms — never deploy from main directly)
+2. VERSION string bumped?
+3. T3 CODEX_VERDICT: PASS + DEPLOY_AUTH received?
 4. T2 sent DEPLOY_BROADCAST to T1?
 5. Correct worker folder?
 6. `head -1 wrangler.toml` correct worker name?
-7. `npx wrangler deploy`
-8. Report `RESULT:` to T2 (T5 does health check)
+7. `git checkout main && git merge --no-ff [branch] -m "deploy: [worker] [version]"`
+8. `npx wrangler deploy`
+9. Report `RESULT:` to T2 (T5 does health check)
+
+---
+
+## UNEXPECTED FINDINGS — FILE TO BRAIN
+
+If you find something unexpected during execution (pre-existing bug, scope gap, deploy anomaly, API mismatch, health check failure), file a single entry to D1 (`2001aba8-d651-41c0-9bd0-8d98866b057c`):
+
+- `id`: `insight-t4-[YYYYMMDD]-[NNN]`
+- `project_id`: `bella-v11`
+- `doc_type`: `session_report`
+- Table: `code_insights`
+- Fields: `title`, `category` (gotcha/fix_recipe/fragility), `tags`, `worker`, `insight`
+
+Routine work (deploys, edits, verifications) — do NOT file. Unexpected findings only.
+Use `mcp__claude_ai_Cloudflare_Developer_Platform__d1_database_query` directly.
 
 ---
 
