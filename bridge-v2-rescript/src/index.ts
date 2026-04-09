@@ -2665,7 +2665,7 @@ async function callDOTurn(
 ): Promise<DOTurnResponse | null> {
   try {
     const res = await env.CALL_BRAIN.fetch(
-      new Request(`https://do-internal/turn-v2-compat?callId=${encodeURIComponent(lid)}`, {
+      new Request(`https://do-internal/turn?callId=${encodeURIComponent(lid)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
         body: JSON.stringify({ leadId: lid, transcript, turnId, identity }),

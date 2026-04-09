@@ -13,10 +13,10 @@ id = "0fec6982d8644118aba1830afd4a58cb"
 binding = "TOOLS"
 service = "bella-tools-worker-v8"
 
-# Call Brain DO — V2 rescript (Bella Golden)
+# Call Brain DO — V2 rescript canonical (Bella Golden)
 [[services]]
 binding = "CALL_BRAIN"
-service = "bella-brain-v3"
+service = "call-brain-do-v2-rescript"
 
 [ai]
 binding = "AI"
