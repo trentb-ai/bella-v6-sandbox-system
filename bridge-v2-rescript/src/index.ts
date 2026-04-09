@@ -30,7 +30,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.32.8"; // Workers AI streaming — first token ~200-400ms vs 3000ms+ — 2026-04-09
+const VERSION = "v6.32.9"; // Stateful think-block stream filter + empty response guard — 2026-04-09
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2311,6 +2311,7 @@ async function streamToDeepgram(
     let chunkCount = 0;
     let sseBuffer = "";
     let responseText = "";
+    let inThinkBlock = false; // Qwen3 think-block suppression
     // Stream-instance-local guards — prevent duplicate callbacks
     let replySent = false;
     let failureSent = false;
@@ -2337,7 +2338,24 @@ async function streamToDeepgram(
           }
           try {
             const chunk = JSON.parse(line.slice(6));
-            const delta = chunk.choices?.[0]?.delta?.content;
+            let rawDelta = chunk.choices?.[0]?.delta?.content as string | undefined;
+            // Stateful think-block filter — suppress <think>...</think> before TTS
+            let delta = rawDelta;
+            if (rawDelta) {
+              if (!inThinkBlock) {
+                if (rawDelta.includes('<think>')) {
+                  inThinkBlock = true;
+                  delta = rawDelta.split('<think>')[0]; // emit only text before <think>
+                }
+              } else {
+                if (rawDelta.includes('</think>')) {
+                  inThinkBlock = false;
+                  delta = rawDelta.split('</think>').slice(1).join('</think>'); // text after </think>
+                } else {
+                  delta = ''; // suppress — inside think block
+                }
+              }
+            }
             if (delta) {
               // P1-T2: Strip apology phrases before TTS
               const cleaned = stripApologies(delta);
@@ -2373,12 +2391,18 @@ async function streamToDeepgram(
       log("BELLA_SAID", sanitizedResponse.slice(0, 2000));
       log("GEMINI_DONE", `total=${totalMs}ms chunks=${chunkCount} first_chunk=${firstContentAt}ms`);
       await writer.write(enc.encode("data: [DONE]\n\n"));
-      // P0 FIX: close writer IMMEDIATELY after [DONE] — never block on callback
-      // Old code awaited doReplyCallback here, which fetches brain DO.
-      // If DO stalled, writer.close() never ran → CF detected hung worker → call death.
       writer.close().catch(() => { });
-      // Fire callback fire-and-forget — ctx.waitUntil keeps worker alive
-      if (doReplyCallback && !replySent) {
+      // P2 FIX: empty response = failure, not success
+      if (sanitizedResponse.trim() === '') {
+        if (doFailureCallback && !failureSent) {
+          failureSent = true;
+          if (ctx) {
+            ctx.waitUntil(Promise.resolve().then(() => doFailureCallback('empty_response')).catch(() => {}));
+          } else {
+            try { await doFailureCallback('empty_response'); } catch { }
+          }
+        }
+      } else if (doReplyCallback && !replySent) {
         replySent = true;
         if (ctx) {
           ctx.waitUntil(Promise.resolve().then(() => doReplyCallback(sanitizedResponse)).catch(() => {}));

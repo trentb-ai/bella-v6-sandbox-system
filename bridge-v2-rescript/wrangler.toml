@@ -22,7 +22,7 @@ service = "bella-brain-v3"
 binding = "AI"
 
 [vars]
-# VERSION: v6.32.8
+# VERSION: v6.32.9
 # USE_DO_BRAIN set via: wrangler secret put USE_DO_BRAIN
 # Switched to Workers AI — no API key needed
 # GEMINI_API_KEY deprecated (403 billing issue)
