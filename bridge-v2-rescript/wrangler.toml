@@ -16,7 +16,7 @@ service = "bella-tools-worker-v8"
 # Call Brain DO — V2 rescript (Bella Golden)
 [[services]]
 binding = "CALL_BRAIN"
-service = "call-brain-do-v2-rescript"
+service = "bella-brain-v3"
 
 [ai]
 binding = "AI"
