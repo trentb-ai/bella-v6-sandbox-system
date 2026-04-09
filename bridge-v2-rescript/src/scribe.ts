@@ -209,6 +209,8 @@ function extractAIText(result: any): string {
   if (!result) return '';
   let text = '';
   if (typeof result === 'string') text = result;
+  // OpenAI chat completions format (Qwen3 + newer Workers AI models)
+  else if (typeof result?.choices?.[0]?.message?.content === 'string') text = result.choices[0].message.content;
   else if (typeof result?.response === 'string') text = result.response;
   else if (typeof result?.result?.response === 'string') text = result.result.response;
   else if (Array.isArray(result?.result)) text = (result.result as any[]).map((r: any) => r?.response || '').join('');

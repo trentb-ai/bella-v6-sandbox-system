@@ -30,7 +30,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.32.5"; // DIAGNOSTIC: log raw Workers AI response shape — 2026-04-09
+const VERSION = "v6.32.6"; // Fix extractAIText — Qwen3 returns OpenAI choices format not .response — 2026-04-09
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2283,6 +2283,8 @@ async function streamToDeepgram(
       if (!result) return '';
       let text = '';
       if (typeof result === 'string') text = result;
+      // OpenAI chat completions format (Qwen3 + newer Workers AI models)
+      else if (typeof result?.choices?.[0]?.message?.content === 'string') text = result.choices[0].message.content;
       else if (typeof result?.response === 'string') text = result.response;
       else if (typeof result?.result?.response === 'string') text = result.result.response;
       else if (Array.isArray(result?.result)) text = (result.result as any[]).map((r: any) => r?.response || '').join('');
@@ -2299,7 +2301,6 @@ async function streamToDeepgram(
       max_tokens: 3000,
     }) as any;
 
-    log("WORKERS_AI_RAW", `shape=${JSON.stringify(result).slice(0, 400)}`);
     responseText = extractAIText(result) || "Give me one moment.";
     const ttfb = Date.now() - t0;
     log("WORKERS_AI_TTFB", `${ttfb}ms success chars=${responseText.length}`);
