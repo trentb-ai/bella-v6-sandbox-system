@@ -30,7 +30,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.32.12"; // Remove dead chunk.response fallback — 2026-04-09
+const VERSION = "v6.32.13"; // llama response format re-encode to OpenAI SSE — 2026-04-09
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2338,7 +2338,11 @@ async function streamToDeepgram(
           }
           try {
             const chunk = JSON.parse(line.slice(6));
-            let rawDelta = chunk.choices?.[0]?.delta?.content as string | undefined;
+            const choicesDelta = chunk.choices?.[0]?.delta?.content as string | undefined;
+            const responseDelta = (typeof chunk.response === 'string' && chunk.response.length > 0)
+              ? chunk.response as string : undefined;
+            let rawDelta: string | undefined = choicesDelta ?? responseDelta;
+            const fromResponseField = !choicesDelta && !!responseDelta;
             // Stateful think-block filter — suppress <think>...</think> before TTS
             let delta = rawDelta;
             if (rawDelta) {
@@ -2372,9 +2376,10 @@ async function streamToDeepgram(
             } else if (delta) {
               // No think modification — normal apology-strip path
               const cleaned = stripApologies(delta);
-              if (cleaned !== delta) {
-                modified = true;
-                chunk.choices[0].delta.content = cleaned;
+              if (cleaned !== delta) modified = true;
+              // Always re-encode to OpenAI format if source was chunk.response (llama native format)
+              if (fromResponseField || cleaned !== delta) {
+                chunk.choices = [{ index: 0, delta: { content: cleaned }, finish_reason: null }];
                 outputLines.push("data: " + JSON.stringify(chunk));
               } else {
                 outputLines.push(line);
