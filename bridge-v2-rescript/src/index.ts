@@ -30,7 +30,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.32.6"; // Fix extractAIText — Qwen3 returns OpenAI choices format not .response — 2026-04-09
+const VERSION = "v6.32.7"; // Disable Qwen3 thinking for voice latency — /no_think + max_tokens:500 — 2026-04-09
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2295,10 +2295,10 @@ async function streamToDeepgram(
     // Call Workers AI — must use messages array format, not prompt string
     const result = await env.AI.run("@cf/qwen/qwen3-30b-a3b-fp8", {
       messages: [
-        { role: "system", content: systemMsg },
+        { role: "system", content: systemMsg + "\n\n/no_think" },
         ...userMsgs
       ],
-      max_tokens: 3000,
+      max_tokens: 500,
     }) as any;
 
     responseText = extractAIText(result) || "Give me one moment.";

@@ -242,8 +242,11 @@ export async function callScribeWorkersAI(
   const start = Date.now();
 
   try {
+    const messagesWithNoThink = messages.map(m =>
+      m.role === 'system' ? { ...m, content: m.content + '\n\n/no_think' } : m
+    );
     const result = await Promise.race([
-      env.AI.run('@cf/qwen/qwen3-30b-a3b-fp8', { messages, max_tokens: 3000 }),
+      env.AI.run('@cf/qwen/qwen3-30b-a3b-fp8', { messages: messagesWithNoThink, max_tokens: 500 }),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
     ]) as any;
 
