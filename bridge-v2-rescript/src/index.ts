@@ -30,7 +30,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.32.9"; // Stateful think-block stream filter + empty response guard — 2026-04-09
+const VERSION = "v6.32.10"; // P1a think-block emit fix — 3-path delta routing — 2026-04-09
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2356,8 +2356,21 @@ async function streamToDeepgram(
                 }
               }
             }
-            if (delta) {
-              // P1-T2: Strip apology phrases before TTS
+            // P1a FIX: split into 3 paths based on think-filter outcome
+            // NOTE P1b: cross-chunk split think tags not handled — /no_think makes this low-probability accepted risk
+            if (rawDelta !== undefined && delta !== rawDelta) {
+              // Think-filter modified delta — never emit original line
+              if (delta) {
+                // Partial content survived filter — emit modified chunk
+                const cleaned = stripApologies(delta);
+                chunk.choices[0].delta.content = cleaned;
+                outputLines.push("data: " + JSON.stringify(chunk));
+                responseText += cleaned;
+                if (cleaned !== rawDelta) modified = true;
+              }
+              // else delta='': fully suppressed — push nothing (skip chunk)
+            } else if (delta) {
+              // No think modification — normal apology-strip path
               const cleaned = stripApologies(delta);
               if (cleaned !== delta) {
                 modified = true;
@@ -2368,6 +2381,7 @@ async function streamToDeepgram(
               }
               responseText += cleaned;
             } else {
+              // No delta content (finish chunk, usage chunk, etc.) — pass through
               outputLines.push(line);
             }
             // Usage info appears in the final chunk
