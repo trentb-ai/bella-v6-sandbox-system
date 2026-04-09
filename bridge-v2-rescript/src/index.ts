@@ -30,7 +30,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.32.7"; // Disable Qwen3 thinking for voice latency — /no_think + max_tokens:500 — 2026-04-09
+const VERSION = "v6.32.8"; // Workers AI streaming — first token ~200-400ms vs 3000ms+ — 2026-04-09
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2271,42 +2271,24 @@ async function streamToDeepgram(
 ): Promise<Response> {
   const t0 = Date.now();
 
-  // Workers AI call (switched from Gemini 2026-04-08)
-  let responseText = "";
+  // Workers AI streaming call (switched from Gemini 2026-04-08, streaming 2026-04-09)
+  const systemMsg = messages.find(m => m.role === "system")?.content ?? "";
+  const userMsgs = messages.filter(m => m.role === "user" || m.role === "assistant");
+  log("WORKERS_AI_PROMPT", `sys_chars=${systemMsg.length} user_msgs=${userMsgs.length}`);
+
+  let gemRes: Response;
   try {
-    const systemMsg = messages.find(m => m.role === "system")?.content ?? "";
-    const userMsgs = messages.filter(m => m.role === "user" || m.role === "assistant");
-
-    log("WORKERS_AI_PROMPT", `sys_chars=${systemMsg.length} user_msgs=${userMsgs.length}`);
-
-    function extractAIText(result: any): string {
-      if (!result) return '';
-      let text = '';
-      if (typeof result === 'string') text = result;
-      // OpenAI chat completions format (Qwen3 + newer Workers AI models)
-      else if (typeof result?.choices?.[0]?.message?.content === 'string') text = result.choices[0].message.content;
-      else if (typeof result?.response === 'string') text = result.response;
-      else if (typeof result?.result?.response === 'string') text = result.result.response;
-      else if (Array.isArray(result?.result)) text = (result.result as any[]).map((r: any) => r?.response || '').join('');
-      // Strip Qwen3 thinking blocks — reasoning model emits <think>...</think> before answering
-      return text.replace(/<think>[\s\S]*?<\/think>\s*/g, '').trim();
-    }
-
-    // Call Workers AI — must use messages array format, not prompt string
-    const result = await env.AI.run("@cf/qwen/qwen3-30b-a3b-fp8", {
+    const aiStream = await (env.AI.run as any)("@cf/qwen/qwen3-30b-a3b-fp8", {
       messages: [
         { role: "system", content: systemMsg + "\n\n/no_think" },
         ...userMsgs
       ],
       max_tokens: 500,
-    }) as any;
-
-    responseText = extractAIText(result) || "Give me one moment.";
-    const ttfb = Date.now() - t0;
-    log("WORKERS_AI_TTFB", `${ttfb}ms success chars=${responseText.length}`);
+      stream: true,
+    });
+    gemRes = new Response(aiStream as ReadableStream, { headers: { "Content-Type": "text/event-stream" } });
   } catch (e: any) {
-    const ttfb = Date.now() - t0;
-    log("WORKERS_AI_ERR", `${ttfb}ms: ${e.message}`);
+    log("WORKERS_AI_ERR", `${Date.now() - t0}ms: ${e.message}`);
     log("BELLA_SILENT", `reason=workers_ai_error utterance="Give me one moment."`);
     if (doFailureCallback) {
       try { await doFailureCallback(`workers_ai_error`); } catch { }
@@ -2318,14 +2300,6 @@ async function streamToDeepgram(
     ].join("\n");
     return new Response(fallback, { headers: { "Content-Type": "text/event-stream" } });
   }
-
-  // Create SSE stream with chunked response
-  const gemRes = new Response(
-    responseText.split(" ").reduce((acc, word) => {
-      return acc + `data: {"id":"f","object":"chat.completion.chunk","model":"${MODEL}","choices":[{"index":0,"delta":{"content":"${word} "},"finish_reason":null}]}\n\n`;
-    }, "") + `data: {"id":"f","object":"chat.completion.chunk","model":"${MODEL}","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\ndata: [DONE]\n`,
-    { headers: { "Content-Type": "text/event-stream" } }
-  );
 
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
