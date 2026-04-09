@@ -30,7 +30,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.32.10"; // P1a think-block emit fix — 3-path delta routing — 2026-04-09
+const VERSION = "v6.32.11"; // Switch to llama-3.3-70b-instruct-fp8-fast for voice TTFB — 2026-04-09
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -362,7 +362,7 @@ async function loadCallBrief(lid: string, env: Env): Promise<Record<string, any>
 }
 
 // GEMINI_URL deprecated — switched to Workers AI (Llama 3.1 8B)
-const MODEL = "@cf/qwen/qwen3-30b-a3b-fp8"; // Workers AI model
+const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"; // Workers AI model
 
 const log = (tag: string, msg: string) =>
   console.log(`[bridge ${VERSION}] [${tag}] ${msg}`);
@@ -2278,9 +2278,9 @@ async function streamToDeepgram(
 
   let gemRes: Response;
   try {
-    const aiStream = await (env.AI.run as any)("@cf/qwen/qwen3-30b-a3b-fp8", {
+    const aiStream = await (env.AI.run as any)("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
       messages: [
-        { role: "system", content: systemMsg + "\n\n/no_think" },
+        { role: "system", content: systemMsg },
         ...userMsgs
       ],
       max_tokens: 500,
@@ -2338,7 +2338,8 @@ async function streamToDeepgram(
           }
           try {
             const chunk = JSON.parse(line.slice(6));
-            let rawDelta = chunk.choices?.[0]?.delta?.content as string | undefined;
+            // Support both OpenAI format (choices[0].delta.content) and Workers AI format (response)
+            let rawDelta = (chunk.choices?.[0]?.delta?.content ?? chunk.response) as string | undefined;
             // Stateful think-block filter — suppress <think>...</think> before TTS
             let delta = rawDelta;
             if (rawDelta) {
