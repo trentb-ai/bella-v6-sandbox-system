@@ -30,7 +30,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.32.13"; // llama response format re-encode to OpenAI SSE — 2026-04-09
+const VERSION = "v6.32.14"; // P0a retryFetch body drain + P0b scribe max_tokens:8000 — 2026-04-09
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2704,6 +2704,7 @@ async function retryFetch(
         return res;
       }
       log(tag, `attempt=${attempt} non-ok status=${res.status}`);
+      await res.body?.cancel(); // drain unconsumed body — prevents ReadableStream disturbed on next attempt
     } catch (e: any) {
       log(`${tag}_ERR`, `attempt=${attempt} ${e.message}`);
     }
