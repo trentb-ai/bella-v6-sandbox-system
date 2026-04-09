@@ -30,7 +30,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.32.11"; // Switch to llama-3.3-70b-instruct-fp8-fast for voice TTFB — 2026-04-09
+const VERSION = "v6.32.12"; // Remove dead chunk.response fallback — 2026-04-09
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -2338,8 +2338,7 @@ async function streamToDeepgram(
           }
           try {
             const chunk = JSON.parse(line.slice(6));
-            // Support both OpenAI format (choices[0].delta.content) and Workers AI format (response)
-            let rawDelta = (chunk.choices?.[0]?.delta?.content ?? chunk.response) as string | undefined;
+            let rawDelta = chunk.choices?.[0]?.delta?.content as string | undefined;
             // Stateful think-block filter — suppress <think>...</think> before TTS
             let delta = rawDelta;
             if (rawDelta) {
