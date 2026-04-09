@@ -30,7 +30,7 @@ export interface Env {
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.32.14"; // P0a retryFetch body drain + P0b scribe max_tokens:8000 — 2026-04-09
+const VERSION = "v6.32.15"; // Wire CALL_BRAIN to call-brain-do-v2-rescript + USE_DO_BRAIN=true — 2026-04-09
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.

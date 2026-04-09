@@ -13,17 +13,17 @@ id = "0fec6982d8644118aba1830afd4a58cb"
 binding = "TOOLS"
 service = "bella-tools-worker-v8"
 
-# Call Brain DO — V3 brain (wired 2026-04-08)
+# Call Brain DO — V2 rescript (Bella Golden)
 [[services]]
 binding = "CALL_BRAIN"
-service = "bella-brain-v3"
+service = "call-brain-do-v2-rescript"
 
 [ai]
 binding = "AI"
 
 [vars]
-# VERSION: v6.32.14
-# USE_DO_BRAIN set via: wrangler secret put USE_DO_BRAIN
+# VERSION: v6.32.15
+USE_DO_BRAIN = "true"
 # Switched to Workers AI — no API key needed
 # GEMINI_API_KEY deprecated (403 billing issue)
 # TOOLS_BEARER    set via: wrangler secret put TOOLS_BEARER
