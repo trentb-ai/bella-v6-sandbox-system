@@ -7,7 +7,7 @@
  * stated facts durably via the main /turn path. Scribe adds inferred observations
  * as a best-effort enrichment layer.
  *
- * Pipeline: isScribeEligible → buildScribePayload → callScribeGemini → postNotesToBrain
+ * Pipeline: isScribeEligible → buildScribeMessages → callScribeWorkersAI → postNotesToBrain
  * Fails closed to [] / no-op, never throws upward, never interferes with the
  * main conversation path.
  */
@@ -161,13 +161,12 @@ const MAX_MEMORY_TITLES = 20;
 /** Max chars per memory title. */
 const MAX_MEMORY_TITLE_CHARS = 100;
 
-export function buildScribePayload(
+export function buildScribeMessages(
   utterance: string,
   recentTurns: Array<{ role: string; content: string }>,
   currentStage: string,
   activeMemoryTitles: string[],
-  geminiApiKey: string,
-): { url: string; body: string; headers: Record<string, string> } {
+): Array<{ role: string; content: string }> {
   // Filter to user/assistant turns only, discard empty/non-string content, last 4
   const filtered = recentTurns
     .filter(t => (t.role === 'user' || t.role === 'assistant') && typeof t.content === 'string' && t.content.trim().length > 0)
@@ -198,33 +197,24 @@ ${recentConversation}
 LATEST PROSPECT UTTERANCE:
 "${utterance.slice(0, MAX_TURN_CHARS)}"`;
 
-  // OpenAI-compatible endpoint — same one the bridge uses for main Gemini calls.
-  // Avoids Gemini 2.5 thinking mode + native REST structured output conflict.
-  const requestBody = {
-    model: 'gemini-2.5-flash',
-    messages: [
-      { role: 'system', content: SCRIBE_SYSTEM_PROMPT },
-      { role: 'user', content: userContent },
-    ],
-    response_format: { type: 'json_object' },
-    max_tokens: 512,
-    temperature: 0.2,
-    reasoning_effort: 'none',
-  };
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`;
-
-  return {
-    url,
-    body: JSON.stringify(requestBody),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${geminiApiKey}`,
-    },
-  };
+  return [
+    { role: 'system', content: SCRIBE_SYSTEM_PROMPT },
+    { role: 'user', content: userContent },
+  ];
 }
 
-// ─── Gemini Caller ──────────────────────────────────────────────────────────
+// ─── Workers AI Caller ──────────────────────────────────────────────────────
+
+function extractAIText(result: any): string {
+  if (!result) return '';
+  let text = '';
+  if (typeof result === 'string') text = result;
+  else if (typeof result?.response === 'string') text = result.response;
+  else if (typeof result?.result?.response === 'string') text = result.result.response;
+  else if (Array.isArray(result?.result)) text = (result.result as any[]).map((r: any) => r?.response || '').join('');
+  // Strip Qwen3 thinking blocks — reasoning model emits <think>...</think> before answering
+  return text.replace(/<think>[\s\S]*?<\/think>\s*/g, '').trim();
+}
 
 /** Tokenize text for within-response dedup. */
 function tokenize(text: string): string[] {
@@ -241,37 +231,29 @@ function jaccardSimilarity(a: string[], b: string[]): number {
   return union === 0 ? 0 : intersection / union;
 }
 
-export async function callScribeGemini(
-  payload: { url: string; body: string; headers: Record<string, string> },
+export async function callScribeWorkersAI(
+  messages: Array<{ role: string; content: string }>,
   currentStage: string,
+  env: { AI: any },
   timeoutMs: number = 15000,
 ): Promise<ScribeNote[]> {
   const start = Date.now();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch(payload.url, {
-      method: 'POST',
-      headers: payload.headers,
-      body: payload.body,
-      signal: controller.signal,
-    });
+    // /no_think disables Qwen3 hybrid thinking phase — prevents it consuming max_tokens budget
+    const messagesWithNoThink = messages.map(m =>
+      m.role === 'system' ? { ...m, content: m.content + '\n\n/no_think' } : m
+    );
+    const result = await Promise.race([
+      env.AI.run('@cf/qwen/qwen3-30b-a3b-fp8', { messages: messagesWithNoThink, max_tokens: 1024 }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
+    ]) as any;
 
     const latency = Date.now() - start;
+    const messageContent = extractAIText(result);
 
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => 'no-body');
-      console.log(`[SCRIBE_GEMINI_ERR] stage=${currentStage} reason=http_${res.status} latency=${latency}ms body=${errBody.slice(0, 300)}`);
-      return [];
-    }
-
-    const data = await res.json() as any;
-
-    // OpenAI-compatible response: choices[0].message.content
-    const messageContent = data?.choices?.[0]?.message?.content;
     if (typeof messageContent !== 'string' || messageContent.trim().length === 0) {
-      console.log(`[SCRIBE_GEMINI_ERR] stage=${currentStage} reason=no_content latency=${latency}ms`);
+      console.log(`[SCRIBE_WAI_ERR] stage=${currentStage} reason=no_content latency=${latency}ms`);
       return [];
     }
 
@@ -286,13 +268,13 @@ export async function callScribeGemini(
       }
     }
     if (!parsed) {
-      console.log(`[SCRIBE_GEMINI_ERR] stage=${currentStage} reason=json_parse_fail latency=${latency}ms len=${messageContent.length}`);
+      console.log(`[SCRIBE_WAI_ERR] stage=${currentStage} reason=json_parse_fail latency=${latency}ms len=${messageContent.length}`);
       return [];
     }
 
     const rawNotes = parsed?.notes;
     if (!Array.isArray(rawNotes)) {
-      console.log(`[SCRIBE_GEMINI_ERR] stage=${currentStage} reason=no_notes_array latency=${latency}ms`);
+      console.log(`[SCRIBE_WAI_ERR] stage=${currentStage} reason=no_notes_array latency=${latency}ms`);
       return [];
     }
 
@@ -332,22 +314,20 @@ export async function callScribeGemini(
     }
 
     if (validated.length === 0) {
-      console.log(`[SCRIBE_GEMINI] stage=${currentStage} notes=0 latency=${latency}ms (nothing memory-worthy)`);
+      console.log(`[SCRIBE_WAI] stage=${currentStage} notes=0 latency=${latency}ms (nothing memory-worthy)`);
     } else {
-      console.log(`[SCRIBE_GEMINI] stage=${currentStage} notes=${validated.length} latency=${latency}ms`);
+      console.log(`[SCRIBE_WAI] stage=${currentStage} notes=${validated.length} latency=${latency}ms`);
     }
 
     return validated;
   } catch (err: any) {
     const latency = Date.now() - start;
-    if (err.name === 'AbortError') {
-      console.log(`[SCRIBE_GEMINI_TIMEOUT] stage=${currentStage} timeout=${timeoutMs}ms`);
+    if (err.message === 'timeout') {
+      console.log(`[SCRIBE_WAI_TIMEOUT] stage=${currentStage} timeout=${timeoutMs}ms`);
     } else {
-      console.log(`[SCRIBE_GEMINI_ERR] stage=${currentStage} reason=${err.message?.slice(0, 100)} latency=${latency}ms`);
+      console.log(`[SCRIBE_WAI_ERR] stage=${currentStage} reason=${err.message?.slice(0, 100)} latency=${latency}ms`);
     }
     return [];
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -403,7 +383,7 @@ export async function runScribe(
   activeMemoryTitles: string[],
   callId: string,
   turnIndex: number,
-  geminiApiKey: string,
+  env: { AI: any },
   brainBinding: Fetcher,
 ): Promise<void> {
   try {
@@ -417,18 +397,18 @@ export async function runScribe(
     // Optional signal observability (not a gate — for metrics/tuning only)
     const hasSignal = SIGNAL_PATTERN.test(utterance);
     if (!hasSignal) {
-      console.log(`[SCRIBE_META] callId=${callId} signal=false chars=${utterance.trim().length} (sent to Gemini anyway)`);
+      console.log(`[SCRIBE_META] callId=${callId} signal=false chars=${utterance.trim().length} (sent to Workers AI anyway)`);
     }
 
-    // 2. Build Gemini payload
-    const payload = buildScribePayload(utterance, recentTurns, currentStage, activeMemoryTitles, geminiApiKey);
+    // 2. Build Workers AI messages
+    const messages = buildScribeMessages(utterance, recentTurns, currentStage, activeMemoryTitles);
 
-    // 3. Call Gemini
-    const notes = await callScribeGemini(payload, currentStage);
+    // 3. Call Workers AI
+    const notes = await callScribeWorkersAI(messages, currentStage, env);
 
     // 4. Check for empty result
     if (notes.length === 0) {
-      console.log(`[SCRIBE_SKIP] callId=${callId} reason=gemini_empty`);
+      console.log(`[SCRIBE_SKIP] callId=${callId} reason=wai_empty`);
       return;
     }
 

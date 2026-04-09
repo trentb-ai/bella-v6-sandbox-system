@@ -23,13 +23,14 @@ export interface Env {
   LEADS_KV: KVNamespace;
   TOOLS: Fetcher;
   CALL_BRAIN: Fetcher;
-  GEMINI_API_KEY: string;
+  AI: Ai;                          // Workers AI binding (replaced Gemini)
+  GEMINI_API_KEY?: string;         // DEPRECATED — switched to Workers AI
   TOOLS_BEARER: string;
   ENABLE_EMBEDDING?: string;
   USE_DO_BRAIN?: string;
 }
 
-const VERSION = "v6.30.2-inbound"; // V3 brain wired + adapter layer + inbound persona context
+const VERSION = "v6.32.3"; // Qwen3 thinking model fix: /no_think + max_tokens 1024 + think-block strip — 2026-04-09
 
 // ─── Deep Merge Utility ──────────────────────────────────────────────────────
 // Merges source into target, recursively for nested objects.
@@ -360,8 +361,8 @@ async function loadCallBrief(lid: string, env: Env): Promise<Record<string, any>
   }
 }
 
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const MODEL = "gemini-2.5-flash";
+// GEMINI_URL deprecated — switched to Workers AI (Llama 3.1 8B)
+const MODEL = "@cf/qwen/qwen3-30b-a3b-fp8"; // Workers AI model
 
 const log = (tag: string, msg: string) =>
   console.log(`[bridge ${VERSION}] [${tag}] ${msg}`);
@@ -2269,32 +2270,45 @@ async function streamToDeepgram(
   ctx?: ExecutionContext,
 ): Promise<Response> {
   const t0 = Date.now();
-  const gemRes = await fetch(GEMINI_URL, {
-    method: "POST",
-    signal: AbortSignal.timeout(15000),
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${env.GEMINI_API_KEY}`,
-      "x-goog-api-key": env.GEMINI_API_KEY
-    },
-    body: JSON.stringify({
-      model: MODEL, messages, stream: true, temperature: 0.3,
-      max_tokens: 500,
-      reasoning_effort: "none",
-      stream_options: { include_usage: true },
-    }),
-  });
 
-  const ttfb = Date.now() - t0;
-  log("GEMINI_TTFB", `${ttfb}ms (status=${gemRes.status})`);
+  // Workers AI call (switched from Gemini 2026-04-08)
+  let responseText = "";
+  try {
+    const systemMsg = messages.find(m => m.role === "system")?.content ?? "";
+    const userMsgs = messages.filter(m => m.role === "user" || m.role === "assistant");
 
-  if (!gemRes.ok || !gemRes.body) {
-    const errBody = await gemRes.text().catch(() => "no-body");
-    log("GEMINI_ERR", `status=${gemRes.status} body=${errBody}`);
-    log("BELLA_SILENT", `reason=gemini_error_${gemRes.status} utterance="Give me one moment."`); // Fallback response
-    // Notify DO: the intended directive FAILED even though fallback text is spoken
+    log("WORKERS_AI_PROMPT", `sys_chars=${systemMsg.length} user_msgs=${userMsgs.length}`);
+
+    function extractAIText(result: any): string {
+      if (!result) return '';
+      let text = '';
+      if (typeof result === 'string') text = result;
+      else if (typeof result?.response === 'string') text = result.response;
+      else if (typeof result?.result?.response === 'string') text = result.result.response;
+      else if (Array.isArray(result?.result)) text = (result.result as any[]).map((r: any) => r?.response || '').join('');
+      // Strip Qwen3 thinking blocks — reasoning model emits <think>...</think> before answering
+      return text.replace(/<think>[\s\S]*?<\/think>\s*/g, '').trim();
+    }
+
+    // Call Workers AI — must use messages array format, not prompt string
+    // /no_think disables Qwen3 hybrid thinking phase — prevents it consuming max_tokens budget
+    const result = await env.AI.run("@cf/qwen/qwen3-30b-a3b-fp8", {
+      messages: [
+        { role: "system", content: systemMsg + "\n\n/no_think" },
+        ...userMsgs
+      ],
+      max_tokens: 1024,
+    }) as any;
+
+    responseText = extractAIText(result) || "Give me one moment.";
+    const ttfb = Date.now() - t0;
+    log("WORKERS_AI_TTFB", `${ttfb}ms success chars=${responseText.length}`);
+  } catch (e: any) {
+    const ttfb = Date.now() - t0;
+    log("WORKERS_AI_ERR", `${ttfb}ms: ${e.message}`);
+    log("BELLA_SILENT", `reason=workers_ai_error utterance="Give me one moment."`);
     if (doFailureCallback) {
-      try { await doFailureCallback(`gemini_${gemRes.status}`); } catch { }
+      try { await doFailureCallback(`workers_ai_error`); } catch { }
     }
     const fallback = [
       `data: {"id":"f","object":"chat.completion.chunk","model":"${MODEL}","choices":[{"index":0,"delta":{"content":"Give me one moment."},"finish_reason":null}]}`,
@@ -2303,6 +2317,14 @@ async function streamToDeepgram(
     ].join("\n");
     return new Response(fallback, { headers: { "Content-Type": "text/event-stream" } });
   }
+
+  // Create SSE stream with chunked response
+  const gemRes = new Response(
+    responseText.split(" ").reduce((acc, word) => {
+      return acc + `data: {"id":"f","object":"chat.completion.chunk","model":"${MODEL}","choices":[{"index":0,"delta":{"content":"${word} "},"finish_reason":null}]}\n\n`;
+    }, "") + `data: {"id":"f","object":"chat.completion.chunk","model":"${MODEL}","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\ndata: [DONE]\n`,
+    { headers: { "Content-Type": "text/event-stream" } }
+  );
 
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
@@ -2627,7 +2649,7 @@ async function callDOTurn(
     const res = await env.CALL_BRAIN.fetch(
       new Request(`https://do-internal/turn-v2-compat?callId=${encodeURIComponent(lid)}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-call-id': lid, 'x-gemini-key': env.GEMINI_API_KEY || '' },
+        headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
         body: JSON.stringify({ leadId: lid, transcript, turnId, identity }),
         signal: AbortSignal.timeout(8000),
       }),
@@ -2655,9 +2677,10 @@ async function retryFetch(
   maxAttempts: number = 3,
   backoffMs: number = 200,
 ): Promise<Response | null> {
+  const bodyText = request.body ? await new Response(request.body).text() : undefined;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const res = await fetcher.fetch(new Request(request.url, { method: request.method, headers: request.headers, body: request.body, signal: AbortSignal.timeout(8000) }));
+      const res = await fetcher.fetch(new Request(request.url, { method: request.method, headers: request.headers, body: bodyText, signal: AbortSignal.timeout(8000) }));
       if (res.ok) {
         log(tag, `attempt=${attempt} status=${res.status}`);
         return res;
@@ -2800,9 +2823,17 @@ export default {
     catch { return new Response(JSON.stringify({ error: "Bad JSON" }), { status: 400 }); }
 
     const messages: Msg[] = body.messages ?? [];
-    const lid = getLid(messages);
-    log("REQ", `lid=${lid} msgs=${messages.length}`);
-    log("SCRIBE_CONFIG", `enabled=${!!env.GEMINI_API_KEY} do_path=${env.USE_DO_BRAIN === 'true'} brain=${!!env.CALL_BRAIN}`);
+    let lid = getLid(messages);
+    const sysMsg = messages.find(m => m.role === "system")?.content ?? "";
+
+    // Fallback: if lid not in messages, check URL query params (from v11 voice agent)
+    if (!lid) {
+      const urlParams = new URLSearchParams(url.search);
+      lid = urlParams.get('lid') || '';
+    }
+
+    log("REQ", `lid=${lid} msgs=${messages.length} sys_has_lid=${sysMsg.includes('lead_id')} sys_chars=${sysMsg.length}`);
+    log("SCRIBE_CONFIG", `enabled=true do_path=${env.USE_DO_BRAIN === 'true'} brain=${!!env.CALL_BRAIN} llm=workers-ai`);
 
     // ── DIAGNOSTIC: log first-turn system message so we can see what Deepgram sends us
     if (messages.length <= 2) {
@@ -2920,7 +2951,10 @@ export default {
     const useDoPath = env.USE_DO_BRAIN === 'true' && !!lid;
     if (useDoPath) {
       const utt = lastUser(messages);
-      const turnNum = messages.length;
+      // FIX (2026-04-08): count user messages only, not total messages (system msg doesn't count as turn)
+      // First user message = turn 0, second = turn 1, etc.
+      const userMsgCount = messages.filter(m => m.role === 'user').length;
+      const turnNum = Math.max(0, userMsgCount - 1);
       // P2 FIX: SHA-256 content-hash turnId — same utterance = same hash = stable dedup
       // Old code used plain turnNum which caused false dedup hits on retransmits with different content
       const turnIdHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${turnNum}:${utt}`));
@@ -3036,7 +3070,7 @@ export default {
         ];
 
         // ── Scribe: background note extraction (best-effort, non-blocking) ──
-        if (utt.trim().length > 0 && lid && env.GEMINI_API_KEY && env.CALL_BRAIN) {
+        if (utt.trim().length > 0 && lid && env.CALL_BRAIN) {
           const scribeRecentTurns = messages
             .filter(m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim().length > 0)
             .slice(-4)
@@ -3057,7 +3091,7 @@ export default {
               scribeMemTitles,
               lid,
               scribeTurnIndex,
-              env.GEMINI_API_KEY,
+              env,
               env.CALL_BRAIN,
             )
           );
@@ -3242,7 +3276,9 @@ export default {
     const extractIndustry = intel.core_identity?.industry ?? intel.core_identity?.industry_key ?? "";
     log("UTT", `lid=${lid} stage=${stageAtUtterance} utt_chars=${utt.length} utt_preview="${utt.slice(0, 80)}"`);
 
-    const turnNum = messages.length;
+    // FIX (2026-04-08): count user messages only, not total messages
+    const userMsgCount = messages.filter(m => m.role === 'user').length;
+    const turnNum = Math.max(0, userMsgCount - 1);
     const uttHash = utt.trim().toLowerCase().slice(0, 200);
     const prevHash = s._lastUttHash ?? "";
     const isNewTurn = turnNum > (s._lastTurn ?? 0);
@@ -3378,7 +3414,7 @@ export default {
     log("STREAM", `stage=${s.stage} history=${conversation.length} turns → streaming`);
 
     // ── Scribe: background note extraction — old path (best-effort, non-blocking) ──
-    if (utt.trim().length > 0 && lid && env.GEMINI_API_KEY && env.CALL_BRAIN) {
+    if (utt.trim().length > 0 && lid && env.CALL_BRAIN) {
       const scribeRecentTurns = messages
         .filter(m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim().length > 0)
         .slice(-4)
@@ -3395,7 +3431,7 @@ export default {
           [],
           lid,
           scribeTurnIndex,
-          env.GEMINI_API_KEY,
+          env,
           env.CALL_BRAIN,
         )
       );
