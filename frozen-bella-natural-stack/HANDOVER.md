@@ -25,7 +25,7 @@ Flow: Prospect submits details on a website funnel → system scrapes their site
 | Voice Agent | `frozen-bella-natural-voice` | https://frozen-bella-natural-voice.trentbelasco.workers.dev | v4.2.0-EOT-INJECT |
 | Fast Intel | `frozen-bella-natural-fast-intel` | https://frozen-bella-natural-fast-intel.trentbelasco.workers.dev | v1.18.0 |
 | Consultant | `frozen-bella-natural-consultant` | https://frozen-bella-natural-consultant.trentbelasco.workers.dev | live |
-| Deep Scrape | `frozen-bella-natural-deep-scrape` | https://frozen-bella-natural-deep-scrape.trentbelasco.workers.dev | live |
+| Deep Scrape | `frozen-bella-natural-scrape` | https://frozen-bella-natural-scrape.trentbelasco.workers.dev | live |
 | Tools | `frozen-bella-natural-tools` | https://frozen-bella-natural-tools.trentbelasco.workers.dev | live |
 
 **All service bindings confirmed clean as of 2026-04-10.**
@@ -58,9 +58,9 @@ Flow: Prospect submits details on a website funnel → system scrapes their site
 
 | Worker | Bindings |
 |--------|----------|
-| fast-intel | CONSULTANT → natural-consultant, DEEP_SCRAPE → natural-deep-scrape, BIG_SCRAPER → personalisedaidemofinal-sandbox, CALL_BRAIN → natural-brain, LEADS_KV |
+| fast-intel | CONSULTANT → natural-consultant, DEEP_SCRAPE → natural-scrape, BIG_SCRAPER → personalisedaidemofinal-sandbox, CALL_BRAIN → natural-brain, LEADS_KV |
 | bridge | TOOLS → natural-tools, CALL_BRAIN → natural-brain, LEADS_KV |
-| voice | TOOLS → bella-tools-worker-v8, LEADS_KV, BRIDGE_URL var |
+| voice | TOOLS → frozen-bella-natural-tools, LEADS_KV, BRIDGE_URL var |
 | brain | LEADS_KV |
 | consultant | LEADS_KV |
 | tools | CONSULTANT → natural-consultant, LEADS_KV |
