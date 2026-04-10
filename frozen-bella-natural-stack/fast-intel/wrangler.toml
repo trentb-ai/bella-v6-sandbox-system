@@ -1,0 +1,37 @@
+name = "frozen-bella-natural-fast-intel"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "9488d0601315a70cac36f9bd87aa4e82"
+
+[[kv_namespaces]]
+binding = "LEADS_KV"
+id = "0fec6982d8644118aba1830afd4a58cb"
+
+[[services]]
+binding = "CONSULTANT"
+service = "frozen-bella-natural-consultant"
+
+[[services]]
+binding = "DEEP_SCRAPE"
+service = "frozen-bella-natural-deep-scrape"
+
+[[services]]
+binding = "BIG_SCRAPER"
+service = "personalisedaidemofinal-sandbox"
+
+[[services]]
+binding = "CALL_BRAIN"
+service = "frozen-bella-natural-brain"
+
+# FIRECRAWL_API_KEY
+# GEMINI_API_KEY
+
+[vars]
+
+[observability]
+enabled = true
+
+[observability.logs]
+invocation_logs = true
+head_sampling_rate = 1
