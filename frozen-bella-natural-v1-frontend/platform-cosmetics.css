@@ -1,0 +1,433 @@
+/**
+ * COSMETIC UI STYLES - Demo Page Agent Platforms
+ * Makes text agent iframes look like real platforms (FB DMs, SMS, Google Reviews)
+ * No actual API integration - just visual demo
+ */
+
+/* ========================================
+   ALEX - Facebook Messenger Style
+   ======================================== */
+
+.alex-messenger-container {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.alex-messenger-header {
+    background: linear-gradient(135deg, #0084FF 0%, #0066CC 100%);
+    color: white;
+    padding: 16px;
+    font-weight: 600;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.alex-messenger-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: white;
+    color: #0084FF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.alex-messenger-chat {
+    padding: 16px;
+    background: #F0F2F5;
+    min-height: 400px;
+}
+
+.alex-message-received {
+    background: #E4E6EB;
+    color: #050505;
+    padding: 8px 12px;
+    border-radius: 18px;
+    max-width: 70%;
+    margin-bottom: 8px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.alex-message-sent {
+    background: #0084FF;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 18px;
+   max-width: 70%;
+    margin-bottom: 8px;
+    margin-left: auto;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.alex-messenger-seen {
+    font-size: 11px;
+    color: #65676B;
+    margin-top: 4px;
+    text-align: right;
+}
+
+.alex-messenger-typing {
+    background: #E4E6EB;
+    padding: 8px 12px;
+    border-radius: 18px;
+    width: fit-content;
+    color: #65676B;
+    font-size: 13px;
+}
+
+.alex-messenger-input {
+    border-top: 1px solid #E4E6EB;
+    padding: 12px 16px;
+    background: white;
+    display: flex;
+    gap: 8px;
+}
+
+.alex-messenger-input input {
+    flex: 1;
+    border: none;
+    background: #F0F2F5;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 14px;
+    outline: none;
+}
+
+.alex-messenger-send-btn {
+    background: #0084FF;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.alex-messenger-send-btn:hover {
+    background: #0066CC;
+}
+
+/* ========================================
+   SARAH - iOS Messages (SMS) Style
+   ======================================== */
+
+.sarah-sms-container {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', sans-serif;
+    background: #000;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.sarah-sms-header {
+    background: #1C1C1E;
+    color: white;
+    padding: 16px;
+    font-weight: 600;
+    font-size: 17px;
+    text-align: center;
+    border-bottom: 1px solid #2C2C2E;
+}
+
+.sarah-sms-phone {
+    font-size: 13px;
+    color: #8E8E93;
+    font-weight: 400;
+    margin-top: 4px;
+}
+
+.sarah-sms-chat {
+    padding: 16px;
+    background: #000;
+    min-height: 400px;
+}
+
+.sarah-message-received {
+    background: #3A3A3C;
+    color: white;
+    padding: 10px 14px;
+    border-radius: 18px;
+    border-bottom-left-radius: 4px;
+    max-width: 75%;
+    margin-bottom: 8px;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.sarah-message-sent {
+    background: #34C759; /* iOS green */
+    color: white;
+    padding: 10px 14px;
+    border-radius: 18px;
+    border-bottom-right-radius: 4px;
+    max-width: 75%;
+    margin-bottom: 8px;
+    margin-left: auto;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.sarah-sms-timestamp {
+    font-size: 11px;
+    color: #8E8E93;
+    margin-top: 2px;
+    text-align: right;
+}
+
+.sarah-sms-delivered {
+    font-size: 11px;
+    color: #8E8E93;
+    text-align: right;
+    margin-top: 2px;
+}
+
+.sarah-sms-typing {
+    background: #3A3A3C;
+    padding: 10px 14px;
+    border-radius: 18px;
+    width: fit-content;
+    color: #8E8E93;
+    font-size: 14px;
+}
+
+.sarah-sms-input {
+    border-top: 1px solid #2C2C2E;
+    padding: 12px 16px;
+    background: #1C1C1E;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.sarah-sms-input input {
+    flex: 1;
+    border: none;
+    background: #3A3A3C;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 15px;
+    color: white;
+    outline: none;
+}
+
+.sarah-sms-send-btn {
+    background: #34C759;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-center: center;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+/* ========================================
+   JAMES - Google Reviews Response Style
+   ======================================== */
+
+.james-review-container {
+    font-family: 'Roboto', 'Google Sans', Arial, sans-serif;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+.james-review-header {
+    background: #4285F4; /* Google blue */
+    color: white;
+    padding: 16px;
+    font-weight: 500;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.james-review-content {
+    padding: 20px;
+    background: #FAFAFA;
+}
+
+.james-review-card {
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border-left: 4px solid #4285F4;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.james-reviewer-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.james-reviewer-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4285F4, #34A853);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.james-reviewer-info {
+    flex: 1;
+}
+
+.james-reviewer-name {
+    font-weight: 500;
+    color: #202124;
+    font-size: 14px;
+}
+
+.james-review-stars {
+    color: #FBBC04; /* Google yellow */
+    font-size: 16px;
+    margin-top: 2px;
+}
+
+.james-review-text {
+    color: #3C4043;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+
+.james-review-date {
+    font-size: 12px;
+    color: #5F6368;
+    margin-bottom: 12px;
+}
+
+.james-owner-response {
+    background: #F8F9FA;
+    border-left: 3px solid #34A853; /* Google green */
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-top: 12px;
+}
+
+.james-owner-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #34A853;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.james-owner-text {
+    font-size: 13px;
+    color: #3C4043;
+    line-height: 1.5;
+    font-style: italic;
+}
+
+.james-response-input {
+    background: white;
+    border: 1px solid #DADCE0;
+    border-radius: 4px;
+    padding: 12px;
+    margin-top: 12px;
+}
+
+.james-response-input textarea {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    font-family: 'Roboto', Arial, sans-serif;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.james-response-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.james-btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.james-btn-primary {
+    background: #1A73E8;
+    color: white;
+}
+
+.james-btn-primary:hover {
+    background: #1765CC;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.james-btn-secondary {
+    background: transparent;
+    color: #1A73E8;
+    border: 1px solid #DADCE0;
+}
+
+.james-btn-secondary:hover {
+    background: #F8F9FA;
+}
+
+/* ========================================
+   SHARED UTILITIES
+   ======================================== */
+
+.platform-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.platform-badge-facebook {
+    background: #E7F3FF;
+    color: #0084FF;
+}
+
+.platform-badge-sms {
+    background: #E5F5EC;
+    color: #34C759;
+}
+
+.platform-badge-google {
+    background: #E8F0FE;
+    color: #1A73E8;
+}
