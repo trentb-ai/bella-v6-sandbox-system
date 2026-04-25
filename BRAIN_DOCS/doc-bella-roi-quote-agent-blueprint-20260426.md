@@ -266,6 +266,72 @@ consultantScriptFills: {
 
 ---
 
+## T9 ARCHITECTURAL DECISIONS (2026-04-26 AEST — BINDING)
+
+Source: T9 Architect (q123dbx2) ARCH_RESPONSE. CF docs consulted: think.d.ts §getTools() §TurnConfig.activeTools §getExtensions(). All decisions approved.
+
+### Q1: Tool shape — single discriminated-union tool
+```typescript
+calculateQuote: tool({
+  inputSchema: z.discriminatedUnion("jobType", [
+    z.object({ jobType: z.literal("carpet_installation"), roomType: ..., squareMetres: ..., carpetGrade: ... }),
+    z.object({ jobType: z.literal("dental_crown"), patientType: ..., complexity: ... }),
+    z.object({ jobType: z.literal("legal_conveyancing"), complexity: ..., estimatedHours: ... }),
+    // 10-20 industry variants
+  ])
+})
+```
+NOT per-industry tools. Gemini gets full type signal per discriminated variant. Zero tool proliferation.
+
+### Q2: Rate tables — TS constants in stats-kb/
+MVP: TS constants in `src/stats-kb/` (no KV on hot path).
+V2: KV override tier for client-configurable pricing. Not now.
+
+### Q3: extensionLoader — V3, NOT NOW
+Discriminated-union single tool handles 10-20 industries. No quoteSchema registry in DO state — schemas are code, not state. extensionLoader = V3 architecture.
+
+### Q4: Consultant output — optional additions, NO schema change
+Add as optional fields to consultantScriptFills:
+```typescript
+industry_quote_type?: string           // "carpet_installation" | "dental" | ...
+typical_job_sizes?: string[]           // ["3-bed home", "commercial space", ...]
+pricing_signals?: string[]             // Any prices visible on site
+service_categories?: string[]          // Services they offer
+quote_confidence?: "high"|"medium"|"low"
+```
+Consultant prompt needs a service-based business extraction section. No breaking schema change.
+
+### Q5: Two parallel live sections — architecturally sound
+Guard: never render empty section. ~460 tokens max for BOTH sections populated — within Gemini budget. Pattern:
+```
+LIVE ROI CALCULATIONS ...     ← only when calculatorResults non-empty
+LIVE QUOTE ...                ← only when quoteResults non-empty
+```
+
+### Q6: QuoteResult schema
+```typescript
+interface QuoteResult {
+  jobType: string
+  description: string
+  totalEstimate: number        // dollars
+  breakdown: Array<{ item: string; cost: number }>
+  confidence: 'high' | 'medium' | 'low'
+  source: 'rate_table' | 'site_pricing' | 'estimate'
+  rateTableVersion: string
+}
+
+// State type addition (parallel to calculatorResults):
+quoteResults: Record<string, QuoteResult>
+```
+
+### Implementation boundary (T9 decision)
+- T2 specs it
+- T3a gates (SPEC_STRESS_TEST — touches state machine + tools + prompt)
+- T4 implements
+- Trent approves Chris scope before build starts
+
+---
+
 ## LINKS + REFERENCES
 
 - Frozen brain roi.ts (canonical): `frozen-bella-rescript-v2-brain/src/roi.ts`
