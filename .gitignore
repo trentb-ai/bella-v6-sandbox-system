@@ -141,3 +141,4 @@ wrangler.jsonc
 
 # Local Netlify folder
 .netlify
+.gitnexus

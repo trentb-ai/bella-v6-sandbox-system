@@ -44,14 +44,19 @@ Trent Belasco (Authority — overrides everything)
 
 ## WHAT WE'RE BUILDING
 
-**Bella** is a voice AI sales receptionist built on Cloudflare Workers, Durable Objects, Deepgram STT/TTS, and Gemini 2.5 Flash. She qualifies inbound leads through a scripted-but-natural conversation flow (WOW → qualify → recommend → close).
+**Bella** is an **inbound website voice AI sales receptionist**. NOT a cold caller. NOT a phone agent. Prospects submit details on a website funnel → system scrapes their site → Bella greets them with personalised insights → demos AI agents tailored to their business.
 
-**Current state:** Bella V7 tagged. All V7 bugs ON HOLD. We are building the **CF Hybrid architecture** — a ground-up rebuild that eliminates the bridge middleman and moves intelligence directly into the Durable Object.
-
-**Repo:** `/Users/trentbelasco/Desktop/BELLA_V1.0_SANDBOX_COMPLETE_SYSTEM`
-**Live frontend:** `cleanestbellav2rescripted.netlify.app` → v2-rescript workers
-**Sandbox frontend:** `demofunnelbellasandboxv8.netlify.app` → v9/sandbox workers
+**Active stack:** MVPScriptBella (~/Desktop/MVPScriptBella/workers/)
+**Reference stack:** NaturalBellaFROZEN (bella-natural-v1 tag — DO NOT TOUCH)
 **KV namespace:** `leads-kv` ID `0fec6982d8644118aba1830afd4a58cb`
+
+**MVP scope:** No ROI delivery. No deep-scrape dependency. Website data + consultant + Google Places only. Value-language recommendations, no dollar figures.
+
+### ⚠️ MANDATORY READ — Architecture Reference
+**BRAIN_DOCS/doc-bella-architecture-how-it-works-20260420.md**
+D1: `doc-bella-architecture-how-it-works-20260420`
+
+This doc explains the FULL pipeline, what consultant returns, what every WOW stall needs, what "Job Done" looks like, and what's descoped for MVP. READ IT before doing any work on Bella. Re-read on drift check.
 
 ---
 
@@ -99,14 +104,18 @@ Each agent MUST do these immediately on launch, restart, or context compression:
 
 1. **Call `set_summary`** with your role
 2. **Read `TEAM_PROTOCOL.md`** (this file)
-3. **Read your individual prompt file** (`prompts/tN_*.md`)
-4. **Call `list_peers`** to see who is online
-5. **Call `check_messages`** to catch anything sent while offline
-6. **Send `STATUS: online`** to T1 with a one-line summary of your role
+3. **Read `BRAIN_DOCS/doc-bella-architecture-how-it-works-20260420.md`** — understand the full pipeline, what's descoped, what "Job Done" means
+4. **Read your individual prompt file** (`prompts/tN_*.md`)
+5. **Call `list_peers`** to see who is online
+6. **Call `check_messages`** to catch anything sent while offline
+7. **Send `STATUS: online`** to T1 with a one-line summary of your role
 
 ### Role-specific startup:
 - **T3 Codex Judge:** Check for pending CODEX_REVIEW_REQUEST messages
 - **T4/T5:** Check for pending TASK_REQUEST from T2
+
+### Drift check refresh:
+On `DRIFT_CHECK:` from T1, re-read steps 2-3 above. The architecture doc is the source of truth for what Bella does, how it works, and what MVP means.
 
 ---
 
@@ -295,3 +304,30 @@ Agents must ONLY work on what is APPROVED, IMPORTANT, and ALIGNED with T1's curr
 8. Every deploy broadcast tells everyone who approved it.
 9. Battle-tested code over improvised solutions. Always.
 10. When idle: plan ahead, read ahead, refresh skills. Never sit empty-handed.
+
+---
+
+## BRAIN D1 LOADING DISCIPLINE (added 2026-04-20)
+
+**On-disk files are the source of truth. Brain D1 is supplementary context.**
+
+Read on-disk files first (`TEAM_PROTOCOL.md`, `canonical/*.md`, your prompt). Only then query Brain.
+
+### DO NOT LOAD — these are human-reference snapshots, not agent-readable content:
+
+- `doc-charlie-team-opus-snapshot-*` — 155KB+ team bundle, meant for Trent to review
+- Any doc ID containing `-snapshot-` or `-all-` or `-bundle-`
+- Any Brain doc where `length(content) > 50000` unless specifically required
+
+### Safe Brain queries (when you need context):
+
+- Project coordinates: `doc-project-coordinates-<project-slug>`
+- Latest session handover: `SELECT id FROM documents WHERE id LIKE 'doc-session-handover-%' ORDER BY created_at DESC LIMIT 1`
+- Specific sprint doc: `doc-<sprint-slug>-<date>`
+- ADRs: `doc-adr-<NNN>-<slug>-<date>`
+
+### If you accidentally load a large bundle doc:
+
+1. Stop reading it immediately
+2. `ALERT: T1 — accidentally loaded large bundle doc [id], [size]KB`
+3. Revert to on-disk canonical files for your rules/doctrine
