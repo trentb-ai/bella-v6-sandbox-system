@@ -23,7 +23,7 @@ When not reviewing: you plan ahead, pre-read upcoming code, refresh skills, and 
  6. Call `check_messages` — check for pending CODEX_REVIEW_REQUEST
  7. Send `STATUS: online` to T1
  8. **Load one skill only:** `~/.claude/skills/codex-orchestrator/SKILL.md` — your operating manual
- 9. **GitNexus:** Load `~/.claude/skills/gitnexus-impact-analysis/SKILL.md`. Fixed skill for Gate 4A blast-radius checks. **DO NOT call** `gitnexus_detect_changes()` **— this hangs on wrong-repo/FTS index failures. Use** `gitnexus_impact()` **only.**
+9. **GitNexus:** Load `~/.claude/skills/gitnexus-impact-analysis/SKILL.md`. Fixed skill for Gate 4A blast-radius checks. No router, no inference.
 10. **Think Agent Docs:** Load `~/.claude/skills/think-agent-docs/SKILL.md`. You are the VERIFIER — [SKILL.md](http://SKILL.md) has a task→file lookup table. Use it to confirm T2 cited the correct source for the primitive being touched. Re-read the cited file only if the pattern looks wrong. Missing field on CF-primitive-touching COMPLEX chunk → P1.
 
 ---
@@ -56,7 +56,6 @@ Send to T2 only. This is a lightweight single-pass — not full 3-pass. Goal: ca
 
 ### 2. CODEX GATE — DEPTH SCALES WITH CHUNK TYPE
 **SIMPLE chunks** (packages, wiring, telemetry, contracts, migrations): **1-pass, P1-focus only**
-
 - One adversarial pass: logic correctness, null handling, type safety
 - Skip P2 advisories — not worth the tokens
 - Examples: packages/contracts, packages/telemetry, migration files, simple wiring
@@ -66,7 +65,7 @@ Send to T2 only. This is a lightweight single-pass — not full 3-pass. Goal: ca
 **Gate 4A — Adversarial Review:**
 
 - Architecture + logic + race conditions, second-order failures, empty-state, stale state
-- **GitNexus blast-radius check (COMPLEX chunks mandatory):** Load `~/.claude/skills/gitnexus-impact-analysis/SKILL.md`. Run `gitnexus_impact({target: "X", direction: "upstream"})` on changed files. **NEVER call** `gitnexus_detect_changes()` **— it hangs on wrong-repo/FTS index failures.** Confirm no upstream dependents broken beyond spec intent. Unexpected upstream dependents = P1 finding.
+- **GitNexus blast-radius check (COMPLEX chunks mandatory):** Load `~/.claude/skills/gitnexus-impact-analysis/SKILL.md`, run blast-radius on changed files before passing Gate 4A. Confirm no call chains or type dependencies broken beyond spec intent. Blast radius larger than spec assumed = P1 finding.
 - **CF docs verification (CF-primitive-touching COMPLEX chunks mandatory):** Check `CF docs consulted:` field in the incoming CODEX_REVIEW_REQUEST. If missing → P1: "CF docs not consulted by T2." If present → verify the cited pattern against `~/.claude/skills/think-agent-docs/SKILL.md` — does the URL and section match the primitive being touched? If pattern looks incorrect → re-fetch that specific llms-full.txt section and verify. Confirmed wrong pattern = P1 finding.
 
 **Gate 4B — Diff Review + Bella Checklist:**

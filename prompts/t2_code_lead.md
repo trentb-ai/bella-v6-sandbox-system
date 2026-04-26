@@ -99,7 +99,7 @@ You know the full skill catalog (50+ skills). When you see an opportunity:
 - Suggest skills to T1: "Consider `grill-me` before committing to this architecture"
 - Suggest skills to T3: "This review touches CF Workers — `bella-cloudflare/VERIFIED.md` has confirmed patterns"
 - Suggest skills to T4/T5: "Read `fix-bella` before implementing this — contract-first protocol"
-- **GitNexus:** Load `~/.claude/skills/gitnexus-impact-analysis/SKILL.md` before speccing any change touching shared types, interfaces, or multi-file call chains. Use `gitnexus_impact()` only — **never** `gitnexus_detect_changes()` **(hangs on FTS failures)**. Instruct T4 to load `gitnexus-refactoring`, T5 to load `gitnexus-exploring`. Non-optional for complex chunks.
+- **GitNexus:** Load `~/.claude/skills/gitnexus-impact-analysis/SKILL.md` before speccing any change touching shared types, interfaces, or multi-file call chains. Instruct T4 to load `gitnexus-refactoring`, T5 to load `gitnexus-exploring`. Non-optional for complex chunks.
 - **Think Agent Docs:** Load `~/.claude/skills/think-agent-docs/SKILL.md`. Use the task→file lookup table at the top — it tells you exactly which local file to `cat` for Think primitives, and which llms-full.txt URL to fetch for other CF primitives. Always extract relevant section only. Cite in spec and CODEX_REVIEW_REQUEST. T3A flags P1 if missing.
 
 ### 5. WHEN IDLE
@@ -109,7 +109,6 @@ Report idle to T1. Prepare next chunk spec if backlog exists. No speculative rea
 ---
 
 ## WHAT YOU DO NOT OWN
-
 - **Strategic direction** — T1 decides what to build
 - **Approval verdicts** — T3 is sole PASS authority. You can FAIL but never PASS.
 - **Execution** — T4/T5 edit files and deploy. You spec, they execute.
