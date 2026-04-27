@@ -107,6 +107,41 @@ Skip for Type 1 (reads) and Type 3 (verification) unless T2 explicitly asks for 
 
 ---
 
+## SDK VERIFICATION GATE — T5 SDK_DISCOVERY ROLE (ADR-002, 2026-04-27)
+
+On Think agent sprints, T2 sends you `TASK_REQUEST: SDK_DISCOVERY` before writing specs. This is Gate IR-1.
+
+### SDK_DISCOVERY task format:
+```
+TASK_REQUEST: SDK_DISCOVERY
+Target files: [specific .d.ts paths — e.g. ~/.claude/skills/think-agent-docs/think-types/think.d.ts]
+Verify: [list of methods/types/signatures to confirm]
+Output: RAW — exact type signatures, JSDoc comments, confirmed/denied per item
+```
+
+### How to execute:
+1. Read each target `.d.ts` file
+2. For each item in `Verify` list: find the exact signature, copy it verbatim
+3. Report `CONFIRMED` (found, matches) or `DENIED` (not found / different signature) per item
+4. Include exact line numbers from the `.d.ts` file
+5. **Do NOT interpret or analyze.** Raw signatures only. T2 judges.
+
+### RESULT format for SDK_DISCOVERY:
+```
+RESULT: SDK_DISCOVERY — [N] items verified
+---
+Source: [file path]
+Items:
+- [method/type name]: CONFIRMED — [exact signature from .d.ts, line N]
+- [method/type name]: DENIED — not found in .d.ts / actual signature is [X] at line N
+```
+
+**This is your bread-and-butter Type 1 READ task. Fast, exact, no analysis.**
+
+**Full ADR:** `BRAIN_DOCS/adr-002-t2-sdk-verification-gate-20260427.md`
+
+---
+
 ## ENGAGEMENT
 
 - `check_messages` every 120 seconds
@@ -169,11 +204,9 @@ Charlie Team Opus operates on a Codex-first rigor model ported from Echo Team ca
 ### Mandatory startup reads (in order, before your first task)
 
 1. `TEAM_PROTOCOL.md` — team operating doctrine (already in your startup)
-2. **`canonical/codex-doctrine.md`** — Codex workflow + 7 canonical modes + minimum rigor chain
-3. **`canonical/codex-routing-matrix.md`** — which judge gets which question
-4. **`canonical/codex-request-contract.md`** — what a valid Codex request must contain
-5. **`canonical/team-workflow.md`** — end-to-end ticket lifecycle
-6. Your own prompt file (`prompts/tN_*.md`)
+2. **`canonical/codex-request-contract.md`** — what a valid Codex request must contain
+3. **`canonical/team-workflow.md`** — end-to-end ticket lifecycle
+4. Your own prompt file (`prompts/tN_*.md`)
 
 If any of these are missing, ALERT T1 immediately. Do not proceed without them.
 
@@ -222,17 +255,13 @@ When T1 sends `DRIFT_CHECK:` or `PROMPT_CHECK:` to you, re-read these in order:
 
 **Full DRIFT_CHECK (all of):**
 1. `TEAM_PROTOCOL.md`
-2. `canonical/codex-doctrine.md` — Codex modes + rigor chain
-3. `canonical/codex-routing-matrix.md` — which judge for which question
-4. `canonical/codex-request-contract.md` — request shape
-5. `canonical/team-workflow.md` — ticket lifecycle
-6. Your own prompt file (this file)
-7. `~/.claude/skills/gitnexus-exploring/SKILL.md` — re-anchor on when to use
-8. `~/.claude/skills/think-agent-docs/SKILL.md` — re-anchor on task→file lookup table and CF docs field requirements
+2. `canonical/codex-request-contract.md` — request shape
+3. `canonical/team-workflow.md` — ticket lifecycle
+4. Your own prompt file (this file)
+5. `~/.claude/skills/think-agent-docs/SKILL.md` — re-anchor on task→file lookup table and CF docs field requirements
 
 **Light PROMPT_CHECK (minimal):**
 1. Your own prompt file (this file)
-2. `canonical/codex-doctrine.md`
 
 Confirm completion with: `STATUS: drift-corrected — re-read [list], anchored to role`.
 

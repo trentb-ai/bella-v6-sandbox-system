@@ -162,6 +162,41 @@ This is the quality engine. Clear separation:
 
 ---
 
+## SDK VERIFICATION GATE — IRRESISTIBLE GATES FOR THINK WORK (ADR-002, 2026-04-27)
+
+**Applies to:** ALL Think agent CODEX_REVIEW_REQUESTs. Non-Think work unchanged.
+
+Codex (GPT CLI) has zero training data on `@cloudflare/think@0.4.0`. Behavioral gates ("please load the reference pack") fail under velocity pressure. These three gates are structural — skipping them is a format error that downstream mechanically catches.
+
+### GATE IR-1: T5 SDK Discovery (before spec)
+**Trigger:** Any spec touching Think SDK methods, types, or behavioral assumptions.
+**Action:** T2 sends `TASK_REQUEST: SDK_DISCOVERY` to T5 with specific `.d.ts` paths from `~/.claude/skills/think-agent-docs/SKILL.md` lookup table.
+**Irresistible because:** T2 cannot write the spec without T5 discovery output.
+
+### GATE IR-2: T2 SDK Evidence Pack Assembly (before CODEX_REVIEW_REQUEST)
+**Trigger:** T4 sends REVIEW_REQUEST on Think agent code. T2 passes 6-gate. Before forwarding to T3A.
+**Action:** T2 assembles `SDK_EVIDENCE_PACK` containing:
+- `VERIFIED_SIGNATURES` — exact method signatures from `.d.ts`, confirmed match to implementation
+- `VERIFIED_TYPES` — exact type fields from `.d.ts`, confirmed match to implementation
+- `SDK_SCOPE_BOUNDARY` — explicit list of what T3A JUDGES (SDK-agnostic) vs DO NOT JUDGE (SDK-specific)
+- `UNRESOLVED_SDK_QUESTIONS` — route to T9, NOT Codex
+**Irresistible because:** This pack is a REQUIRED FIELD in the CODEX_REVIEW_REQUEST. Missing = T3A auto-rejects.
+
+### GATE IR-3: T3A Rejection Mandate (at review time)
+**Trigger:** T3A receives CODEX_REVIEW_REQUEST on Think agent code.
+**Action:** T3A checks three conditions:
+1. `SDK_EVIDENCE_PACK` attached? NO → `CODEX_VERDICT: REJECTED — missing SDK Evidence Pack.`
+2. `SDK_SCOPE_BOUNDARY` present? NO → same rejection.
+3. Any finding touches `DO_NOT_JUDGE` items? → Strip finding: `[STRIPPED — SDK-specific, outside Codex scope per IR-3]`
+**Irresistible because:** Mechanical checklist. No judgment escape hatch.
+
+### Compiler Gate Supremacy
+`tsc --noEmit = 0 errors` outranks any Codex verdict on SDK questions. If Codex says SDK usage is wrong but tsc passes + runtime health passes → Codex is wrong. Build proceeds.
+
+**Full ADR:** `BRAIN_DOCS/adr-002-t2-sdk-verification-gate-20260427.md`
+
+---
+
 ## DEPLOY PROTOCOL — NON-NEGOTIABLE
 
 **T3 CODEX PASS = deploy authority. T1 relays to Trent when required.**
@@ -304,6 +339,7 @@ Agents must ONLY work on what is APPROVED, IMPORTANT, and ALIGNED with T1's curr
 8. Every deploy broadcast tells everyone who approved it.
 9. Battle-tested code over improvised solutions. Always.
 10. When idle: plan ahead, read ahead, refresh skills. Never sit empty-handed.
+11. **THINK-FIRST:** Every new agent capability MUST be built as a Think agent. No raw Workers for agent intelligence. Read `canonical/think-first-law.md`. SDK docs at `~/.claude/skills/think-agent-docs/` are supreme reference — .d.ts wins over all other sources.
 
 ---
 

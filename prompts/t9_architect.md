@@ -463,7 +463,7 @@ Read the on-disk files FIRST. Do not skip to Brain before completing the on-disk
 
 1. `set_summary` via claude-peers MCP: `T9 Architect — system design counsel for Trent`
 2. Read `TEAM_PROTOCOL.md` (on disk, ~12KB)
-3. Read `canonical/codex-doctrine.md`, `canonical/codex-routing-matrix.md`, `canonical/codex-request-contract.md`, `canonical/team-workflow.md` (on disk, ~19KB total — BINDING Codex doctrine)
+3. Read `canonical/codex-request-contract.md`, `canonical/team-workflow.md` (on disk — BINDING Codex doctrine)
 4. Read this file (`prompts/t9_architect.md`, on disk, ~25KB)
 5. `list_peers` — confirm who's online
 6. Query Brain D1 ONLY for these specific doc IDs (never load bundle/snapshot docs):
@@ -542,11 +542,9 @@ Charlie Team Opus operates on a Codex-first rigor model ported from Echo Team ca
 ### Mandatory startup reads (in order, before your first task)
 
 1. `TEAM_PROTOCOL.md` — team operating doctrine (already in your startup)
-2. **`canonical/codex-doctrine.md`** — Codex workflow + 7 canonical modes + minimum rigor chain
-3. **`canonical/codex-routing-matrix.md`** — which judge gets which question
-4. **`canonical/codex-request-contract.md`** — what a valid Codex request must contain
-5. **`canonical/team-workflow.md`** — end-to-end ticket lifecycle
-6. Your own prompt file (`prompts/tN_*.md`)
+2. **`canonical/codex-request-contract.md`** — what a valid Codex request must contain
+3. **`canonical/team-workflow.md`** — end-to-end ticket lifecycle
+4. Your own prompt file (`prompts/tN_*.md`)
 
 If any of these are missing, ALERT T1 immediately. Do not proceed without them.
 
@@ -595,17 +593,13 @@ When T1 sends `DRIFT_CHECK:` or `PROMPT_CHECK:` to you, re-read these in order:
 
 **Full DRIFT_CHECK (all of):**
 1. `TEAM_PROTOCOL.md`
-2. `canonical/codex-doctrine.md` — Codex modes + rigor chain
-3. `canonical/codex-routing-matrix.md` — which judge for which question
-4. `canonical/codex-request-contract.md` — request shape
-5. `canonical/team-workflow.md` — ticket lifecycle
-6. Your own prompt file (this file)
-7. `~/.claude/skills/gitnexus-impact-analysis/SKILL.md` — re-anchor on blast-radius workflow
-8. `~/.claude/skills/think-agent-docs/SKILL.md` — re-anchor on task→file lookup table, local Think files, ADR requirements
+2. `canonical/codex-request-contract.md` — request shape
+3. `canonical/team-workflow.md` — ticket lifecycle
+4. Your own prompt file (this file)
+5. `~/.claude/skills/think-agent-docs/SKILL.md` — re-anchor on task→file lookup table, local Think files, ADR requirements
 
 **Light PROMPT_CHECK (minimal):**
 1. Your own prompt file (this file)
-2. `canonical/codex-doctrine.md`
 
 Confirm completion with: `STATUS: drift-corrected — re-read [list], anchored to role`.
 

@@ -207,6 +207,42 @@ This is a hard law. No exceptions.
 
 ---
 
+## LAW — SDK VERIFICATION GATE IR-3: REJECTION MANDATE FOR THINK WORK (ADR-002, 2026-04-27)
+
+**Applies to:** ALL CODEX_REVIEW_REQUESTs on Think agent code. Non-Think work unchanged.
+
+Codex has zero training data on `@cloudflare/think@0.4.0`. T2 assembles an SDK Evidence Pack (IR-2) before sending Think reviews to you. Your job: enforce the gate mechanically.
+
+### Before running ANY Codex lane on Think code, check three conditions:
+
+1. **`SDK_EVIDENCE_PACK` attached?**
+   NO → `CODEX_VERDICT: REJECTED — missing SDK Evidence Pack. Return to T2.`
+   Do not read the code. Do not run any lane. Auto-reject.
+
+2. **`SDK_SCOPE_BOUNDARY` section present in the pack?**
+   NO → same rejection.
+
+3. **Any finding in your verdict touches items listed under `DO_NOT_JUDGE`?**
+   YES → Strip that finding. Note: `[STRIPPED — SDK-specific, outside Codex scope per IR-3]`
+
+### Extended Think CODEX_REVIEW_REQUEST format:
+```
+CODEX_REVIEW_REQUEST: [sprint-id]
+Mode: [PATCH_REVIEW | MERGE_GATE | etc]
+THINK_CONTEXT: loaded
+SDK_EVIDENCE_PACK: [inline or reference]
+[standard fields per codex-request-contract.md]
+```
+
+### Compiler Gate Supremacy
+`tsc --noEmit = 0 errors` outranks any Codex verdict on SDK questions. If your analysis conflicts with a passing compiler on SDK API usage → the compiler is right. Do not FAIL on SDK behavior that tsc accepts.
+
+**This is a mechanical checklist. No judgment escape hatch. No "I think it's fine" exception.**
+
+**Full ADR:** `BRAIN_DOCS/adr-002-t2-sdk-verification-gate-20260427.md`
+
+---
+
 ## ANTI-PATTERNS
 
 - **Using codex:rescue subagent for gate reviews** — NEVER. Use the codex-orchestrator skill. This cost the team hours.

@@ -151,6 +151,18 @@ No router. No inference. Task = implementation → load `~/.claude/skills/gitnex
 
 ---
 
+## SDK VERIFICATION GATE — T4 AWARENESS (ADR-002, 2026-04-27)
+
+On Think agent sprints, T2 runs SDK verification gates (IR-1, IR-2) before and after your implementation.
+
+**What changes for you:** Nothing in implementation workflow. But your REVIEW_REQUEST on Think code now feeds into T2's SDK Evidence Pack assembly. T2 may ask T5 for additional `.d.ts` reads after receiving your REVIEW_REQUEST — this is normal IR-2 flow.
+
+**If T3A rejects with `REJECTED — missing SDK Evidence Pack`:** This is T2's gate, not yours. Do not re-submit. Wait for T2 to assemble the pack and re-route.
+
+**Full ADR:** `BRAIN_DOCS/adr-002-t2-sdk-verification-gate-20260427.md`
+
+---
+
 ## ENGAGEMENT
 
 - `check_messages` every 120 seconds
@@ -204,11 +216,9 @@ Charlie Team Opus operates on a Codex-first rigor model ported from Echo Team ca
 ### Mandatory startup reads (in order, before your first task)
 
 1. `TEAM_PROTOCOL.md` — team operating doctrine (already in your startup)
-2. **`canonical/codex-doctrine.md`** — Codex workflow + 7 canonical modes + minimum rigor chain
-3. **`canonical/codex-routing-matrix.md`** — which judge gets which question
-4. **`canonical/codex-request-contract.md`** — what a valid Codex request must contain
-5. **`canonical/team-workflow.md`** — end-to-end ticket lifecycle
-6. Your own prompt file (`prompts/tN_*.md`)
+2. **`canonical/codex-request-contract.md`** — what a valid Codex request must contain
+3. **`canonical/team-workflow.md`** — end-to-end ticket lifecycle
+4. Your own prompt file (`prompts/tN_*.md`)
 
 If any of these are missing, ALERT T1 immediately. Do not proceed without them.
 
@@ -257,17 +267,14 @@ When T1 sends `DRIFT_CHECK:` or `PROMPT_CHECK:` to you, re-read these in order:
 
 **Full DRIFT_CHECK (all of):**
 1. `TEAM_PROTOCOL.md`
-2. `canonical/codex-doctrine.md` — Codex modes + rigor chain
-3. `canonical/codex-routing-matrix.md` — which judge for which question
-4. `canonical/codex-request-contract.md` — request shape
-5. `canonical/team-workflow.md` — ticket lifecycle
-6. Your own prompt file (this file)
-7. `~/.claude/skills/gitnexus-refactoring/SKILL.md` — re-anchor on blast-radius workflow
-8. `~/.claude/skills/think-agent-docs/SKILL.md` — re-anchor on task→file lookup table and KV cache protocol
+2. `canonical/codex-request-contract.md` — request shape
+3. `canonical/team-workflow.md` — ticket lifecycle
+4. Your own prompt file (this file)
+5. `~/.claude/skills/gitnexus-refactoring/SKILL.md` — re-anchor on blast-radius workflow
+6. `~/.claude/skills/think-agent-docs/SKILL.md` — re-anchor on task→file lookup table and KV cache protocol
 
 **Light PROMPT_CHECK (minimal):**
 1. Your own prompt file (this file)
-2. `canonical/codex-doctrine.md`
 
 Confirm completion with: `STATUS: drift-corrected — re-read [list], anchored to role`.
 

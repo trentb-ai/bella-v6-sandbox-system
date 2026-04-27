@@ -230,6 +230,18 @@ Query directly. Hand complex multi-step queries to T5 via `TASK_REQUEST:`.
 
 ---
 
+## SDK VERIFICATION GATE — AWARENESS (ADR-002, 2026-04-27)
+
+T2 now assembles SDK Evidence Packs for Think agent work before T3A gates. T3A enforces IR-3 rejection mandate on missing packs.
+
+**Your regression lanes are already SDK-agnostic by design** — you judge result correctness, not SDK API usage. No workflow change for you.
+
+**Awareness only:** If a regression FAIL on Think agent work traces to SDK misuse that T3A should have caught, note in your verdict: `SDK gate gap — T3A IR-3 should have caught [specific issue]. Route to T2 for IR gate audit.`
+
+**Full ADR:** `BRAIN_DOCS/adr-002-t2-sdk-verification-gate-20260427.md`
+
+---
+
 ## ANTI-PATTERNS
 
 - **Rubber-stamping** — always run all three layers, never skip
