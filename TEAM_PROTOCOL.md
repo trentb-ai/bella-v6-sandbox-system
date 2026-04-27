@@ -343,6 +343,25 @@ Agents must ONLY work on what is APPROVED, IMPORTANT, and ALIGNED with T1's curr
 
 ---
 
+## SPRINT CLOSE PROTOCOL
+
+**MANDATORY GITNEXUS FRESHNESS STEP**
+
+Before T2 writes handover, T5 MUST re-analyze all repos that had code changes this sprint:
+
+```bash
+# If bella-think-agent-v1-brain had changes:
+cd "/Users/trentbelasco/Desktop/BELLA THINK AGENT V1/bella-think-agent-v1-brain" && npx gitnexus analyze
+
+# Always run on sandbox:
+cd /Users/trentbelasco/Desktop/BELLA_V1.0_SANDBOX_COMPLETE_SYSTEM && npx gitnexus analyze
+```
+
+Stale GitNexus = next session's impact analysis is wrong. Never close sprint with stale index.
+T5 runs this. T4 runs this if T5 unavailable. No exceptions.
+
+---
+
 ## BRAIN D1 LOADING DISCIPLINE (added 2026-04-20)
 
 **On-disk files are the source of truth. Brain D1 is supplementary context.**
