@@ -1,0 +1,48 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(codex *)",
+      "Bash(codex exec *)",
+      "Skill(codex:rescue)",
+      "mcp__claude-peers__check_messages",
+      "mcp__claude-peers__list_peers",
+      "mcp__claude_ai_Cloudflare_Developer_Platform__d1_database_query",
+      "mcp__plugin_context7_context7__query-docs",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "Bash(curl -s *)",
+      "Bash(which codex && codex --version*)",
+      "Bash(cd \"/Users/trentbelasco/Desktop/BELLA THINK AGENT V1/bella-think-agent-v1-brain\" && npx tsc --noEmit*)",
+      "mcp__claude-peers__set_summary",
+      "mcp__claude-peers__send_message",
+      "Bash(cd \"/Users/trentbelasco/Desktop/BELLA THINK AGENT V1/bella-think-agent-v1-brain\" && npm run typecheck *)",
+      "Bash(~/.claude/skills/gstack/bin/gstack-update-check *)",
+      "Bash(~/.claude/skills/gstack/bin/gstack-config get *)",
+      "Bash(npx wrangler tail *)",
+      "Bash(npx wrangler kv key list *)",
+      "Bash(npx wrangler kv key get *)",
+      "Bash(npx wrangler r2 object get *)",
+      "Bash(npx wrangler r2 object list *)",
+      "Bash(npm run typecheck *)",
+      "Bash(git -C * diff *)",
+      "Bash(git -C * log *)",
+      "Bash(git -C * show *)",
+      "Bash(git -C * status*)",
+      "mcp__claude_ai_Google_Drive__search_files",
+      "Bash(git -C * branch *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"/Users/trentbelasco/Desktop/BELLA THINK AGENT V1/bella-think-agent-v1-brain\" && npx gitnexus analyze 2>/dev/null || true; cd \"/Users/trentbelasco/Desktop/BELLA_V1.0_SANDBOX_COMPLETE_SYSTEM\" && npx gitnexus analyze 2>/dev/null || true",
+            "timeout": 120,
+            "statusMessage": "Refreshing GitNexus indexes..."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+
+ ⛅️ wrangler 4.78.0 (update available 4.80.0)
+─────────────────────────────────────────────
+Successfully created tail, expires at 2026-04-04T10:32:40Z
+Connected to call-brain-do-v2-rescript, waiting for logs...
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=gem_debug_20260404 - Ok @ 04/04/2026, 4:03:29 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=gem_debug_20260404 - Ok @ 04/04/2026, 4:03:30 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=gem_debug_20260404 - Ok @ 04/04/2026, 4:03:29 pm
+  (log) [KV_HYDRATE] lid=gem_debug_20260404 no intel in KV yet
+  (log) [ALARM_SCHED] next in 20s
+  (log) [INIT] callId=4dfe67c2540fee12d74a1ca3dda851fdf4d736efcd6227db890be79f39a499e8 leadId=gem_debug_20260404 stage=greeting ts=2026-04-04T05:03:30.158Z name=none biz=none industry=none
+  (log) [INIT_INTEL] callId=4dfe67c2540fee12d74a1ca3dda851fdf4d736efcd6227db890be79f39a499e8 fast=false consultant=false deep=false mergedVersion=0 kvSources=empty
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=2 stage=greeting
+  (log) [GEMINI_DEBUG] SKIPPED: condition failed (geminiKey=true len>2=false)
+  (log) [EXTRACT] stage=greeting det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=1 role=user chars=2
+  (log) [TURN] turnId=1 stage=greeting wowStep=null extracted=[]
+  (log) [ADVANCE] greeting → wow (wow_1_research_intro)
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:03:30.161Z source=GENERIC name=Test biz=Test industry=business
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:03:30.161Z source=GENERIC name=Test biz=Test industry=business
+  (log) [DIRECTIVE] ts=2026-04-04T05:03:30.161Z stage=wow wowStep=wow_1_research_intro ask=true canSkip=false waitForUser=true speak="The idea is simple. So Test, your agents will engage with you in real time. They'll answer questions"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=gem_debug_20260404 - Ok @ 04/04/2026, 4:03:30 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_1_research_intro name=Test biz=Test fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=9 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=0 signals=no
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=2 role=user chars=9
+  (log) [TURN] turnId=2 stage=wow wowStep=wow_1_research_intro extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_1_research_intro elapsed=357ms < min=2000ms — holding delivery
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:03:30.518Z source=GENERIC name=Test biz=Test industry=business
+  (log) [DIRECTIVE] ts=2026-04-04T05:03:30.518Z stage=wow wowStep=wow_1_research_intro ask=true canSkip=false waitForUser=true speak="The idea is simple. So Test, your agents will engage with you in real time. They'll answer questions"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=gem_debug_20260404 - Ok @ 04/04/2026, 4:03:30 pm
+POST https://call-brain-do-v2-rescript.trentbelasco.workers.dev/turn?callId=gem_debug_20260404 - Ok @ 04/04/2026, 4:03:30 pm
+  (log) [ENSURE] existing session — stage=wow wowStep=wow_1_research_intro name=Test biz=Test fast=false consultant=false deep=false mergedV=0
+  (log) [GEMINI_DEBUG] geminiKey=set transcript_len=46 stage=wow
+  (log) [GEMINI_DEBUG] calling geminiExtract...
+  (log) [GEMINI_DEBUG] geminiExtract returned: fields=0 signals=no
+  (log) [EXTRACT] stage=wow det=[] gemini=[] regex=[]
+  (log) [TRANSCRIPT] entries=3 role=user chars=46
+  (log) [TURN] turnId=3 stage=wow wowStep=wow_1_research_intro extracted=[]
+  (log) [DELIVERY_GATE_HOLD] moveId=v2_wow_wow_1_research_intro elapsed=594ms < min=2000ms — holding delivery
+  (log) [WOW1_RESOLVE] ts=2026-04-04T05:03:30.755Z source=GENERIC name=Test biz=Test industry=business
+  (log) [DIRECTIVE] ts=2026-04-04T05:03:30.755Z stage=wow wowStep=wow_1_research_intro ask=true canSkip=false waitForUser=true speak="The idea is simple. So Test, your agents will engage with you in real time. They'll answer questions"
+  (log) [CRITICAL_FACTS] count=0 keys=NO_INTEL
+  (log) [CONTEXT_NOTES] stage=wow count=0 keys=NO_INTEL
+  (log) [ALARM_SCHED] next in 10s
+  (log) [COMPAT_EXPORT] lid=gem_debug_20260404 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=gem_debug_20260404 captured=yes roi=no_calcs
+  (log) [COMPAT_EXPORT] lid=gem_debug_20260404 captured=yes roi=no_calcs

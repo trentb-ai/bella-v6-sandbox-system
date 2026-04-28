@@ -6,7 +6,7 @@
 
 import { Agent, routeAgentRequest } from "agents";
 
-const VERSION = "4.2.0-EOT-INJECT"; // Sprint E2A: high-reliability EOT + InjectAgentMessage infrastructure
+const VERSION = "4.3.0-THINK-NATIVE"; // Think-native: BRAIN_URL direct, no bridge
 const log = (tag: string, msg: string, t0?: number) => {
   const elapsed = t0 !== undefined ? ` [+${Date.now() - t0}ms]` : "";
   console.log(`[BellaV4 ${VERSION}] [${tag}]${elapsed} ${msg}`);
@@ -45,7 +45,7 @@ interface Env {
   TOOLS: Fetcher;              // V3: service binding to bella-tools-worker-v9-sandbox
   DEEPGRAM_API_KEY: string;
   MCP_WORKER_URL: string;
-  BRIDGE_URL: string;          // Deepgram bridge endpoint for LLM calls
+  BRAIN_URL: string;           // Think brain base URL — lid appended at runtime
   TOOLS_WORKER_URL: string;    // Legacy — prefer TOOLS service binding
   GHL_LOCATION_ID: string;
 }
@@ -707,12 +707,9 @@ VOICE CALL RULES:
               model: DG_LLM_MODEL,
             },
             endpoint: {
-              url: this.env.BRIDGE_URL,
+              url: `${this.env.BRAIN_URL}/turn/${this.lid}`,
             },
-            // Bridge replaces this system prompt on every turn with a lean
-            // stage-specific prompt (~150 tokens). This is just a fallback
-            // identity in case the bridge is unreachable.
-            prompt: `You are Bella, Strategic Intelligence Director at Pillar and Post AI. Warm, sharp, Australian. Your lead ID is: ${this.lid}. prospect_first_name: ${this.prospectFirstName || "unknown"}. prospect_business: ${this.prospectBusiness || "unknown"}.`,
+            prompt: `You are Bella, Strategic Intelligence Director at Pillar and Post AI. Warm, sharp, Australian. lead_id: ${this.lid}. prospect_first_name: ${this.prospectFirstName || "unknown"}. prospect_business: ${this.prospectBusiness || "unknown"}.`,
             functions: TOOLS,
           },
           speak: {

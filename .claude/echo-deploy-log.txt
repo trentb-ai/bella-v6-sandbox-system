@@ -1,0 +1,21 @@
+[2026-04-20 16:09:17 AEST] DEPLOY ATTEMPT | Agent: unknown | Command: cd /Users/trentbelasco/Desktop/PROJECT_CLAW/brain-worker && npx wrangler deploy 2>&1
+[2026-04-20 16:09:33 AEST] DEPLOY ATTEMPT | Agent: unknown | Command: npx wrangler deployments list --name "MVPSCRIPTBELLAconsultant" 2>&1 | head -15
+[2026-04-20 17:20:58 AEST] DEPLOY ATTEMPT | Agent: unknown | Command: cd /Users/trentbelasco/Desktop/PROJECT_CLAW/brain-worker && npx wrangler deploy 2>&1
+[2026-04-20 17:21:05 AEST] DEPLOY ATTEMPT | Agent: unknown | Command: cd /Users/trentbelasco/Desktop/PROJECT_CLAW/brain-worker && CLAUDE_CODE_AGENT_NAME="T4 Minion A" npx wrangler deploy 2>&1
+[2026-04-20 17:21:25 AEST] DEPLOY ATTEMPT | Agent: unknown | Command: cd /Users/trentbelasco/Desktop/PROJECT_CLAW/brain-worker && npx wrangler deploy 2>&1
+[2026-04-20 17:50:49 AEST] DEPLOY ATTEMPT | Agent: unknown | Command: cd /Users/trentbelasco/Desktop/PROJECT_CLAW/brain-worker && git add src/jobs/echo-relational-writers.ts src/workflows/pass2.ts wrangler.toml && git commit -m "$(cat <<'EOF'
+T-202: writeTypedEdges returns dropped edges, add drop counters to pass2 log
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+EOF
+)" && npx wrangler deploy 2>&1
+[2026-04-20 18:18:37 AEST] DEPLOY ATTEMPT | Agent: unknown | Command: cd /Users/trentbelasco/Desktop/PROJECT_CLAW/brain-worker && git add src/prompts/pass2d-relations.ts src/jobs/echo-relational-writers.ts wrangler.toml && git commit -m "$(cat <<'EOF'
+T-203: exact-title CRITICAL directive in all 3 category prompts, word-overlap fallback resolver
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+EOF
+)" && npx wrangler deploy 2>&1
+[2026-04-20 18:34:54 AEST] DEPLOY ATTEMPT | Agent: unknown | Command: cd /Users/trentbelasco/Desktop/PROJECT_CLAW/brain-worker && npx wrangler deploy 2>&1 | tail -20
+[2026-04-20 18:36:27 AEST] DEPLOY ATTEMPT | Agent: unknown | Command: cd /Users/trentbelasco/Desktop/PROJECT_CLAW/brain-worker && npx wrangler deploy 2>&1 | tail -15
+[2026-04-20 19:06:31 AEST] DEPLOY ATTEMPT | Agent: unknown | Command: cd /Users/trentbelasco/Desktop/MVPScriptBella/workers/consultant && npx wrangler deploy 2>&1
+[2026-04-20 19:09:47 AEST] DEPLOY ATTEMPT | Agent: unknown | Command: cd /Users/trentbelasco/Desktop/MVPScriptBella/workers/consultant && npx wrangler deploy 2>&1

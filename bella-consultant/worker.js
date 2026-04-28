@@ -2,7 +2,7 @@
 // Bella's Intel Analyst — receives scraped data, returns script-ready analysis
 // Separate atomic worker, called via service binding from scraper Phase B
 
-const VERSION = '6.12.0-pass2';
+const VERSION = '6.12.4';
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -197,7 +197,7 @@ const MODELS = [
   },
 ];
 
-async function callMicro(name, prompt, apiKey) {
+async function callMicro(name, prompt, apiKey, responseFormat = { type: "json_object" }) {
   for (const model of MODELS) {
     try {
       const t0 = Date.now();
@@ -210,7 +210,7 @@ async function callMicro(name, prompt, apiKey) {
         body: JSON.stringify({
           model: model.name,
           messages: [{ role: "user", content: prompt }],
-          response_format: { type: "json_object" },
+          response_format: responseFormat,
           max_tokens: model.maxTokens,
           temperature: model.temp,
           reasoning_effort: "none",
@@ -533,48 +533,7 @@ ${JSON.stringify(p, null, 2)}
 
 Read websiteContent carefully. Focus on: messaging quality, specific copy lines, stated benefits, brand voice, and how the business describes itself.
 
-Return ONLY this JSON. Nothing else. No markdown. No preamble.
-
-{
-  "businessIdentity": {
-    "correctedName": "The REAL business name — natural, conversational. Cross-reference page copy, og:site_name, JSON-LD, footer copyright, domain. Strip Pty Ltd, city names. e.g. 'Pitcher Partners' not 'Pitcher Partners Sydney Pty Ltd'.",
-    "spokenName": "REQUIRED. Short name a person would naturally say in conversation — what Bella says on the call. Strip city/country/legal suffixes. Max 2-3 words. e.g. 'Penguin Random House Australia' → 'Penguin', 'KPMG' → 'KPMG', 'Commonwealth Bank of Australia' → 'CommBank'.",
-    "industry": "The CORRECT industry based on what the business actually does — read their services, about page, copy. Be specific. e.g. 'accounting and advisory', 'plumbing', 'dental', 'legal'.",
-    "businessModel": "B2B or B2C or Both — based on who their customers are from the copy",
-    "serviceArea": "Where they operate — national, state-wide, or local. Infer from copy, office locations, service mentions."
-  },
-  "scriptFills": {
-    "website_positive_comment": "A specific STRATEGIC observation about their positioning, copy, or approach that shows genuine understanding. NOT a generic compliment. An INSIGHT that would make the owner think 'they actually understand our business'. Reference specific copy, positioning decisions, or market strategy from the content.",
-    "hero_header_quote": "Their actual H1/hero headline verbatim from the content — or null if not found",
-    "reference_offer": "Their primary service or offer as named on the site",
-    "icp_guess": "Who their ideal customer appears to be — use their language. Frame as something Bella can CHECK: 'it looks like you mainly work with X, is that right?'",
-    "campaign_summary": "What ads they are running — or null if no ad data available",
-    "rep_commentary": "Qualitative assessment of their Google reputation if data available — warm, specific, cite numbers. null if no Google data in payload.",
-    "recent_review_snippet": "Best customer quote from their reviews verbatim — or null if no reviews in payload",
-    "rep_quality_assessment": "Brief assessment of review quality if data exists — themes, sentiment. null if no review data in payload.",
-    "top_2_website_ctas": "Their top 2 CTAs from the website in natural language",
-    "scrapedDataSummary": "Single spoken observation max 25 words. SPECIFIC data point from Google reviews, ads, or hiring signals in the payload. NOT a website compliment. Actual data only. MUST END with which agent (Alex/Chris/Maddie) would address this and HOW. E.g., 'you're running Google Ads — Chris can engage every visitor landing from those campaigns'. null if no scraped data available.",
-    "bella_opener": "A natural spoken opening line Bella can say that references something specific from the research — e.g. 'Hi [name], so we have had a proper look at [business] before this call and I have to say there are some really interesting things happening there.'"
-  },
-  "copyAnalysis": {
-    "messagingStrength": "What the copy does well — cite specific phrases or sections",
-    "strongestLine": "The single most compelling line on the entire site — verbatim quote",
-    "toneAndVoice": "Brand voice description — e.g. professional, warm, authoritative, clinical, casual",
-    "bellaLine": "Single sentence Bella can say that compliments the copy specifically — must reference something precise from the copy, not a generic observation"
-  },
-  "valuePropAnalysis": {
-    "statedBenefits": ["List of specific outcome/benefit claims from the copy — not service names, real outcomes"],
-    "strongestBenefit": "The most compelling specific benefit claim on the site",
-    "missingBenefits": "What outcomes do they deliver that they do NOT clearly claim on the site?",
-    "bellaLine": "One sentence Bella can say referencing a specific benefit from the copy"
-  },
-  "websiteCompliments": [
-    { "what": "Something genuinely specific and impressive from the COPY", "evidence": "Verbatim quote or specific data point", "bellaLine": "Natural sentence Bella can say" },
-    { "what": "A second different impressive thing — different category from first", "evidence": "Specific evidence", "bellaLine": "Natural sentence" }
-  ]
-}
-
-FINAL CHECK — Before returning, scan every string value in your response for "they" or "their" referring to the business or owner. Replace with "you" or "your". This is non-negotiable.`;
+Return ONLY the JSON with all required fields. No markdown, no preamble, no explanation.`;
 }
 
 function buildPromptResearch(p) {
@@ -709,16 +668,7 @@ ${payload.websiteContent || ""}
 INSTRUCTIONS:
 1. Read the content. Understand what this business ACTUALLY does, who they serve, and how they position themselves.
 2. Cross-reference ALL name signals (og:site_name, JSON-LD, footer, page title, domain, and the ACTUAL COPY) to confirm the real business name.
-3. Return ONLY the JSON below. Nothing else. No markdown. No preamble.
-
-{
-  "correctedName": "The REAL business name — natural, conversational. Cross-reference page copy, og:site_name, JSON-LD, footer copyright, domain. Strip Pty Ltd, city names. e.g. 'Pitcher Partners' not 'Pitcher Partners Sydney Pty Ltd'.",
-  "industry": "Specific industry from reading the actual content. Not from the domain name. e.g. 'accounting and advisory' not 'business'.",
-  "icp_guess": "WHO they sell to — be specific, use THEIR language from the copy. Frame as something to CHECK: 'you mainly work with X' not 'businesses seeking services'. If they serve mid-market, say mid-market. If they target trades, say trades. Read the copy.",
-  "reference_offer": "Their PRIMARY services — list them specifically from the copy. Not one generic word. e.g. 'tax compliance, audit, business advisory and wealth management' not 'Advisory'.",
-  "market_positioning": "How they position themselves vs competitors. What makes them DIFFERENT. This must show you READ the copy. e.g. 'partner-led, relationship-driven alternative to Big Four for mid-market businesses' — not generic waffle.",
-  "website_insight": "One specific STRATEGIC observation about their business that shows genuine understanding. NOT a compliment. An INSIGHT about their approach, their market strategy, or something specific from their copy that reveals how they think about their business. This must make the owner think 'they actually get us'."
-}`;
+3. Respond with only the JSON. No markdown, no preamble, no explanation.`;
 
   try {
     const t0 = Date.now();
@@ -732,7 +682,26 @@ INSTRUCTIONS:
       body: JSON.stringify({
         model: "gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "fast_consultant_extraction",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                correctedName: { type: "string", description: "The REAL business name — natural, conversational. Cross-reference page copy, og:site_name, JSON-LD, footer copyright, domain. Strip Pty Ltd, city names. e.g. 'Pitcher Partners' not 'Pitcher Partners Sydney Pty Ltd'." },
+                industry: { type: "string", description: "Specific industry from reading the actual content. Not from the domain name. e.g. 'accounting and advisory' not 'business'." },
+                icp_guess: { type: "string", description: "WHO they sell to — be specific, use THEIR language from the copy. Frame as something to CHECK: 'you mainly work with X' not 'businesses seeking services'. If they serve mid-market, say mid-market. If they target trades, say trades. Read the copy." },
+                reference_offer: { type: "string", description: "Their PRIMARY services — list them specifically from the copy. Not one generic word. e.g. 'tax compliance, audit, business advisory and wealth management' not 'Advisory'." },
+                market_positioning: { type: "string", description: "How they position themselves vs competitors. What makes them DIFFERENT. This must show you READ the copy. e.g. 'partner-led, relationship-driven alternative to Big Four for mid-market businesses' — not generic waffle." },
+                website_insight: { type: "string", description: "One specific STRATEGIC observation about their business that shows genuine understanding. NOT a compliment. An INSIGHT about their approach, their market strategy, or something specific from their copy that reveals how they think about their business. This must make the owner think 'they actually get us'." }
+              },
+              required: ["correctedName", "industry", "icp_guess", "reference_offer", "market_positioning", "website_insight"],
+              additionalProperties: false
+            }
+          }
+        },
         max_tokens: 800,
         temperature: 0.5,
         reasoning_effort: "none",
@@ -786,7 +755,88 @@ async function runConsultant(payload, env) {
   const [rICP, rConversion, rCopy, rResearch] = await Promise.all([
     callMicro('icp', buildPromptICP(p), apiKey),
     callMicro('conversion', buildPromptConversion(p), apiKey),
-    callMicro('copy', buildPromptCopy(p), apiKey),
+    callMicro('copy', buildPromptCopy(p), apiKey, {
+      type: "json_schema",
+      json_schema: {
+        name: "copy_analysis",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            businessIdentity: {
+              type: "object",
+              properties: {
+                correctedName: { type: "string", description: "The REAL business name — natural, conversational. Cross-reference page copy, og:site_name, JSON-LD, footer copyright, domain. Strip Pty Ltd, city names." },
+                spokenName: { type: "string", description: "REQUIRED. Short name a person would naturally say in conversation. Strip city/country/legal suffixes. Max 2-3 words." },
+                industry: { type: "string", description: "The CORRECT industry based on what the business actually does. Be specific. e.g. 'accounting and advisory', 'plumbing', 'dental'." },
+                businessModel: { type: "string", description: "B2B or B2C or Both — based on who their customers are from the copy" },
+                serviceArea: { type: "string", description: "Where they operate — national, state-wide, or local." }
+              },
+              required: ["correctedName", "spokenName", "industry", "businessModel", "serviceArea"],
+              additionalProperties: false
+            },
+            scriptFills: {
+              type: "object",
+              properties: {
+                website_positive_comment: { type: "string", description: "A specific STRATEGIC observation about their positioning that shows genuine understanding. NOT a generic compliment. An insight that makes the owner think 'they actually get us'. — Write in second person: 'you' and 'your' for the business, 'they/their' for the business's customers only." },
+                hero_header_quote: { type: ["string", "null"], description: "Their actual H1/hero headline verbatim — null if not found" },
+                reference_offer: { type: "string", description: "Their primary service or offer as named on the site" },
+                icp_guess: { type: "string", description: "Who their ideal customer appears to be — use their language from the copy — Frame as a check: 'it looks like you mainly work with X, is that right?'" },
+                campaign_summary: { type: ["string", "null"], description: "What ads they are running — null if no ad data available" },
+                rep_commentary: { type: ["string", "null"], description: "Qualitative assessment of their Google reputation — null if no data" },
+                recent_review_snippet: { type: ["string", "null"], description: "Best customer quote from their reviews verbatim — null if no reviews" },
+                rep_quality_assessment: { type: ["string", "null"], description: "Brief assessment of review quality — null if no review data" },
+                top_2_website_ctas: { type: "string", description: "Their top 2 CTAs from the website in natural language" },
+                scrapedDataSummary: { type: ["string", "null"], description: "Single spoken observation max 25 words from data in payload. Must end with which agent (Alex/Chris/Maddie) addresses this. — Actual data only. Must reference specific data point from payload. null if no scraped data." },
+                bella_opener: { type: "string", description: "A natural spoken opening line referencing something specific from the research" }
+              },
+              required: ["website_positive_comment", "hero_header_quote", "reference_offer", "icp_guess", "campaign_summary", "rep_commentary", "recent_review_snippet", "rep_quality_assessment", "top_2_website_ctas", "scrapedDataSummary", "bella_opener"],
+              additionalProperties: false
+            },
+            copyAnalysis: {
+              type: "object",
+              properties: {
+                messagingStrength: { type: "string", description: "What the copy does well — cite specific phrases" },
+                strongestLine: { type: "string", description: "The single most compelling line — verbatim quote" },
+                toneAndVoice: { type: "string", description: "Brand voice description — e.g. professional, warm, authoritative" },
+                bellaLine: { type: "string", description: "Single sentence Bella can say complimenting the copy specifically" }
+              },
+              required: ["messagingStrength", "strongestLine", "toneAndVoice", "bellaLine"],
+              additionalProperties: false
+            },
+            valuePropAnalysis: {
+              type: "object",
+              properties: {
+                statedBenefits: { type: "array", items: { type: "string" }, description: "Specific outcome/benefit claims from the copy — not service names, real outcomes" },
+                strongestBenefit: { type: "string", description: "The most compelling specific benefit claim on the site" },
+                missingBenefits: { type: "string", description: "Outcomes they deliver but do not clearly claim on the site" },
+                bellaLine: { type: "string", description: "One sentence referencing a specific benefit from the copy" }
+              },
+              required: ["statedBenefits", "strongestBenefit", "missingBenefits", "bellaLine"],
+              additionalProperties: false
+            },
+            websiteCompliments: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  what: { type: "string", description: "Something genuinely specific and impressive from the copy" },
+                  evidence: { type: "string", description: "Verbatim quote or specific data point" },
+                  bellaLine: { type: "string", description: "Natural sentence Bella can say" }
+                },
+                required: ["what", "evidence", "bellaLine"],
+                additionalProperties: false
+              },
+              minItems: 2,
+              maxItems: 2,
+              description: "Exactly 2 website compliments"
+            }
+          },
+          required: ["businessIdentity", "scriptFills", "copyAnalysis", "valuePropAnalysis", "websiteCompliments"],
+          additionalProperties: false
+        }
+      }
+    }),
     callMicro('research', buildPromptResearch(p), apiKey),
   ]);
 

@@ -21,7 +21,7 @@ binding = "TOOLS"
 service = "frozen-bella-natural-tools"
 
 [vars]
-BRIDGE_URL = "https://frozen-bella-natural-bridge.trentbelasco.workers.dev/v9/chat/completions"
+BRAIN_URL = "https://bella-think-agent-v1-brain.trentbelasco.workers.dev"
 TOOLS_WORKER_URL = "https://frozen-bella-natural-tools.trentbelasco.workers.dev"
 MCP_WORKER_URL = "https://leads-mcp-worker-v9.trentbelasco.workers.dev"
 GHL_LOCATION_ID = "g7AY3bmahEzCyvglO9IG"
