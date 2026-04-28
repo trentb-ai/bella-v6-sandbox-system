@@ -1553,6 +1553,43 @@ async function deliverDOEvents(
   } catch (e: any) {
     log('DO_ERR', `lid=${lid} event delivery failed: ${e.message}`);
   }
+
+  // Think brain dual delivery (Chunk 5)
+  if (env.THINK_BRAIN) {
+    try {
+      const thinkFetch = (path: string, body: Record<string, any>) =>
+        env.THINK_BRAIN!.fetch(
+          new Request(`https://do-internal${path}?callId=${encodeURIComponent(lid)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-call-id': lid },
+            body: JSON.stringify(body),
+          }),
+        );
+      const thinkFastRes = await thinkFetch('/event', {
+        type: 'fast_intel_ready',
+        payload: envelope,
+        version: 1,
+        eventId: crypto.randomUUID(),
+        sentAt: new Date().toISOString(),
+        source: 'fast-intel',
+      });
+      log('THINK_FAST', `lid=${lid} fast_intel_ready status=${thinkFastRes.status}`);
+
+      if (consultant) {
+        const thinkConsultRes = await thinkFetch('/event', {
+          type: 'consultant_ready',
+          payload: consultant,
+          version: 1,
+          eventId: crypto.randomUUID(),
+          sentAt: new Date().toISOString(),
+          source: 'fast-intel',
+        });
+        log('THINK_CONSULTANT', `lid=${lid} consultant_ready status=${thinkConsultRes.status}`);
+      }
+    } catch (e: any) {
+      log('THINK_DO_ERR', `lid=${lid} Think brain delivery failed: ${e.message}`);
+    }
+  }
 }
 
 // ─── HTTP handler ─────────────────────────────────────────────────────────────

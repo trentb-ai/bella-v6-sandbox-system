@@ -27,6 +27,11 @@ service = "personalisedaidemofinal-sandbox"
 binding = "CALL_BRAIN"
 service = "call-brain-do-v2-rescript"
 
+# Think Brain — event delivery (Chunk 5)
+[[services]]
+binding = "THINK_BRAIN"
+service = "bella-think-agent-v1-brain"
+
 # ─── Secrets (set via: wrangler secret put <NAME>) ───────────────────────────
 # FIRECRAWL_API_KEY
 # GEMINI_API_KEY  (fallback if Consultant service binding unavailable)

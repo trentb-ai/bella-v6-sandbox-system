@@ -6,6 +6,7 @@ export interface Env {
   DEEP_SCRAPE:       Fetcher;            // service binding → deep-scrape-workflow-sandbox
   BIG_SCRAPER:       Fetcher;            // service binding → personalisedaidemofinal-sandbox
   CALL_BRAIN:        Fetcher;            // service binding → call-brain-do (Phase D)
+  THINK_BRAIN?:      Fetcher;            // service binding → bella-think-agent-v1-brain (Chunk 5)
   FIRECRAWL_API_KEY: string;
   SCRAPINGANT_KEY:   string;            // fallback scraper if Firecrawl times out
   GEMINI_API_KEY:    string;             // fallback if CONSULTANT unavailable
