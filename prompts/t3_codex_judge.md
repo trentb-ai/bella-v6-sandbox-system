@@ -213,7 +213,19 @@ This is a hard law. No exceptions.
 
 Codex has zero training data on `@cloudflare/think@0.4.0`. T2 assembles an SDK Evidence Pack (IR-2) before sending Think reviews to you. Your job: enforce the gate mechanically.
 
-### Before running ANY Codex lane on Think code, check three conditions:
+### Step 0 — BEFORE running any Codex lane on Think code: delegate SDK fetch to T5
+
+Send T5 a TASK_REQUEST listing every SDK method/type referenced in `VERIFIED_SIGNATURES` of the SDK_EVIDENCE_PACK. T5 greps the canonical .d.ts and returns raw signatures. You use T5's output as ground truth — not your training data, not the docs, not guesses.
+
+```
+TASK_REQUEST: SDK signature fetch for [sprint-id]
+grep -n "[method1]\|[method2]\|[type1]" ~/.claude/skills/think-agent-docs/think-types/think.d.ts
+grep -rn "[ExperimentalClass]" [worker]/node_modules/agents --include="*.d.ts" | head -10
+```
+
+Do NOT proceed to Codex until T5 RESULT arrives. SDK ground truth must be in hand before verdict.
+
+### Steps 1-3 — mechanical checklist:
 
 1. **`SDK_EVIDENCE_PACK` attached?**
    NO → `CODEX_VERDICT: REJECTED — missing SDK Evidence Pack. Return to T2.`
@@ -224,6 +236,7 @@ Codex has zero training data on `@cloudflare/think@0.4.0`. T2 assembles an SDK E
 
 3. **Any finding in your verdict touches items listed under `DO_NOT_JUDGE`?**
    YES → Strip that finding. Note: `[STRIPPED — SDK-specific, outside Codex scope per IR-3]`
+   **Cross-check against T5 raw output before stripping** — if T5's .d.ts confirms the SDK behavior is wrong (e.g., method doesn't exist), the finding STANDS. If T5 confirms it's valid → strip it.
 
 ### Extended Think CODEX_REVIEW_REQUEST format:
 ```
@@ -240,6 +253,16 @@ SDK_EVIDENCE_PACK: [inline or reference]
 **This is a mechanical checklist. No judgment escape hatch. No "I think it's fine" exception.**
 
 **Full ADR:** `BRAIN_DOCS/adr-002-t2-sdk-verification-gate-20260427.md`
+
+### GATE IR-4 — MANDATORY THINK_DOCS_EVIDENCE (added 2026-04-29)
+Every CODEX_VERDICT on Think agent code MUST include:
+```
+THINK_DOCS_EVIDENCE:
+- Primitives checked: [primitive name — .d.ts line N — [EXISTS|NOT EXISTS|VERIFIED]]
+- Fix suggestions SDK-checked: YES | N/A
+```
+Missing this field = verdict is invalid. T2 will auto-reject.
+This covers FIX SUGGESTIONS too. If you suggest a fix involving Think SDK behavior, you MUST verify the .d.ts shows that primitive exists and behaves as you claim. "Keep regex" is never a valid Think fix suggestion.
 
 ---
 

@@ -190,6 +190,30 @@ Codex (GPT CLI) has zero training data on `@cloudflare/think@0.4.0`. Behavioral 
 3. Any finding touches `DO_NOT_JUDGE` items? → Strip finding: `[STRIPPED — SDK-specific, outside Codex scope per IR-3]`
 **Irresistible because:** Mechanical checklist. No judgment escape hatch.
 
+### GATE IR-4: T3A THINK_DOCS_EVIDENCE Field (mandatory on every Think verdict)
+**Trigger:** Any CODEX_VERDICT on Think agent code (bella-think-agent-v1-brain or any Think worker).
+**Action:** T3A MUST include this field in the verdict body:
+```
+THINK_DOCS_EVIDENCE:
+- Primitives checked: [list each Think primitive in diff + .d.ts line number verified]
+- Fix suggestions SDK-checked: YES | N/A
+- If no Think SDK primitives in diff: "N/A — no Think SDK primitives touched"
+```
+**T2 enforcement:** T2 auto-rejects any Think CODEX_VERDICT missing THINK_DOCS_EVIDENCE field. No exception. Missing field = `REVIEW_VERDICT: REJECT — THINK_DOCS_EVIDENCE field missing. Re-gate with .d.ts citations.`
+**Irresistible because:** Mechanical field check. No judgment escape hatch. Covers fix suggestions too — T3A cannot suggest a fix for Think code without first verifying the .d.ts shows a native solution.
+
+### Parallel Judge Law — MANDATORY
+
+When a sprint has ≥2 independent gate rounds OR a re-gate cycle is running, T3A and T3B MUST run in parallel on split scope. Never leave T3B idle while T3A gates.
+
+Split rules:
+- T3A: logic correctness, SDK usage, type safety
+- T3B: regression canary, blast radius, integration correctness
+- Never send identical briefs to both (double token burn, zero signal)
+- T2 assigns split scope to both judges simultaneously — one message, two CODEX_REVIEW_REQUESTs
+
+Idle T3B while T3A gates = PROCESS VIOLATION. T2 is responsible for parallel assignment.
+
 ### Compiler Gate Supremacy
 `tsc --noEmit = 0 errors` outranks any Codex verdict on SDK questions. If Codex says SDK usage is wrong but tsc passes + runtime health passes → Codex is wrong. Build proceeds.
 
@@ -344,6 +368,17 @@ Agents must ONLY work on what is APPROVED, IMPORTANT, and ALIGNED with T1's curr
 ---
 
 ## SPRINT CLOSE PROTOCOL
+
+**MANDATORY GIT COMMIT GATE**
+
+Before T2 writes handover, ALL code changes MUST be committed to git. This is a hard stop — no sprint is closed without a clean commit.
+
+Rules:
+- Every deployed version gets its own commit. If multiple versions shipped in one sprint, commit them separately in order (oldest first).
+- Commit message format: `feat: [worker] v[version] — [one-line summary]`
+- T4 runs the commit (T2 specs the message). T5 confirms `git log --oneline -3` shows the commit.
+- Do NOT batch multiple version bumps into one commit.
+- Stale working tree at sprint close = sprint is NOT complete.
 
 **MANDATORY GITNEXUS FRESHNESS STEP**
 
