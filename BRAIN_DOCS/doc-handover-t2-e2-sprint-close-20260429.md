@@ -104,7 +104,7 @@ Note: E1/E3/E4 spec exists in `BRAIN_DOCS/spec-e1-e4-stage-policies-memory-20260
 
 | Doc | Status |
 |-----|--------|
-| E2 sprint handover (this doc) | FILE ON NEXT SESSION STARTUP |
+| E2 sprint handover (this doc) | FILED — doc-handover-t2-e2-sprint-close-20260429 |
 | E2 spec v2 | Filed as spec-e2-objection-detection-upgrade-20260429 |
 
 ---
